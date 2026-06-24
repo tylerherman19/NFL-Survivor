@@ -88,9 +88,9 @@ async function getDashboardData() {
       return b.weeks_survived - a.weeks_survived
     })
 
-    const { data: allPicksWithTeam } = await supabase
-      .from('picks')
-      .select('team, week_id')
+    const pastPicksQuery = supabase.from('picks').select('team, week_id')
+    if (week) pastPicksQuery.neq('week_id', week.id)
+    const { data: allPicksWithTeam } = await pastPicksQuery
 
     const teamMap: Record<
       string,

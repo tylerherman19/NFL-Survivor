@@ -25,7 +25,9 @@ export default async function RecapPage() {
     const { generateRecap } = await import('@/lib/recap')
     const { getWeekSundayDeadline } = await import('@/lib/deadline')
 
-    const allPlayers = players || []
+    const allPlayers = (players || []).filter(
+      (p: { email: string }) => !p.email?.endsWith('@nflsurvivor.internal')
+    )
     const alivePlayers = allPlayers.filter((p: { status: string }) => p.status === 'alive')
     const eliminatedThisWeek = allPlayers.filter(
       (p: { elimination_week: number | null }) => p.elimination_week === activeWeek.week_number
