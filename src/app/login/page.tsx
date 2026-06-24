@@ -15,7 +15,6 @@ export default function LoginPage() {
     e.preventDefault()
     setError('')
     setLoading(true)
-
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
@@ -23,12 +22,7 @@ export default function LoginPage() {
         body: JSON.stringify({ full_name: fullName.trim(), pin }),
       })
       const data = await res.json()
-
-      if (!res.ok) {
-        setError(data.error || 'Login failed')
-        return
-      }
-
+      if (!res.ok) { setError(data.error || 'Login failed'); return }
       router.push('/pick')
       router.refresh()
     } catch {
@@ -39,80 +33,74 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <p className="text-4xl mb-3">🏈</p>
-          <h1 className="text-2xl font-bold text-white">NFL Survivor Pool</h1>
-          <p className="text-slate-400 mt-1 text-sm">Log in to submit your weekly pick</p>
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--cream)' }}>
+      {/* Header */}
+      <header style={{ background: 'var(--dark)' }}>
+        <div className="mx-auto max-w-5xl px-4 py-4 flex items-center justify-between">
+          <Link href="/" className="font-display text-white text-lg tracking-wider">NFL SURVIVOR POOL</Link>
         </div>
+      </header>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1.5">
-              Full Name
-            </label>
-            <input
-              type="text"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="e.g. John Smith"
-              required
-              autoComplete="name"
-              className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2.5 text-white placeholder-slate-500 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
-            />
-          </div>
+      <main className="flex-1 flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-sm">
+          <h1 className="font-display text-5xl mb-1" style={{ color: 'var(--dark)' }}>LOG IN</h1>
+          <p className="text-sm mb-8" style={{ color: 'var(--muted)' }}>Enter your name and 6-digit PIN to submit your pick.</p>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1.5">PIN</label>
-            <input
-              type="password"
-              inputMode="numeric"
-              value={pin}
-              onChange={(e) => setPin(e.target.value)}
-              placeholder="6-digit PIN from your welcome email"
-              required
-              maxLength={6}
-              className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2.5 text-white placeholder-slate-500 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
-            />
-          </div>
-
-          {error && (
-            <div className="rounded-lg bg-red-500/10 border border-red-500/30 px-3 py-2 text-sm text-red-400">
-              {error}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold tracking-widest uppercase mb-2" style={{ color: 'var(--dark)' }}>Full Name</label>
+              <input
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="e.g. John Smith"
+                required
+                autoComplete="name"
+                className="w-full border px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2"
+                style={{ borderColor: 'var(--border)', color: 'var(--dark)' }}
+              />
             </div>
-          )}
+            <div>
+              <label className="block text-xs font-bold tracking-widest uppercase mb-2" style={{ color: 'var(--dark)' }}>PIN</label>
+              <input
+                type="password"
+                inputMode="numeric"
+                value={pin}
+                onChange={(e) => setPin(e.target.value)}
+                placeholder="6-digit PIN from your welcome email"
+                required
+                maxLength={6}
+                className="w-full border px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2"
+                style={{ borderColor: 'var(--border)', color: 'var(--dark)' }}
+              />
+            </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-green-600 py-2.5 font-semibold text-white hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {loading ? 'Logging in…' : 'Log In'}
-          </button>
-        </form>
+            {error && (
+              <p className="text-sm" style={{ color: 'var(--red)' }}>{error}</p>
+            )}
 
-        <div className="mt-6 text-center space-y-3">
-          <Link
-            href="/forgot-pin"
-            className="block text-sm text-slate-400 hover:text-slate-200 underline"
-          >
-            Forgot your PIN?
-          </Link>
-          <p className="text-sm text-slate-400">
-            New to the pool?{' '}
-            <Link href="/signup" className="text-green-400 hover:text-green-300 underline">
-              Sign up here
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full font-display tracking-wider text-white py-3 disabled:opacity-50 transition-opacity"
+              style={{ background: loading ? 'var(--muted)' : 'var(--red)' }}
+            >
+              {loading ? 'LOGGING IN…' : 'LOG IN'}
+            </button>
+          </form>
+
+          <div className="mt-6 space-y-2 text-center">
+            <Link href="/forgot-pin" className="block text-xs tracking-widest uppercase underline" style={{ color: 'var(--muted)' }}>
+              Forgot your PIN?
             </Link>
-          </p>
+            <p className="text-xs" style={{ color: 'var(--muted)' }}>
+              New to the pool?{' '}
+              <Link href="/signup" className="underline" style={{ color: 'var(--dark)' }}>Sign up here</Link>
+            </p>
+            <Link href="/" className="block text-xs tracking-widest uppercase" style={{ color: 'var(--muted)' }}>← Standings</Link>
+          </div>
         </div>
-
-        <div className="mt-4 text-center">
-          <Link href="/" className="text-sm text-slate-500 hover:text-slate-300">
-            ← Back to standings
-          </Link>
-        </div>
-      </div>
+      </main>
     </div>
   )
 }

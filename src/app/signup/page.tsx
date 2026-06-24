@@ -16,25 +16,14 @@ export default function SignupPage() {
     e.preventDefault()
     setError('')
     setLoading(true)
-
     try {
       const res = await fetch('/api/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          full_name: fullName.trim(),
-          email: email.trim(),
-          phone: phone.trim() || undefined,
-          venmo: venmo.trim() || undefined,
-        }),
+        body: JSON.stringify({ full_name: fullName.trim(), email: email.trim(), phone: phone.trim() || undefined, venmo: venmo.trim() || undefined }),
       })
       const data = await res.json()
-
-      if (!res.ok) {
-        setError(data.error || 'Signup failed')
-        return
-      }
-
+      if (!res.ok) { setError(data.error || 'Signup failed'); return }
       setDone(true)
     } catch {
       setError('Something went wrong. Try again.')
@@ -43,124 +32,84 @@ export default function SignupPage() {
     }
   }
 
-  if (done) {
-    return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center px-4">
-        <div className="w-full max-w-sm text-center space-y-4">
-          <p className="text-5xl">🎉</p>
-          <h1 className="text-2xl font-bold text-white">You&apos;re signed up!</h1>
-          <p className="text-slate-300">
-            Check your email — your 6-digit PIN is on its way. You&apos;ll need it to log in and submit picks each week.
-          </p>
-          <p className="text-slate-400 text-sm">
-            Don&apos;t forget to Venmo <strong className="text-white">@griffinsell</strong> $25 to secure your spot.
-          </p>
-          <Link
-            href="/login"
-            className="inline-block mt-4 rounded-lg bg-green-600 px-6 py-2.5 font-semibold text-white hover:bg-green-500 transition-colors"
-          >
-            Go to Login
-          </Link>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <p className="text-4xl mb-3">🏈</p>
-          <h1 className="text-2xl font-bold text-white">Join the Survivor Pool</h1>
-          <p className="text-slate-400 mt-1 text-sm">$25 entry via Venmo to @griffinsell</p>
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--cream)' }}>
+      <header style={{ background: 'var(--dark)' }}>
+        <div className="mx-auto max-w-5xl px-4 py-4">
+          <Link href="/" className="font-display text-white text-lg tracking-wider">NFL SURVIVOR POOL</Link>
         </div>
+      </header>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1.5">
-              Full Name <span className="text-red-400">*</span>
-            </label>
-            <input
-              type="text"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="e.g. John Smith"
-              required
-              autoComplete="name"
-              className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2.5 text-white placeholder-slate-500 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1.5">
-              Email <span className="text-red-400">*</span>
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              required
-              autoComplete="email"
-              className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2.5 text-white placeholder-slate-500 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
-            />
-            <p className="text-xs text-slate-500 mt-1">Your PIN will be sent here.</p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1.5">
-              Phone <span className="text-slate-500 font-normal">(optional)</span>
-            </label>
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="(608) 555-1234"
-              autoComplete="tel"
-              className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2.5 text-white placeholder-slate-500 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1.5">
-              Venmo Handle <span className="text-slate-500 font-normal">(optional)</span>
-            </label>
-            <input
-              type="text"
-              value={venmo}
-              onChange={(e) => setVenmo(e.target.value)}
-              placeholder="@yourhandle"
-              className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2.5 text-white placeholder-slate-500 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
-            />
-          </div>
-
-          {error && (
-            <div className="rounded-lg bg-red-500/10 border border-red-500/30 px-3 py-2 text-sm text-red-400">
-              {error}
+      <main className="flex-1 flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-sm">
+          {done ? (
+            <div className="text-center space-y-4">
+              <p className="font-display text-5xl" style={{ color: 'var(--green)' }}>YOU&apos;RE IN!</p>
+              <p className="text-sm" style={{ color: 'var(--dark)' }}>
+                Check your email — your 6-digit PIN is on its way. You&apos;ll need it to log in and submit picks each week.
+              </p>
+              <p className="text-sm" style={{ color: 'var(--muted)' }}>
+                Don&apos;t forget to Venmo <strong style={{ color: 'var(--dark)' }}>@griffinsell</strong> $25 to lock in your spot.
+              </p>
+              <Link
+                href="/login"
+                className="inline-block font-display tracking-wider text-white px-6 py-3 mt-2"
+                style={{ background: 'var(--red)' }}
+              >
+                LOG IN →
+              </Link>
             </div>
+          ) : (
+            <>
+              <h1 className="font-display text-5xl mb-1" style={{ color: 'var(--dark)' }}>JOIN THE POOL</h1>
+              <p className="text-sm mb-8" style={{ color: 'var(--muted)' }}>$25 entry via Venmo to @griffinsell.</p>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {[
+                  { label: 'Full Name', type: 'text', val: fullName, set: setFullName, placeholder: 'e.g. John Smith', required: true, autoComplete: 'name' },
+                  { label: 'Email', type: 'email', val: email, set: setEmail, placeholder: 'you@example.com', required: true, autoComplete: 'email', note: 'Your PIN will be sent here.' },
+                  { label: 'Phone (optional)', type: 'tel', val: phone, set: setPhone, placeholder: '(608) 555-1234', required: false, autoComplete: 'tel' },
+                  { label: 'Venmo Handle (optional)', type: 'text', val: venmo, set: setVenmo, placeholder: '@yourhandle', required: false },
+                ].map(({ label, type, val, set, placeholder, required, autoComplete, note }) => (
+                  <div key={label}>
+                    <label className="block text-xs font-bold tracking-widest uppercase mb-2" style={{ color: 'var(--dark)' }}>{label}</label>
+                    <input
+                      type={type}
+                      value={val}
+                      onChange={(e) => set(e.target.value)}
+                      placeholder={placeholder}
+                      required={required}
+                      autoComplete={autoComplete}
+                      className="w-full border px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2"
+                      style={{ borderColor: 'var(--border)', color: 'var(--dark)' }}
+                    />
+                    {note && <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>{note}</p>}
+                  </div>
+                ))}
+
+                {error && <p className="text-sm" style={{ color: 'var(--red)' }}>{error}</p>}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full font-display tracking-wider text-white py-3 disabled:opacity-50"
+                  style={{ background: 'var(--red)' }}
+                >
+                  {loading ? 'SIGNING UP…' : 'SIGN UP & GET MY PIN'}
+                </button>
+              </form>
+
+              <div className="mt-6 text-center space-y-2">
+                <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                  Already have an account?{' '}
+                  <Link href="/login" className="underline" style={{ color: 'var(--dark)' }}>Log in</Link>
+                </p>
+                <Link href="/" className="block text-xs tracking-widest uppercase" style={{ color: 'var(--muted)' }}>← Standings</Link>
+              </div>
+            </>
           )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-green-600 py-2.5 font-semibold text-white hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {loading ? 'Creating account…' : 'Sign Up & Get My PIN'}
-          </button>
-        </form>
-
-        <div className="mt-6 text-center space-y-2">
-          <p className="text-sm text-slate-400">
-            Already have an account?{' '}
-            <Link href="/login" className="text-green-400 hover:text-green-300 underline">
-              Log in
-            </Link>
-          </p>
-          <Link href="/" className="block text-sm text-slate-500 hover:text-slate-300">
-            ← Back to standings
-          </Link>
         </div>
-      </div>
+      </main>
     </div>
   )
 }

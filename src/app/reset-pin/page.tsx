@@ -17,16 +17,8 @@ function ResetForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
-
-    if (!/^\d{6}$/.test(pin)) {
-      setError('PIN must be exactly 6 digits')
-      return
-    }
-    if (pin !== confirmPin) {
-      setError('PINs do not match')
-      return
-    }
-
+    if (!/^\d{6}$/.test(pin)) { setError('PIN must be exactly 6 digits'); return }
+    if (pin !== confirmPin) { setError('PINs do not match'); return }
     setLoading(true)
     try {
       const res = await fetch('/api/reset-pin', {
@@ -35,12 +27,7 @@ function ResetForm() {
         body: JSON.stringify({ token, pin }),
       })
       const data = await res.json()
-
-      if (!res.ok) {
-        setError(data.error || 'Reset failed')
-        return
-      }
-
+      if (!res.ok) { setError(data.error || 'Reset failed'); return }
       setSuccess(true)
       setTimeout(() => router.push('/login'), 2500)
     } catch {
@@ -50,72 +37,49 @@ function ResetForm() {
     }
   }
 
-  if (!token) {
-    return (
-      <div className="text-center">
-        <p className="text-red-400">Invalid reset link. Please request a new one.</p>
-        <Link href="/forgot-pin" className="mt-4 block text-green-400 underline">
-          Request new link
-        </Link>
-      </div>
-    )
-  }
+  if (!token) return (
+    <div className="text-center">
+      <p className="text-sm" style={{ color: 'var(--red)' }}>Invalid reset link. Please request a new one.</p>
+      <Link href="/forgot-pin" className="mt-4 block text-xs tracking-widest uppercase underline" style={{ color: 'var(--muted)' }}>Request new link</Link>
+    </div>
+  )
 
-  if (success) {
-    return (
-      <div className="text-center">
-        <p className="text-3xl mb-3">✅</p>
-        <p className="text-white font-semibold">PIN updated!</p>
-        <p className="text-slate-400 text-sm mt-2">Redirecting to login…</p>
-      </div>
-    )
-  }
+  if (success) return (
+    <div className="text-center">
+      <p className="font-display text-5xl" style={{ color: 'var(--green)' }}>PIN SET!</p>
+      <p className="text-sm mt-3" style={{ color: 'var(--muted)' }}>Redirecting to login…</p>
+    </div>
+  )
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-slate-300 mb-1.5">New PIN</label>
-        <input
-          type="password"
-          inputMode="numeric"
-          value={pin}
-          onChange={(e) => setPin(e.target.value)}
-          placeholder="6 digits"
-          maxLength={6}
-          pattern="\d{6}"
-          required
-          className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2.5 text-white placeholder-slate-500 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-slate-300 mb-1.5">
-          Confirm New PIN
-        </label>
-        <input
-          type="password"
-          inputMode="numeric"
-          value={confirmPin}
-          onChange={(e) => setConfirmPin(e.target.value)}
-          placeholder="6 digits again"
-          maxLength={6}
-          required
-          className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2.5 text-white placeholder-slate-500 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
-        />
-      </div>
-
-      {error && (
-        <div className="rounded-lg bg-red-500/10 border border-red-500/30 px-3 py-2 text-sm text-red-400">
-          {error}
+      {[
+        { label: 'New PIN', val: pin, set: setPin },
+        { label: 'Confirm New PIN', val: confirmPin, set: setConfirmPin },
+      ].map(({ label, val, set }) => (
+        <div key={label}>
+          <label className="block text-xs font-bold tracking-widest uppercase mb-2" style={{ color: 'var(--dark)' }}>{label}</label>
+          <input
+            type="password"
+            inputMode="numeric"
+            value={val}
+            onChange={(e) => set(e.target.value)}
+            placeholder="6 digits"
+            maxLength={6}
+            required
+            className="w-full border px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2"
+            style={{ borderColor: 'var(--border)', color: 'var(--dark)' }}
+          />
         </div>
-      )}
-
+      ))}
+      {error && <p className="text-sm" style={{ color: 'var(--red)' }}>{error}</p>}
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-lg bg-green-600 py-2.5 font-semibold text-white hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="w-full font-display tracking-wider text-white py-3 disabled:opacity-50"
+        style={{ background: 'var(--red)' }}
       >
-        {loading ? 'Saving…' : 'Set New PIN'}
+        {loading ? 'SAVING…' : 'SET NEW PIN'}
       </button>
     </form>
   )
@@ -123,21 +87,24 @@ function ResetForm() {
 
 export default function ResetPinPage() {
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-white">Set a New PIN</h1>
-          <p className="text-slate-400 mt-1 text-sm">Choose a 6-digit number you&apos;ll remember.</p>
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--cream)' }}>
+      <header style={{ background: 'var(--dark)' }}>
+        <div className="mx-auto max-w-5xl px-4 py-4">
+          <Link href="/" className="font-display text-white text-lg tracking-wider">NFL SURVIVOR POOL</Link>
         </div>
-        <Suspense fallback={<p className="text-slate-400 text-center">Loading…</p>}>
-          <ResetForm />
-        </Suspense>
-        <div className="mt-6 text-center">
-          <Link href="/login" className="text-sm text-slate-400 hover:text-slate-200 underline">
-            Back to login
-          </Link>
+      </header>
+      <main className="flex-1 flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-sm">
+          <h1 className="font-display text-5xl mb-1" style={{ color: 'var(--dark)' }}>SET NEW PIN</h1>
+          <p className="text-sm mb-8" style={{ color: 'var(--muted)' }}>Choose a 6-digit number you&apos;ll remember.</p>
+          <Suspense fallback={<p className="text-sm" style={{ color: 'var(--muted)' }}>Loading…</p>}>
+            <ResetForm />
+          </Suspense>
+          <div className="mt-6 text-center">
+            <Link href="/login" className="text-xs tracking-widest uppercase underline" style={{ color: 'var(--muted)' }}>Back to Login</Link>
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   )
 }

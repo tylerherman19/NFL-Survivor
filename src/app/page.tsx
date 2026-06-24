@@ -3,6 +3,10 @@ import { NFL_TEAM_NAMES } from '@/types'
 import type { StandingRow, TeamStat, Week, Game } from '@/types'
 import Countdown from './components/Countdown'
 
+const ALIVE_PREVIEW = 7
+const ELIM_PREVIEW = 5
+const TOTAL_WEEKS = 18
+
 async function getDashboardData() {
   try {
     const { supabase } = await import('@/lib/supabase')
@@ -30,7 +34,7 @@ async function getDashboardData() {
     let currentPicks: Record<string, string> = {}
     let games: Game[] = []
     let nextDeadline: string | null = null
-    let nextDeadlineLabel: string | null = null
+    let nextDeadlineFormatted: string | null = null
 
     if (week) {
       const { data: picksData } = await supabase
@@ -54,25 +58,29 @@ async function getDashboardData() {
         const sundayDeadline = getWeekSundayDeadline(gamesData)
         if (sundayDeadline && sundayDeadline > new Date()) {
           nextDeadline = sundayDeadline.toISOString()
-          nextDeadlineLabel = `Week ${week.week_number} Sunday Deadline`
+          nextDeadlineFormatted = sundayDeadline.toLocaleString('en-US', {
+            timeZone: 'America/Chicago',
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            timeZoneName: 'short',
+          })
         }
       }
     }
 
-    const { data: allPicks } = await supabase
-      .from('picks')
-      .select('player_id, week_id')
-
+    const { data: allPicks } = await supabase.from('picks').select('player_id, week_id')
     const weeksSurvivedByPlayer: Record<string, number> = {}
     if (allPicks) {
       for (const pick of allPicks) {
-        weeksSurvivedByPlayer[pick.player_id] =
-          (weeksSurvivedByPlayer[pick.player_id] || 0) + 1
+        weeksSurvivedByPlayer[pick.player_id] = (weeksSurvivedByPlayer[pick.player_id] || 0) + 1
       }
     }
 
     const standings: StandingRow[] = players.map(
-      (p: { id: string; full_name: string; status: string; elimination_reason: string | null }) => ({
+      (p: { id: string; full_name: string; status: string; elimination_reason: string | null; elimination_week: number | null }) => ({
         player_id: p.id,
         full_name: p.full_name,
         status: p.status as 'alive' | 'eliminated',
@@ -80,6 +88,7 @@ async function getDashboardData() {
         current_pick: currentPicks[p.id] || null,
         pick_locked: !!currentPicks[p.id],
         elimination_reason: p.elimination_reason,
+        elimination_week: p.elimination_week,
       })
     )
 
@@ -92,26 +101,18 @@ async function getDashboardData() {
     if (week) pastPicksQuery.neq('week_id', week.id)
     const { data: allPicksWithTeam } = await pastPicksQuery
 
-    const teamMap: Record<
-      string,
-      { times_picked: number; wins: number; eliminations: number }
-    > = {}
-
+    const teamMap: Record<string, { times_picked: number; wins: number; eliminations: number }> = {}
     if (allPicksWithTeam) {
       const { data: allGames } = await supabase.from('games').select('*')
       const winnersByWeek: Record<string, string[]> = {}
       if (allGames) {
         for (const g of allGames) {
-          if (g.result === 'home_win')
-            winnersByWeek[g.week_id] = [...(winnersByWeek[g.week_id] || []), g.home_team]
-          else if (g.result === 'away_win')
-            winnersByWeek[g.week_id] = [...(winnersByWeek[g.week_id] || []), g.away_team]
+          if (g.result === 'home_win') winnersByWeek[g.week_id] = [...(winnersByWeek[g.week_id] || []), g.home_team]
+          else if (g.result === 'away_win') winnersByWeek[g.week_id] = [...(winnersByWeek[g.week_id] || []), g.away_team]
         }
       }
-
       for (const pick of allPicksWithTeam) {
-        if (!teamMap[pick.team])
-          teamMap[pick.team] = { times_picked: 0, wins: 0, eliminations: 0 }
+        if (!teamMap[pick.team]) teamMap[pick.team] = { times_picked: 0, wins: 0, eliminations: 0 }
         teamMap[pick.team].times_picked++
         const winners = winnersByWeek[pick.week_id] || []
         if (winners.includes(pick.team)) teamMap[pick.team].wins++
@@ -135,9 +136,10 @@ async function getDashboardData() {
       potSize,
       payoutPerSurvivor,
       aliveCount: alive.length,
+      eliminatedCount: players.length - alive.length,
       totalPlayers: players.length,
       nextDeadline,
-      nextDeadlineLabel,
+      nextDeadlineFormatted,
     }
   } catch {
     return null
@@ -147,197 +149,235 @@ async function getDashboardData() {
 export default async function DashboardPage() {
   const data = await getDashboardData()
 
+  const aliveRows = data?.standings.filter((r) => r.status === 'alive') ?? []
+  const elimRows = data?.standings.filter((r) => r.status === 'eliminated') ?? []
+
   return (
-    <div className="min-h-screen bg-slate-900">
-      <header className="border-b border-slate-700 bg-slate-800">
-        <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-white">🏈 NFL Survivor Pool</h1>
-            {data?.week && (
-              <p className="text-slate-400 text-sm mt-0.5">
-                Week {data.week.week_number} · Season {data.week.season_year}
-              </p>
-            )}
-          </div>
-          <div className="flex gap-3">
+    <div style={{ background: 'var(--cream)', minHeight: '100vh' }}>
+      {/* Header */}
+      <header style={{ background: 'var(--dark)' }}>
+        <div className="mx-auto max-w-5xl px-4 py-4 flex items-center justify-between">
+          <span className="font-display text-white text-lg tracking-wider">NFL SURVIVOR POOL</span>
+          <nav className="flex items-center gap-6">
+            <a href="#standings" className="text-xs tracking-widest uppercase text-gray-400 hover:text-white transition-colors hidden sm:block">Standings</a>
+            <a href="#rules" className="text-xs tracking-widest uppercase text-gray-400 hover:text-white transition-colors hidden sm:block">Rules</a>
+            <Link href="/login" className="text-xs tracking-widest uppercase text-gray-400 hover:text-white transition-colors">Log In</Link>
             <Link
-              href="/signup"
-              className="rounded-lg border border-green-600 px-4 py-2 text-sm font-semibold text-green-400 hover:bg-green-600 hover:text-white transition-colors"
+              href="/pick"
+              className="font-display text-sm tracking-wider px-4 py-2 text-white"
+              style={{ background: 'var(--red)' }}
             >
-              Sign Up
+              SUBMIT PICK →
             </Link>
-            <Link
-              href="/login"
-              className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-500 transition-colors"
-            >
-              Log In
-            </Link>
-          </div>
+          </nav>
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-8 space-y-8">
-        {!data ? (
-          <div className="text-center py-16 text-slate-400">
-            <p className="text-4xl mb-4">🏈</p>
-            <p className="text-xl font-semibold text-white">Pool setup in progress</p>
-            <p className="mt-2">The season hasn&apos;t started yet. Check back soon!</p>
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <StatCard label="Still Alive" value={data.aliveCount} color="text-green-400" />
-              <StatCard
-                label="Eliminated"
-                value={data.totalPlayers - data.aliveCount}
-                color="text-red-400"
-              />
-              <StatCard label="Pot Size" value={`$${data.potSize}`} color="text-yellow-400" />
-              <StatCard
-                label={data.aliveCount === 1 ? 'Winner Gets' : 'Split Estimate'}
-                value={data.aliveCount > 0 ? `$${data.payoutPerSurvivor}` : '—'}
-                color="text-yellow-400"
-                sub={data.aliveCount > 1 ? `${data.aliveCount} survivors` : undefined}
-              />
+      {!data ? (
+        <main className="mx-auto max-w-5xl px-4 py-20 text-center">
+          <p className="font-display text-6xl" style={{ color: 'var(--dark)' }}>POOL SETUP IN PROGRESS</p>
+          <p className="mt-4 text-sm tracking-widest uppercase" style={{ color: 'var(--muted)' }}>Check back soon</p>
+        </main>
+      ) : (
+        <main className="mx-auto max-w-5xl px-4">
+          {/* Hero */}
+          <div className="py-8 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 border-b" style={{ borderColor: 'var(--border)' }}>
+            <div>
+              <h1 className="font-display text-7xl sm:text-8xl leading-none" style={{ color: 'var(--dark)' }}>
+                {data.week?.season_year ?? '2026'} SEASON
+              </h1>
+              <p className="mt-1 text-xs tracking-widest uppercase" style={{ color: 'var(--muted)' }}>
+                Week {data.week?.week_number ?? '—'} of {TOTAL_WEEKS}
+              </p>
             </div>
-
             {data.nextDeadline && (
-              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-center">
-                <p className="text-sm text-amber-400 font-medium mb-1">
-                  ⏰ {data.nextDeadlineLabel}
-                </p>
+              <div className="sm:text-right">
+                <p className="text-xs font-bold tracking-widest uppercase" style={{ color: 'var(--red)' }}>Pick Deadline</p>
+                <p className="font-bold text-base mt-0.5" style={{ color: 'var(--dark)' }}>{data.nextDeadlineFormatted}</p>
                 <Countdown deadline={data.nextDeadline} />
               </div>
             )}
+          </div>
 
-            <section>
-              <h2 className="text-lg font-semibold text-white mb-3">Standings</h2>
-              <div className="overflow-x-auto rounded-xl border border-slate-700">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-700 bg-slate-800 text-slate-400 text-left">
-                      <th className="px-4 py-3">#</th>
-                      <th className="px-4 py-3">Player</th>
-                      <th className="px-4 py-3">Status</th>
-                      <th className="px-4 py-3">Weeks</th>
-                      <th className="px-4 py-3">This Week</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.standings.map((row, i) => (
-                      <tr
-                        key={row.player_id}
-                        className={`border-b border-slate-700/50 ${
-                          row.status === 'alive'
-                            ? 'bg-slate-800/50'
-                            : 'bg-slate-900/50 opacity-60'
-                        }`}
-                      >
-                        <td className="px-4 py-3 text-slate-500">{i + 1}</td>
-                        <td className="px-4 py-3 font-medium text-white">{row.full_name}</td>
-                        <td className="px-4 py-3">
-                          {row.status === 'alive' ? (
-                            <span className="text-green-400 font-medium">✅ Alive</span>
-                          ) : (
-                            <span className="text-red-400">❌ Out</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-slate-300">{row.weeks_survived}</td>
-                        <td className="px-4 py-3">
-                          {row.current_pick ? (
-                            <span className="rounded bg-green-900/50 border border-green-700/50 px-2 py-0.5 text-xs font-medium text-green-400">
-                              ✓ Pick Made
-                            </span>
-                          ) : row.status === 'alive' ? (
-                            <span className="text-amber-400 text-xs">pending</span>
-                          ) : (
-                            <span className="text-slate-600">—</span>
-                          )}
-                        </td>
-                      </tr>
+          {/* Stats */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 border-b" style={{ borderColor: 'var(--border)' }}>
+            <StatCol value={data.aliveCount} label="Still Alive" valueColor="var(--green)" />
+            <StatCol value={data.eliminatedCount} label="Eliminated" valueColor="var(--red)" border />
+            <StatCol value={`$${data.potSize}`} label="Pot Size" border />
+            <StatCol
+              value={data.aliveCount > 0 ? `$${data.payoutPerSurvivor}` : '—'}
+              label={data.aliveCount === 1 ? 'Winner Takes' : 'Split Estimate'}
+              border
+            />
+          </div>
+
+          {/* Standings */}
+          <div id="standings" className="py-8">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b" style={{ borderColor: 'var(--border)' }}>
+                  <th className="py-2 w-8 text-left text-xs tracking-widest uppercase" style={{ color: 'var(--muted)' }}>#</th>
+                  <th className="py-2 text-left text-xs tracking-widest uppercase" style={{ color: 'var(--muted)' }}>Player</th>
+                  <th className="py-2 text-left text-xs tracking-widest uppercase hidden sm:table-cell" style={{ color: 'var(--muted)' }}>Status</th>
+                  <th className="py-2 text-left text-xs tracking-widest uppercase" style={{ color: 'var(--muted)' }}>
+                    {data.week ? `Wk ${data.week.week_number} Pick` : 'Pick'}
+                  </th>
+                  <th className="py-2 text-right text-xs tracking-widest uppercase hidden sm:table-cell" style={{ color: 'var(--muted)' }}>Streak</th>
+                </tr>
+              </thead>
+              <tbody>
+                {/* Alive section */}
+                {aliveRows.length > 0 && (
+                  <tr>
+                    <td colSpan={5} className="pt-5 pb-2">
+                      <span className="text-xs font-bold tracking-widest uppercase" style={{ color: 'var(--green)' }}>
+                        • {aliveRows.length} Still Alive
+                      </span>
+                    </td>
+                  </tr>
+                )}
+                {aliveRows.slice(0, ALIVE_PREVIEW).map((row, i) => (
+                  <tr key={row.player_id} className="border-b" style={{ borderColor: 'var(--border)' }}>
+                    <td className="py-3 text-sm" style={{ color: 'var(--muted)' }}>{i + 1}</td>
+                    <td className="py-3 font-bold" style={{ color: 'var(--dark)' }}>{row.full_name}</td>
+                    <td className="py-3 hidden sm:table-cell">
+                      <span className="text-xs font-bold tracking-wider" style={{ color: 'var(--green)' }}>• ALIVE</span>
+                    </td>
+                    <td className="py-3">
+                      {row.current_pick ? (
+                        <span className="text-xs font-semibold" style={{ color: 'var(--green)' }}>✓ Pick In</span>
+                      ) : (
+                        <span className="text-xs italic" style={{ color: 'var(--red)' }}>no pick yet</span>
+                      )}
+                    </td>
+                    <td className="py-3 text-right text-xs hidden sm:table-cell" style={{ color: 'var(--muted)' }}>
+                      {row.weeks_survived > 0 ? `${row.weeks_survived} wk${row.weeks_survived !== 1 ? 's' : ''}` : '—'}
+                    </td>
+                  </tr>
+                ))}
+                {aliveRows.length > ALIVE_PREVIEW && (
+                  <tr>
+                    <td colSpan={5} className="py-2 text-xs italic" style={{ color: 'var(--muted)' }}>
+                      + {aliveRows.length - ALIVE_PREVIEW} more still alive
+                    </td>
+                  </tr>
+                )}
+
+                {/* Eliminated section */}
+                {elimRows.length > 0 && (
+                  <tr>
+                    <td colSpan={5} className="pt-6 pb-2">
+                      <span className="text-xs font-bold tracking-widest uppercase" style={{ color: 'var(--red)' }}>
+                        ♦ {elimRows.length} Eliminated
+                      </span>
+                    </td>
+                  </tr>
+                )}
+                {elimRows.slice(0, ELIM_PREVIEW).map((row) => (
+                  <tr key={row.player_id} className="border-b" style={{ borderColor: 'var(--border)', opacity: 0.6 }}>
+                    <td className="py-2.5 text-sm" style={{ color: 'var(--muted)' }}>—</td>
+                    <td className="py-2.5 text-sm" style={{ color: 'var(--muted)', textDecoration: 'line-through' }}>{row.full_name}</td>
+                    <td className="py-2.5 hidden sm:table-cell">
+                      <span className="text-xs font-bold tracking-wider" style={{ color: 'var(--red)' }}>
+                        OUT{(row as StandingRow & { elimination_week?: number | null }).elimination_week ? ` WK ${(row as StandingRow & { elimination_week?: number | null }).elimination_week}` : ''}
+                      </span>
+                    </td>
+                    <td className="py-2.5 text-xs font-mono" style={{ color: 'var(--muted)' }}>—</td>
+                    <td className="py-2.5 text-right text-xs hidden sm:table-cell" style={{ color: 'var(--muted)' }}>
+                      {row.weeks_survived > 0 ? `${row.weeks_survived} wk${row.weeks_survived !== 1 ? 's' : ''}` : '1 wk'}
+                    </td>
+                  </tr>
+                ))}
+                {elimRows.length > ELIM_PREVIEW && (
+                  <tr>
+                    <td colSpan={5} className="py-2 text-xs italic" style={{ color: 'var(--muted)' }}>
+                      + {elimRows.length - ELIM_PREVIEW} more eliminated
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Team Pick Stats (past weeks only) */}
+          {data.teamStats.length > 0 && (
+            <div className="py-8 border-t" style={{ borderColor: 'var(--border)' }}>
+              <p className="text-xs font-bold tracking-widest uppercase mb-4" style={{ color: 'var(--muted)' }}>Team Pick History</p>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b" style={{ borderColor: 'var(--border)' }}>
+                    {['Team', 'Times Picked', 'Win Rate', 'Eliminations'].map((h) => (
+                      <th key={h} className="py-2 text-left text-xs tracking-widest uppercase" style={{ color: 'var(--muted)' }}>{h}</th>
                     ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.teamStats.map((stat) => (
+                    <tr key={stat.team} className="border-b" style={{ borderColor: 'var(--border)' }}>
+                      <td className="py-2.5">
+                        <span className="font-bold font-mono" style={{ color: 'var(--dark)' }}>{stat.team}</span>
+                        <span className="ml-2 text-xs hidden sm:inline" style={{ color: 'var(--muted)' }}>{NFL_TEAM_NAMES[stat.team]}</span>
+                      </td>
+                      <td className="py-2.5" style={{ color: 'var(--dark)' }}>{stat.times_picked}</td>
+                      <td className="py-2.5 font-semibold" style={{ color: stat.win_rate >= 0.6 ? 'var(--green)' : stat.win_rate >= 0.4 ? 'var(--dark)' : 'var(--red)' }}>
+                        {(stat.win_rate * 100).toFixed(0)}%
+                      </td>
+                      <td className="py-2.5" style={{ color: 'var(--dark)' }}>{stat.eliminations_caused}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
-            {data.teamStats.length > 0 && (
-              <section>
-                <h2 className="text-lg font-semibold text-white mb-3">Team Pick Stats</h2>
-                <div className="overflow-x-auto rounded-xl border border-slate-700">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-700 bg-slate-800 text-slate-400 text-left">
-                        <th className="px-4 py-3">Team</th>
-                        <th className="px-4 py-3">Times Picked</th>
-                        <th className="px-4 py-3">Win Rate</th>
-                        <th className="px-4 py-3">Eliminations</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.teamStats.map((stat) => (
-                        <tr
-                          key={stat.team}
-                          className="border-b border-slate-700/50 bg-slate-800/30"
-                        >
-                          <td className="px-4 py-3">
-                            <span className="font-mono font-bold text-white">{stat.team}</span>
-                            <span className="ml-2 text-slate-400 text-xs hidden sm:inline">
-                              {NFL_TEAM_NAMES[stat.team]}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-slate-300">{stat.times_picked}</td>
-                          <td className="px-4 py-3">
-                            <span
-                              className={
-                                stat.win_rate >= 0.7
-                                  ? 'text-green-400'
-                                  : stat.win_rate >= 0.5
-                                  ? 'text-yellow-400'
-                                  : 'text-red-400'
-                              }
-                            >
-                              {(stat.win_rate * 100).toFixed(0)}%
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-slate-300">{stat.eliminations_caused}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            )}
-          </>
-        )}
-      </main>
+          {/* Rules */}
+          <div id="rules" className="py-8 border-t" style={{ borderColor: 'var(--border)' }}>
+            <p className="text-xs font-bold tracking-widest uppercase mb-4" style={{ color: 'var(--muted)' }}>How It Works</p>
+            <div className="grid sm:grid-cols-2 gap-x-12 gap-y-3 text-sm" style={{ color: 'var(--dark)' }}>
+              <Rule n="1" text="Pay $25 entry via Venmo to @griffinsell." />
+              <Rule n="2" text="Each week, pick one NFL team to win their game." />
+              <Rule n="3" text="You can't pick the same team twice all season." />
+              <Rule n="4" text="Your team wins → you survive. Loses or ties → you're out." />
+              <Rule n="5" text="Thu/Fri/Sat games lock at kickoff. All other picks lock Sunday 12 PM CT." />
+              <Rule n="6" text="Miss the deadline and you'll be auto-assigned the SNF away team, then MNF. Miss both and you're eliminated." />
+            </div>
+          </div>
+        </main>
+      )}
 
-      <footer className="mt-16 border-t border-slate-700 py-6 text-center text-slate-500 text-sm">
-        NFL Survivor Pool · $25 entry via Venmo @griffinsell ·{' '}
-        <Link href="/admin/login" className="hover:text-slate-300 underline">
-          Admin
-        </Link>
+      {/* Footer */}
+      <footer style={{ background: 'var(--dark)' }} className="mt-8">
+        <div className="mx-auto max-w-5xl px-4 py-5 flex items-center justify-between">
+          <span className="text-xs tracking-widest uppercase text-gray-500">$25 Entry · Venmo @griffinsell</span>
+          <div className="flex items-center gap-6">
+            <Link href="/signup" className="text-xs tracking-widest uppercase text-gray-500 hover:text-white transition-colors">Sign Up</Link>
+            <Link href="/admin/login" className="text-xs tracking-widest uppercase text-gray-500 hover:text-white transition-colors">Admin</Link>
+          </div>
+        </div>
       </footer>
     </div>
   )
 }
 
-function StatCard({
-  label,
-  value,
-  color,
-  sub,
-}: {
-  label: string
-  value: string | number
-  color: string
-  sub?: string
-}) {
+function StatCol({ value, label, valueColor, border }: { value: string | number; label: string; valueColor?: string; border?: boolean }) {
   return (
-    <div className="rounded-xl border border-slate-700 bg-slate-800 p-4 text-center">
-      <p className="text-slate-400 text-xs font-medium uppercase tracking-wide">{label}</p>
-      <p className={`mt-1 text-2xl font-bold ${color}`}>{value}</p>
-      {sub && <p className="text-slate-500 text-xs mt-0.5">{sub}</p>}
+    <div
+      className="py-6 px-4 sm:px-6"
+      style={{ borderLeft: border ? `1px solid var(--border)` : undefined }}
+    >
+      <p className="font-display text-5xl sm:text-6xl leading-none" style={{ color: valueColor ?? 'var(--dark)' }}>
+        {value}
+      </p>
+      <p className="mt-1 text-xs tracking-widest uppercase" style={{ color: 'var(--muted)' }}>{label}</p>
+    </div>
+  )
+}
+
+function Rule({ n, text }: { n: string; text: string }) {
+  return (
+    <div className="flex gap-3">
+      <span className="font-bold shrink-0" style={{ color: 'var(--red)' }}>{n}.</span>
+      <span>{text}</span>
     </div>
   )
 }

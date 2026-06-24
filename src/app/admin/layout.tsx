@@ -15,17 +15,15 @@ export default async function AdminLayout({
   // We check the path to avoid redirect loops
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen" style={{ background: 'var(--cream)' }}>
       {isAdmin && (
-        <nav className="border-b border-slate-700 bg-slate-900">
+        <nav style={{ background: 'var(--dark)' }}>
           <div className="mx-auto max-w-6xl px-4 py-3 flex items-center gap-6">
-            <span className="font-bold text-white text-sm">⚙️ Admin</span>
-            <div className="flex gap-4 text-sm">
-              <Link href="/admin" className="text-slate-400 hover:text-white transition-colors">Dashboard</Link>
-              <Link href="/admin/schedule" className="text-slate-400 hover:text-white transition-colors">Schedule</Link>
-              <Link href="/admin/results" className="text-slate-400 hover:text-white transition-colors">Results</Link>
-              <Link href="/admin/players" className="text-slate-400 hover:text-white transition-colors">Players</Link>
-              <Link href="/admin/recap" className="text-slate-400 hover:text-white transition-colors">Recap</Link>
+            <span className="font-display text-white tracking-wider text-sm">ADMIN</span>
+            <div className="flex gap-5">
+              {(['/admin','Dashboard'],['/admin/schedule','Schedule'],['/admin/results','Results'],['/admin/players','Players'],['/admin/recap','Recap']) .map(([href, label]) => (
+                <Link key={href} href={href} className="text-xs tracking-widest uppercase transition-colors" style={{ color: '#888' }}>{label}</Link>
+              ))}
             </div>
             <div className="ml-auto">
               <AdminLogoutButton />
