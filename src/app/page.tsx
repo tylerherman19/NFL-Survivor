@@ -17,6 +17,7 @@ async function getDashboardData() {
     const { data: players } = await supabase
       .from('players')
       .select('id, full_name, status, elimination_week, elimination_reason, paid')
+      .not('email', 'ilike', '%@nflsurvivor.internal')
       .order('full_name')
 
     if (!players) return null

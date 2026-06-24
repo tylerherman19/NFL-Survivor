@@ -9,9 +9,11 @@ interface Props {
   players: Player[]
   activeWeekId: string | null
   activeWeekNumber: number | null
+  currentPicks: Record<string, string>
+  weeksSurvived: Record<string, number>
 }
 
-export default function PlayersManager({ players, activeWeekId, activeWeekNumber }: Props) {
+export default function PlayersManager({ players, activeWeekId, activeWeekNumber, currentPicks, weeksSurvived }: Props) {
   const router = useRouter()
   const [message, setMessage] = useState('')
   const [csvText, setCsvText] = useState('')
@@ -237,72 +239,88 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
                 />
               </th>
               <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Email</th>
-              <th className="px-4 py-3">Paid</th>
               <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Wks</th>
+              <th className="px-4 py-3">This Week</th>
+              <th className="px-4 py-3">Paid</th>
+              <th className="px-4 py-3">Email</th>
               <th className="px-4 py-3">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {players.map((p) => (
-              <tr key={p.id} className={`border-b border-slate-700/50 ${selected.has(p.id) ? 'bg-slate-700/40' : 'bg-slate-800/30'}`}>
-                <td className="px-4 py-3">
-                  <input
-                    type="checkbox"
-                    checked={selected.has(p.id)}
-                    onChange={() => toggleSelect(p.id)}
-                    className="accent-green-500"
-                  />
-                </td>
-                <td className="px-4 py-3 font-medium text-white">{p.full_name}</td>
-                <td className="px-4 py-3 text-slate-400 text-xs">{p.email}</td>
-                <td className="px-4 py-3">
-                  <button
-                    onClick={() => togglePaid(p.id, p.paid)}
-                    className={`rounded px-2 py-0.5 text-xs font-medium ${
-                      p.paid
-                        ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
-                        : 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                    }`}
-                  >
-                    {p.paid ? '✓ Paid' : '✗ Unpaid'}
-                  </button>
-                </td>
-                <td className="px-4 py-3">
-                  <span className={p.status === 'alive' ? 'text-green-400' : 'text-red-400'}>
-                    {p.status === 'alive' ? '✅ Alive' : '❌ Out'}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex gap-2 flex-wrap">
+            {players.map((p) => {
+              const pick = currentPicks[p.id]
+              const weeks = weeksSurvived[p.id] || 0
+              return (
+                <tr key={p.id} className={`border-b border-slate-700/50 ${selected.has(p.id) ? 'bg-slate-700/40' : p.status === 'alive' ? 'bg-slate-800/30' : 'bg-slate-900/40 opacity-70'}`}>
+                  <td className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(p.id)}
+                      onChange={() => toggleSelect(p.id)}
+                      className="accent-green-500"
+                    />
+                  </td>
+                  <td className="px-4 py-3 font-medium text-white">{p.full_name}</td>
+                  <td className="px-4 py-3">
+                    <span className={p.status === 'alive' ? 'text-green-400' : 'text-red-400'}>
+                      {p.status === 'alive' ? '✅ Alive' : '❌ Out'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-slate-300">{weeks}</td>
+                  <td className="px-4 py-3">
+                    {pick ? (
+                      <span className="rounded bg-slate-700 px-2 py-0.5 text-xs font-mono font-bold text-white">{pick}</span>
+                    ) : p.status === 'alive' ? (
+                      <span className="text-amber-400 text-xs">pending</span>
+                    ) : (
+                      <span className="text-slate-600 text-xs">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
                     <button
-                      onClick={() => regenPin(p.id, p.full_name)}
-                      className="rounded border border-slate-600 px-2 py-0.5 text-xs text-slate-300 hover:border-slate-400 hover:text-white"
-                    >
-                      Regen PIN
-                    </button>
-                    <button
-                      onClick={() => toggleElimination(p)}
-                      className={`rounded border px-2 py-0.5 text-xs ${
-                        p.status === 'alive'
-                          ? 'border-red-700 text-red-400 hover:border-red-500'
-                          : 'border-green-700 text-green-400 hover:border-green-500'
+                      onClick={() => togglePaid(p.id, p.paid)}
+                      className={`rounded px-2 py-0.5 text-xs font-medium ${
+                        p.paid
+                          ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+                          : 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
                       }`}
                     >
-                      {p.status === 'alive' ? 'Eliminate' : 'Restore'}
+                      {p.paid ? '✓ Paid' : '✗ Unpaid'}
                     </button>
-                    {activeWeekId && p.status === 'alive' && (
+                  </td>
+                  <td className="px-4 py-3 text-slate-400 text-xs">{p.email}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex gap-2 flex-wrap">
                       <button
-                        onClick={() => setPickModal({ player: p, team: '' })}
-                        className="rounded border border-blue-700 px-2 py-0.5 text-xs text-blue-400 hover:border-blue-500"
+                        onClick={() => regenPin(p.id, p.full_name)}
+                        className="rounded border border-slate-600 px-2 py-0.5 text-xs text-slate-300 hover:border-slate-400 hover:text-white"
                       >
-                        Submit Pick
+                        Regen PIN
                       </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
+                      <button
+                        onClick={() => toggleElimination(p)}
+                        className={`rounded border px-2 py-0.5 text-xs ${
+                          p.status === 'alive'
+                            ? 'border-red-700 text-red-400 hover:border-red-500'
+                            : 'border-green-700 text-green-400 hover:border-green-500'
+                        }`}
+                      >
+                        {p.status === 'alive' ? 'Eliminate' : 'Restore'}
+                      </button>
+                      {activeWeekId && p.status === 'alive' && (
+                        <button
+                          onClick={() => setPickModal({ player: p, team: '' })}
+                          className="rounded border border-blue-700 px-2 py-0.5 text-xs text-blue-400 hover:border-blue-500"
+                        >
+                          Submit Pick
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
