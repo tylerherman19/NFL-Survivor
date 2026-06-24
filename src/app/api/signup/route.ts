@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
       full_name: name,
       email: emailLower,
       phone: phone?.trim() || null,
-      venmo: venmo?.trim() || null,
+      venmo_handle: venmo?.trim() || null,
       pin_hash: pinHash,
       paid: false,
       status: 'alive',

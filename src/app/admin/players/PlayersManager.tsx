@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Player } from '@/types'
 import { NFL_TEAMS, NFL_TEAM_NAMES } from '@/types'
@@ -19,6 +19,44 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
   const [showImport, setShowImport] = useState(false)
   const [pickModal, setPickModal] = useState<{ player: Player; team: string } | null>(null)
   const [submittingPick, setSubmittingPick] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulkWorking, setBulkWorking] = useState(false)
+
+  const allIds = players.map((p) => p.id)
+  const allSelected = allIds.length > 0 && allIds.every((id) => selected.has(id))
+  const someSelected = selected.size > 0
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectAll() {
+    setSelected(allSelected ? new Set() : new Set(allIds))
+  }
+
+  async function bulkSetPaid(paid: boolean) {
+    if (!someSelected) return
+    setBulkWorking(true)
+    setMessage('')
+    const ids = [...selected]
+    await Promise.all(
+      ids.map((id) =>
+        fetch(`/api/players/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ paid }),
+        })
+      )
+    )
+    setMessage(`✅ Marked ${ids.length} player${ids.length !== 1 ? 's' : ''} as ${paid ? 'paid' : 'unpaid'}`)
+    setSelected(new Set())
+    setBulkWorking(false)
+    router.refresh()
+  }
 
   async function togglePaid(playerId: string, current: boolean) {
     const res = await fetch(`/api/players/${playerId}`, {
@@ -26,26 +64,18 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ paid: !current }),
     })
-    if (res.ok) {
-      setMessage(`Payment status updated`)
-      router.refresh()
-    } else {
-      setMessage('Failed to update')
-    }
+    if (res.ok) router.refresh()
+    else setMessage('Failed to update')
   }
 
   async function regenPin(playerId: string, fullName: string) {
     if (!confirm(`Regenerate PIN for ${fullName}? They'll get a new email.`)) return
     const res = await fetch(`/api/players/${playerId}/regen-pin`, { method: 'POST' })
-    if (res.ok) {
-      setMessage(`New PIN sent to ${fullName}`)
-    } else {
-      setMessage('Failed to regen PIN')
-    }
+    if (res.ok) setMessage(`New PIN sent to ${fullName}`)
+    else setMessage('Failed to regen PIN')
   }
 
   async function toggleElimination(player: Player) {
-    const action = player.status === 'eliminated' ? 'restore' : 'eliminate'
     const reason =
       player.status === 'alive'
         ? prompt('Reason for elimination (shown in recap):') || 'Admin correction'
@@ -61,7 +91,7 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
       }),
     })
     if (res.ok) {
-      setMessage(`${player.full_name} ${action}d`)
+      setMessage(`${player.full_name} ${player.status === 'alive' ? 'eliminated' : 'restored'}`)
       router.refresh()
     }
   }
@@ -133,10 +163,6 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
             <p className="text-sm text-slate-400">
               Paste CSV with headers:{' '}
               <code className="text-blue-300">Full Name, Phone, Email, Venmo, Paid</code>
-              <br />
-              <span className="text-slate-500">
-                (Paid column: &quot;yes&quot;/&quot;no&quot; or &quot;true&quot;/&quot;false&quot;)
-              </span>
             </p>
             <textarea
               value={csvText}
@@ -170,11 +196,46 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
         </p>
       )}
 
+      {/* Bulk actions */}
+      {someSelected && (
+        <div className="flex items-center gap-3 rounded-lg border border-slate-600 bg-slate-800 px-4 py-2">
+          <span className="text-sm text-slate-300">{selected.size} selected</span>
+          <button
+            onClick={() => bulkSetPaid(true)}
+            disabled={bulkWorking}
+            className="rounded bg-green-600 px-3 py-1 text-xs font-semibold text-white hover:bg-green-500 disabled:opacity-50"
+          >
+            Mark Paid
+          </button>
+          <button
+            onClick={() => bulkSetPaid(false)}
+            disabled={bulkWorking}
+            className="rounded bg-red-700 px-3 py-1 text-xs font-semibold text-white hover:bg-red-600 disabled:opacity-50"
+          >
+            Mark Unpaid
+          </button>
+          <button
+            onClick={() => setSelected(new Set())}
+            className="ml-auto text-xs text-slate-500 hover:text-slate-300"
+          >
+            Clear
+          </button>
+        </div>
+      )}
+
       {/* Players table */}
       <div className="overflow-x-auto rounded-xl border border-slate-700">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-700 bg-slate-800 text-slate-400 text-left">
+              <th className="px-4 py-3">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={toggleSelectAll}
+                  className="accent-green-500"
+                />
+              </th>
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3">Email</th>
               <th className="px-4 py-3">Paid</th>
@@ -184,7 +245,15 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
           </thead>
           <tbody>
             {players.map((p) => (
-              <tr key={p.id} className="border-b border-slate-700/50 bg-slate-800/30">
+              <tr key={p.id} className={`border-b border-slate-700/50 ${selected.has(p.id) ? 'bg-slate-700/40' : 'bg-slate-800/30'}`}>
+                <td className="px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(p.id)}
+                    onChange={() => toggleSelect(p.id)}
+                    className="accent-green-500"
+                  />
+                </td>
                 <td className="px-4 py-3 font-medium text-white">{p.full_name}</td>
                 <td className="px-4 py-3 text-slate-400 text-xs">{p.email}</td>
                 <td className="px-4 py-3">
@@ -200,11 +269,7 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
                   </button>
                 </td>
                 <td className="px-4 py-3">
-                  <span
-                    className={
-                      p.status === 'alive' ? 'text-green-400' : 'text-red-400'
-                    }
-                  >
+                  <span className={p.status === 'alive' ? 'text-green-400' : 'text-red-400'}>
                     {p.status === 'alive' ? '✅ Alive' : '❌ Out'}
                   </span>
                 </td>
