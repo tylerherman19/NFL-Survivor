@@ -2,9 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { generatePin, hashPin } from '@/lib/pin'
 import { sendWelcomeEmail } from '@/lib/email'
+import { checkRateLimit, getIP } from '@/lib/rateLimit'
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = await getIP()
+    const { allowed } = await checkRateLimit(`signup:${ip}`, 5, 60 * 60)
+    if (!allowed) {
+      return NextResponse.json(
+        { error: 'Too many signups from this device. Try again in an hour.' },
+        { status: 429 }
+      )
+    }
+
     const { full_name, email, phone, venmo } = await req.json()
 
     if (!full_name?.trim() || !email?.trim()) {

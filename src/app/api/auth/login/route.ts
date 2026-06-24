@@ -2,9 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { verifyPin } from '@/lib/pin'
 import { createSession } from '@/lib/session'
+import { checkRateLimit, getIP } from '@/lib/rateLimit'
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = await getIP()
+    const { allowed } = await checkRateLimit(`login:${ip}`, 10, 15 * 60)
+    if (!allowed) {
+      return NextResponse.json(
+        { error: 'Too many login attempts. Try again in 15 minutes.' },
+        { status: 429 }
+      )
+    }
+
     const { full_name, pin } = await req.json()
 
     if (!full_name || !pin) {
