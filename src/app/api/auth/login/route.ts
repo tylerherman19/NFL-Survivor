@@ -21,6 +21,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Name and PIN are required' }, { status: 400 })
     }
 
+    if (typeof full_name !== 'string' || full_name.length > 80) {
+      return NextResponse.json({ error: 'Invalid name' }, { status: 400 })
+    }
+    if (typeof pin !== 'string' || pin.length > 20) {
+      return NextResponse.json({ error: 'Invalid PIN' }, { status: 400 })
+    }
+
     // Case-insensitive name lookup
     const { data: players, error } = await supabase
       .from('players')

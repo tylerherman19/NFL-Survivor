@@ -3,7 +3,17 @@ import { headers } from 'next/headers'
 
 export async function getIP(): Promise<string> {
   const h = await headers()
-  return h.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown'
+  // x-real-ip is set by Vercel to the actual client IP and cannot be spoofed.
+  // x-forwarded-for can be manipulated by adding a fake first entry.
+  const realIp = h.get('x-real-ip')
+  if (realIp) return realIp.trim()
+  // Fallback: use the LAST entry in x-forwarded-for (added by Vercel edge, not user-controlled).
+  const forwarded = h.get('x-forwarded-for')
+  if (forwarded) {
+    const parts = forwarded.split(',')
+    return parts[parts.length - 1].trim()
+  }
+  return 'unknown'
 }
 
 export async function checkRateLimit(

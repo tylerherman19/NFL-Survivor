@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { getSession, getAdminSession } from '@/lib/session'
 import { getTeamDeadline } from '@/lib/deadline'
 import { sendPickConfirmationEmail } from '@/lib/email'
+import { NFL_TEAMS } from '@/types'
 import type { Game } from '@/types'
 
 export async function POST(req: NextRequest) {
@@ -24,6 +25,16 @@ export async function POST(req: NextRequest) {
 
     if (!week_id || !team) {
       return NextResponse.json({ error: 'Missing week_id or team' }, { status: 400 })
+    }
+
+    // Validate team is a known NFL team
+    if (!(NFL_TEAMS as readonly string[]).includes(team)) {
+      return NextResponse.json({ error: 'Invalid team' }, { status: 400 })
+    }
+
+    // Basic UUID format check
+    if (!/^[0-9a-f-]{36}$/i.test(week_id)) {
+      return NextResponse.json({ error: 'Invalid week_id' }, { status: 400 })
     }
 
     // Check player is alive

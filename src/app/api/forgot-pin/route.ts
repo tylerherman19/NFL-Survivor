@@ -2,9 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { generateResetToken } from '@/lib/pin'
 import { sendPinResetEmail } from '@/lib/email'
+import { checkRateLimit, getIP } from '@/lib/rateLimit'
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = await getIP()
+    const { allowed } = await checkRateLimit(`forgot-pin:${ip}`, 5, 60 * 60)
+    if (!allowed) {
+      // Still return ok to avoid revealing which attempts are blocked
+      return NextResponse.json({ ok: true })
+    }
+
     const { email } = await req.json()
     if (!email) return NextResponse.json({ ok: true }) // silent fail
 

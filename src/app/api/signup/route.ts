@@ -24,6 +24,19 @@ export async function POST(req: NextRequest) {
     const name = full_name.trim()
     const emailLower = email.trim().toLowerCase()
 
+    if (name.length > 80) {
+      return NextResponse.json({ error: 'Name too long (max 80 characters)' }, { status: 400 })
+    }
+    if (emailLower.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLower)) {
+      return NextResponse.json({ error: 'Invalid email address' }, { status: 400 })
+    }
+    if (phone && phone.length > 20) {
+      return NextResponse.json({ error: 'Phone number too long' }, { status: 400 })
+    }
+    if (venmo && venmo.length > 50) {
+      return NextResponse.json({ error: 'Venmo handle too long' }, { status: 400 })
+    }
+
     // Check for duplicate email
     const { data: byEmail } = await supabase
       .from('players')

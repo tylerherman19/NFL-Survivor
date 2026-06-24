@@ -3,6 +3,11 @@ import { NFL_TEAM_NAMES } from '@/types'
 import type { StandingRow, TeamStat, Week, Game } from '@/types'
 import Countdown from './components/Countdown'
 
+// Cache the server render for 60 seconds — serves ~1k concurrent users from CDN
+// without hitting Supabase 1k times simultaneously. Pick deadline countdown
+// updates client-side via the Countdown component regardless.
+export const revalidate = 60
+
 const ALIVE_PREVIEW = 7
 const ELIM_PREVIEW = 5
 const TOTAL_WEEKS = 18
