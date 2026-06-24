@@ -86,7 +86,7 @@ export default function ResultsForm({ week, games }: Props) {
         {games.map((g) => (
           <div
             key={g.id}
-            className="rounded-xl border border-slate-700 bg-slate-800 p-4 flex items-center justify-between gap-4 flex-wrap"
+            className="rounded-xl border border-slate-700 bg-slate-800 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
           >
             <div>
               <p className="text-white font-medium font-mono">
@@ -121,11 +121,11 @@ export default function ResultsForm({ week, games }: Props) {
         ))}
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4">
         <button
           onClick={gradeAllPending}
           disabled={submitting}
-          className="rounded-lg bg-green-600 px-6 py-2.5 font-semibold text-white hover:bg-green-500 disabled:opacity-50 transition-colors"
+          className="rounded-lg bg-green-600 px-6 py-2.5 font-semibold text-white hover:bg-green-500 disabled:opacity-50 transition-colors w-full sm:w-auto"
         >
           {submitting ? 'Grading…' : 'Grade All Picks & Eliminate Losers'}
         </button>

@@ -141,31 +141,33 @@ export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
               {games.map((g) => (
                 <div
                   key={g.id}
-                  className="flex items-center justify-between rounded-lg border border-slate-700 bg-slate-800 px-4 py-3"
+                  className="flex items-start justify-between gap-3 rounded-lg border border-slate-700 bg-slate-800 px-4 py-3"
                 >
-                  <div>
-                    <span className="text-white font-medium font-mono">
+                  <div className="min-w-0">
+                    <span className="text-white font-medium font-mono text-sm">
                       {g.away_team} @ {g.home_team}
                     </span>
-                    <span className="ml-3 text-slate-400 text-sm capitalize">{g.game_day}</span>
-                    {g.is_snf && <span className="ml-2 text-xs bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded">SNF</span>}
-                    {g.is_mnf && <span className="ml-2 text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">MNF</span>}
-                    <span className="ml-3 text-slate-500 text-xs">
-                      {new Date(g.kickoff_central).toLocaleString('en-US', {
-                        timeZone: 'America/Chicago',
-                        weekday: 'short',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: 'numeric',
-                        minute: '2-digit',
-                        timeZoneName: 'short',
-                      })}
-                    </span>
+                    <div className="flex flex-wrap items-center gap-x-2 mt-0.5">
+                      <span className="text-slate-400 text-xs capitalize">{g.game_day}</span>
+                      {g.is_snf && <span className="text-xs bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded">SNF</span>}
+                      {g.is_mnf && <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">MNF</span>}
+                      <span className="text-slate-500 text-xs">
+                        {new Date(g.kickoff_central).toLocaleString('en-US', {
+                          timeZone: 'America/Chicago',
+                          weekday: 'short',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                          timeZoneName: 'short',
+                        })}
+                      </span>
+                    </div>
                   </div>
                   <button
                     onClick={() => deleteGame(g.id)}
                     disabled={deletingId === g.id}
-                    className="text-red-400 hover:text-red-300 text-sm disabled:opacity-50"
+                    className="text-red-400 hover:text-red-300 text-sm disabled:opacity-50 shrink-0"
                   >
                     {deletingId === g.id ? '…' : 'Delete'}
                   </button>
@@ -180,7 +182,7 @@ export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
       <form onSubmit={handleSubmit} className="space-y-6">
         <h2 className="text-lg font-semibold text-white">Add Games</h2>
 
-        <div className="flex gap-4">
+        <div className="flex flex-wrap gap-4">
           <div>
             <label className="block text-xs text-slate-400 mb-1">Season Year</label>
             <input
@@ -254,7 +256,7 @@ export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Date (Central)</label>
                   <input
@@ -289,7 +291,7 @@ export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
                 </div>
               </div>
 
-              <div className="flex gap-4">
+              <div className="flex flex-wrap gap-4">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -313,7 +315,7 @@ export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
           ))}
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <button
             type="button"
             onClick={addGame}

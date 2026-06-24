@@ -212,7 +212,7 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
 
       {/* Bulk actions */}
       {someSelected && (
-        <div className="flex items-center gap-3 rounded-lg border border-slate-600 bg-slate-800 px-4 py-2">
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-600 bg-slate-800 px-4 py-2">
           <span className="text-sm text-slate-300">{selected.size} selected</span>
           <button
             onClick={() => bulkSetPaid(true)}

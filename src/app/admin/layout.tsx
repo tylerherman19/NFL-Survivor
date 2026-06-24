@@ -18,14 +18,14 @@ export default async function AdminLayout({
     <div className="min-h-screen" style={{ background: 'var(--cream)' }}>
       {isAdmin && (
         <nav style={{ background: 'var(--dark)' }}>
-          <div className="mx-auto max-w-6xl px-4 py-3 flex items-center gap-6">
-            <span className="font-display text-white tracking-wider text-sm">ADMIN</span>
-            <div className="flex gap-5">
+          <div className="mx-auto max-w-6xl px-4 py-3 flex items-center gap-4 min-w-0">
+            <span className="font-display text-white tracking-wider text-sm shrink-0">ADMIN</span>
+            <div className="flex gap-4 overflow-x-auto flex-1 min-w-0" style={{ scrollbarWidth: 'none' }}>
               {([['/admin','Dashboard'],['/admin/schedule','Schedule'],['/admin/results','Results'],['/admin/players','Players'],['/admin/recap','Recap']] as [string,string][]).map(([href, label]) => (
-                <Link key={href} href={href} className="text-xs tracking-widest uppercase transition-colors" style={{ color: '#888' }}>{label}</Link>
+                <Link key={href} href={href} className="text-xs tracking-widest uppercase transition-colors shrink-0 py-1" style={{ color: '#888' }}>{label}</Link>
               ))}
             </div>
-            <div className="ml-auto">
+            <div className="ml-auto shrink-0">
               <AdminLogoutButton />
             </div>
           </div>

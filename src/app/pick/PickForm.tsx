@@ -41,7 +41,7 @@ export default function PickForm({ weekId, weekNumber, availableTeams, usedTeams
 
   if (success) return (
     <div className="text-center py-16">
-      <p className="font-display text-6xl" style={{ color: 'var(--green)' }}>LOCKED IN!</p>
+      <p className="font-display text-5xl sm:text-6xl" style={{ color: 'var(--green)' }}>LOCKED IN!</p>
       <p className="text-sm mt-4" style={{ color: 'var(--muted)' }}>
         {NFL_TEAM_NAMES[selected!] || selected} — Week {weekNumber}. Confirmation email on its way.
       </p>
@@ -58,7 +58,7 @@ export default function PickForm({ weekId, weekNumber, availableTeams, usedTeams
   return (
     <div className="space-y-8">
       <div>
-        <p className="font-display text-4xl" style={{ color: 'var(--dark)' }}>WEEK {weekNumber} PICK</p>
+        <p className="font-display text-3xl sm:text-4xl" style={{ color: 'var(--dark)' }}>WEEK {weekNumber} PICK</p>
         {usedTeams.length > 0 && (
           <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>Already used: {usedTeams.join(', ')}</p>
         )}
@@ -72,7 +72,7 @@ export default function PickForm({ weekId, weekNumber, availableTeams, usedTeams
               <button
                 key={team}
                 onClick={() => { setSelected(team); setConfirmed(false) }}
-                className="border p-3 text-left transition-all"
+                className="border p-3 sm:p-3 text-left transition-all min-h-[72px]"
                 style={{
                   borderColor: selected === team ? 'var(--green)' : 'var(--border)',
                   borderWidth: selected === team ? 2 : 1,
@@ -80,10 +80,10 @@ export default function PickForm({ weekId, weekNumber, availableTeams, usedTeams
                 }}
               >
                 <p className="font-bold font-mono text-sm" style={{ color: 'var(--dark)' }}>{team}</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>{NFL_TEAM_NAMES[team]}</p>
+                <p className="text-xs mt-0.5 leading-tight" style={{ color: 'var(--muted)' }}>{NFL_TEAM_NAMES[team]}</p>
                 {deadline && (
-                  <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>
-                    Locks {new Date(deadline).toLocaleString('en-US', { timeZone: 'America/Chicago', weekday: 'short', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })}
+                  <p className="text-xs mt-1 leading-tight" style={{ color: 'var(--red)' }}>
+                    Locks {new Date(deadline).toLocaleString('en-US', { timeZone: 'America/Chicago', weekday: 'short', hour: 'numeric', minute: '2-digit' })}
                   </p>
                 )}
               </button>
@@ -97,7 +97,7 @@ export default function PickForm({ weekId, weekNumber, availableTeams, usedTeams
           <p className="text-xs font-bold tracking-widest uppercase mb-3" style={{ color: 'var(--muted)' }}>Deadline passed</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {locked.map(({ team }) => (
-              <div key={team} className="border p-3 opacity-40 cursor-not-allowed" style={{ borderColor: 'var(--border)', background: 'white' }}>
+              <div key={team} className="border p-3 opacity-40 cursor-not-allowed min-h-[72px]" style={{ borderColor: 'var(--border)', background: 'white' }}>
                 <p className="font-bold font-mono text-sm" style={{ color: 'var(--muted)' }}>{team}</p>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>{NFL_TEAM_NAMES[team]}</p>
                 <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>Locked</p>
@@ -113,7 +113,7 @@ export default function PickForm({ weekId, weekNumber, availableTeams, usedTeams
             Selected: <span className="font-display text-xl">{NFL_TEAM_NAMES[selected] || selected}</span>
           </p>
           <label className="flex items-start gap-3 cursor-pointer">
-            <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} className="mt-0.5" />
+            <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} className="mt-0.5 w-5 h-5 shrink-0" />
             <span className="text-sm" style={{ color: 'var(--dark)' }}>
               I confirm this pick. Picks cannot be changed once submitted.
             </span>

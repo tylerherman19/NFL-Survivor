@@ -157,14 +157,14 @@ export default async function DashboardPage() {
       {/* Header */}
       <header style={{ background: 'var(--dark)' }}>
         <div className="mx-auto max-w-5xl px-4 py-4 flex items-center justify-between">
-          <span className="font-display text-white text-lg tracking-wider">NFL SURVIVOR POOL</span>
-          <nav className="flex items-center gap-6">
+          <span className="font-display text-white text-base sm:text-lg tracking-wider">NFL SURVIVOR</span>
+          <nav className="flex items-center gap-2 sm:gap-6">
             <a href="#standings" className="text-xs tracking-widest uppercase text-gray-400 hover:text-white transition-colors hidden sm:block">Standings</a>
             <a href="#rules" className="text-xs tracking-widest uppercase text-gray-400 hover:text-white transition-colors hidden sm:block">Rules</a>
-            <Link href="/login" className="text-xs tracking-widest uppercase text-gray-400 hover:text-white transition-colors">Log In</Link>
+            <Link href="/login" className="text-xs tracking-widest uppercase text-gray-400 hover:text-white transition-colors hidden sm:block">Log In</Link>
             <Link
               href="/pick"
-              className="font-display text-sm tracking-wider px-4 py-2 text-white"
+              className="font-display text-xs sm:text-sm tracking-wider px-3 sm:px-4 py-1.5 sm:py-2 text-white whitespace-nowrap"
               style={{ background: 'var(--red)' }}
             >
               SUBMIT PICK →
@@ -183,7 +183,7 @@ export default async function DashboardPage() {
           {/* Hero */}
           <div className="py-8 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 border-b" style={{ borderColor: 'var(--border)' }}>
             <div>
-              <h1 className="font-display text-7xl sm:text-8xl leading-none" style={{ color: 'var(--dark)' }}>
+              <h1 className="font-display text-5xl sm:text-7xl leading-none" style={{ color: 'var(--dark)' }}>
                 {data.week?.season_year ?? '2026'} SEASON
               </h1>
               <p className="mt-1 text-xs tracking-widest uppercase" style={{ color: 'var(--muted)' }}>
@@ -213,7 +213,7 @@ export default async function DashboardPage() {
 
           {/* Standings */}
           <div id="standings" className="py-8">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-0">
               <thead>
                 <tr className="border-b" style={{ borderColor: 'var(--border)' }}>
                   <th className="py-2 w-8 text-left text-xs tracking-widest uppercase" style={{ color: 'var(--muted)' }}>#</th>
@@ -303,23 +303,24 @@ export default async function DashboardPage() {
           {data.teamStats.length > 0 && (
             <div className="py-8 border-t" style={{ borderColor: 'var(--border)' }}>
               <p className="text-xs font-bold tracking-widest uppercase mb-4" style={{ color: 'var(--muted)' }}>Team Pick History</p>
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto -mx-4 px-4">
+              <table className="w-full text-sm min-w-[340px]">
                 <thead>
                   <tr className="border-b" style={{ borderColor: 'var(--border)' }}>
-                    {['Team', 'Times Picked', 'Win Rate', 'Eliminations'].map((h) => (
-                      <th key={h} className="py-2 text-left text-xs tracking-widest uppercase" style={{ color: 'var(--muted)' }}>{h}</th>
+                    {['Team', 'Times Picked', 'Win Rate', 'Elims'].map((h) => (
+                      <th key={h} className="py-2 text-left text-xs tracking-widest uppercase whitespace-nowrap pr-4" style={{ color: 'var(--muted)' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {data.teamStats.map((stat) => (
                     <tr key={stat.team} className="border-b" style={{ borderColor: 'var(--border)' }}>
-                      <td className="py-2.5">
+                      <td className="py-2.5 pr-4">
                         <span className="font-bold font-mono" style={{ color: 'var(--dark)' }}>{stat.team}</span>
                         <span className="ml-2 text-xs hidden sm:inline" style={{ color: 'var(--muted)' }}>{NFL_TEAM_NAMES[stat.team]}</span>
                       </td>
-                      <td className="py-2.5" style={{ color: 'var(--dark)' }}>{stat.times_picked}</td>
-                      <td className="py-2.5 font-semibold" style={{ color: stat.win_rate >= 0.6 ? 'var(--green)' : stat.win_rate >= 0.4 ? 'var(--dark)' : 'var(--red)' }}>
+                      <td className="py-2.5 pr-4" style={{ color: 'var(--dark)' }}>{stat.times_picked}</td>
+                      <td className="py-2.5 pr-4 font-semibold" style={{ color: stat.win_rate >= 0.6 ? 'var(--green)' : stat.win_rate >= 0.4 ? 'var(--dark)' : 'var(--red)' }}>
                         {(stat.win_rate * 100).toFixed(0)}%
                       </td>
                       <td className="py-2.5" style={{ color: 'var(--dark)' }}>{stat.eliminations_caused}</td>
@@ -327,6 +328,7 @@ export default async function DashboardPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
 
@@ -347,9 +349,10 @@ export default async function DashboardPage() {
 
       {/* Footer */}
       <footer style={{ background: 'var(--dark)' }} className="mt-8">
-        <div className="mx-auto max-w-5xl px-4 py-5 flex items-center justify-between">
+        <div className="mx-auto max-w-5xl px-4 py-5 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-0 justify-between">
           <span className="text-xs tracking-widest uppercase text-gray-500">$25 Entry · Venmo @griffinsell</span>
           <div className="flex items-center gap-6">
+            <Link href="/login" className="text-xs tracking-widest uppercase text-gray-500 hover:text-white transition-colors sm:hidden">Log In</Link>
             <Link href="/signup" className="text-xs tracking-widest uppercase text-gray-500 hover:text-white transition-colors">Sign Up</Link>
             <Link href="/admin/login" className="text-xs tracking-widest uppercase text-gray-500 hover:text-white transition-colors">Admin</Link>
           </div>
@@ -362,10 +365,10 @@ export default async function DashboardPage() {
 function StatCol({ value, label, valueColor, border }: { value: string | number; label: string; valueColor?: string; border?: boolean }) {
   return (
     <div
-      className="py-6 px-4 sm:px-6"
+      className="py-4 sm:py-6 px-3 sm:px-6"
       style={{ borderLeft: border ? `1px solid var(--border)` : undefined }}
     >
-      <p className="font-display text-5xl sm:text-6xl leading-none" style={{ color: valueColor ?? 'var(--dark)' }}>
+      <p className="font-display text-3xl sm:text-5xl leading-none" style={{ color: valueColor ?? 'var(--dark)' }}>
         {value}
       </p>
       <p className="mt-1 text-xs tracking-widest uppercase" style={{ color: 'var(--muted)' }}>{label}</p>

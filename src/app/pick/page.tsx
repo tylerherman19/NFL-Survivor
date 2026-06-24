@@ -70,7 +70,7 @@ export default async function PickPage() {
               <p className="text-xs font-bold tracking-widest uppercase mb-3" style={{ color: 'var(--green)' }}>
                 ✓ Week {week.week_number} Pick Locked In
               </p>
-              <p className="font-display text-5xl" style={{ color: 'var(--dark)' }}>
+              <p className="font-display text-3xl sm:text-5xl" style={{ color: 'var(--dark)' }}>
                 {NFL_TEAM_NAMES[currentPick.team] || currentPick.team}
               </p>
               <p className="font-mono text-sm mt-1" style={{ color: 'var(--muted)' }}>{currentPick.team}</p>
@@ -111,8 +111,8 @@ function Shell({ children, session, weekNumber }: { children: React.ReactNode; s
             <Link href="/" className="font-display text-white text-lg tracking-wider">NFL SURVIVOR POOL</Link>
             {weekNumber && <p className="text-xs tracking-widest uppercase mt-0.5" style={{ color: '#666' }}>Week {weekNumber}</p>}
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-xs tracking-widest uppercase" style={{ color: '#888' }}>{session.full_name}</span>
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="text-xs tracking-widest uppercase truncate max-w-[120px] sm:max-w-none" style={{ color: '#888' }}>{session.full_name}</span>
             <LogoutButton />
           </div>
         </div>
