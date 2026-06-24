@@ -92,13 +92,19 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="mt-6 text-center">
+        <div className="mt-6 text-center space-y-3">
           <Link
             href="/forgot-pin"
-            className="text-sm text-slate-400 hover:text-slate-200 underline"
+            className="block text-sm text-slate-400 hover:text-slate-200 underline"
           >
             Forgot your PIN?
           </Link>
+          <p className="text-sm text-slate-400">
+            New to the pool?{' '}
+            <Link href="/signup" className="text-green-400 hover:text-green-300 underline">
+              Sign up here
+            </Link>
+          </p>
         </div>
 
         <div className="mt-4 text-center">
