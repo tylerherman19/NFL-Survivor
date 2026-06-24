@@ -160,10 +160,16 @@ export default async function DashboardPage() {
           </div>
           <div className="flex gap-3">
             <Link
+              href="/signup"
+              className="rounded-lg border border-green-600 px-4 py-2 text-sm font-semibold text-green-400 hover:bg-green-600 hover:text-white transition-colors"
+            >
+              Sign Up
+            </Link>
+            <Link
               href="/login"
               className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-500 transition-colors"
             >
-              Log In to Pick
+              Log In
             </Link>
           </div>
         </div>
