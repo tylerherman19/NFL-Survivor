@@ -14,13 +14,13 @@ async function getDashboardData() {
       .eq('is_active', true)
       .single()
 
-    const { data: players } = await supabase
+    const { data: allPlayers } = await supabase
       .from('players')
-      .select('id, full_name, status, elimination_week, elimination_reason, paid')
-      .not('email', 'ilike', '%@nflsurvivor.internal')
+      .select('id, full_name, email, status, elimination_week, elimination_reason, paid')
       .order('full_name')
 
-    if (!players) return null
+    if (!allPlayers) return null
+    const players = allPlayers.filter((p: { email: string }) => !p.email?.endsWith('@nflsurvivor.internal'))
 
     const totalPaid = players.filter((p: { paid: boolean }) => p.paid).length
     const potSize = totalPaid * 25
