@@ -77,6 +77,18 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
     else setMessage('Failed to regen PIN')
   }
 
+  async function deletePlayer(player: Player) {
+    if (!confirm(`Permanently delete ${player.full_name}? This cannot be undone and removes all their picks.`)) return
+    const res = await fetch(`/api/players/${player.id}`, { method: 'DELETE' })
+    if (res.ok) {
+      setMessage(`${player.full_name} deleted`)
+      setSelected((prev) => { const next = new Set(prev); next.delete(player.id); return next })
+      router.refresh()
+    } else {
+      setMessage('Failed to delete player')
+    }
+  }
+
   async function toggleElimination(player: Player) {
     const reason =
       player.status === 'alive'
@@ -316,6 +328,12 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
                           Submit Pick
                         </button>
                       )}
+                      <button
+                        onClick={() => deletePlayer(p)}
+                        className="rounded border border-red-900 px-2 py-0.5 text-xs text-red-500 hover:border-red-600 hover:text-red-400"
+                      >
+                        Delete
+                      </button>
                     </div>
                   </td>
                 </tr>
