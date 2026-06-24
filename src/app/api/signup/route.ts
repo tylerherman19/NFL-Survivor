@@ -70,7 +70,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to create account' }, { status: 500 })
     }
 
-    await sendWelcomeEmail(emailLower, name, pin)
+    try {
+      await sendWelcomeEmail(emailLower, name, pin)
+    } catch (emailErr) {
+      console.error('[signup] Failed to send welcome email to', emailLower, emailErr)
+    }
 
     return NextResponse.json({ ok: true })
   } catch (err) {

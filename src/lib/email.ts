@@ -1,8 +1,12 @@
 import { Resend } from 'resend'
+import type { CreateEmailOptions } from 'resend'
 import { NFL_TEAM_NAMES } from '@/types'
 
 let _resend: Resend | null = null
 function getResend() {
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error('RESEND_API_KEY environment variable is not set')
+  }
   if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY)
   return _resend
 }
@@ -10,12 +14,21 @@ function getResend() {
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'NFL Survivor Pool <onboarding@resend.dev>'
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://nfl-survivor.vercel.app'
 
+async function sendEmail(payload: CreateEmailOptions): Promise<void> {
+  const { data, error } = await getResend().emails.send(payload)
+  if (error) {
+    console.error('[email] Resend error:', error)
+    throw new Error(`Resend error: ${error.message}`)
+  }
+  console.log('[email] Sent successfully, id:', data?.id)
+}
+
 export async function sendWelcomeEmail(
   email: string,
   fullName: string,
   pin: string
 ): Promise<void> {
-  await getResend().emails.send({
+  await sendEmail({
     from: FROM_EMAIL,
     to: email,
     subject: "You're in the NFL Survivor Pool! Here's your PIN",
@@ -45,7 +58,7 @@ export async function sendPickConfirmationEmail(
   deadlineStr: string
 ): Promise<void> {
   const teamName = NFL_TEAM_NAMES[teamAbbr] || teamAbbr
-  await getResend().emails.send({
+  await sendEmail({
     from: FROM_EMAIL,
     to: email,
     subject: `Pick confirmed: ${teamName} — Week ${weekNumber}`,
@@ -71,7 +84,7 @@ export async function sendEliminationEmail(
   reason: string,
   weekNumber: number
 ): Promise<void> {
-  await getResend().emails.send({
+  await sendEmail({
     from: FROM_EMAIL,
     to: email,
     subject: `You've been eliminated — Week ${weekNumber}`,
@@ -96,7 +109,7 @@ export async function sendPinResetEmail(
   resetToken: string
 ): Promise<void> {
   const resetUrl = `${APP_URL}/reset-pin?token=${resetToken}`
-  await getResend().emails.send({
+  await sendEmail({
     from: FROM_EMAIL,
     to: email,
     subject: 'NFL Survivor Pool — Reset your PIN',
@@ -118,7 +131,7 @@ export async function sendReminderEmail(
   weekNumber: number,
   deadlineStr: string
 ): Promise<void> {
-  await getResend().emails.send({
+  await sendEmail({
     from: FROM_EMAIL,
     to: email,
     subject: `Reminder: Week ${weekNumber} pick deadline approaching`,
