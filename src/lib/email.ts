@@ -7,7 +7,7 @@ function getResend() {
   return _resend
 }
 
-const FROM_EMAIL = 'NFL Survivor Pool <no-reply@nflsurvivor.tylerherman.com>'
+const FROM_EMAIL = 'NFL Survivor Pool <onboarding@resend.dev>'
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://nfl-survivor.vercel.app'
 
 export async function sendWelcomeEmail(
