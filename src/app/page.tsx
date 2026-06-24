@@ -245,8 +245,8 @@ export default async function DashboardPage() {
                         <td className="px-4 py-3 text-slate-300">{row.weeks_survived}</td>
                         <td className="px-4 py-3">
                           {row.current_pick ? (
-                            <span className="rounded bg-slate-700 px-2 py-0.5 text-xs font-mono font-bold">
-                              {row.current_pick}
+                            <span className="rounded bg-green-900/50 border border-green-700/50 px-2 py-0.5 text-xs font-medium text-green-400">
+                              ✓ Pick Made
                             </span>
                           ) : row.status === 'alive' ? (
                             <span className="text-amber-400 text-xs">pending</span>
