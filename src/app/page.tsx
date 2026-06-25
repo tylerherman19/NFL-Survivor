@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { NFL_TEAM_NAMES } from '@/types'
 import type { StandingRow, TeamStat, Week, Game } from '@/types'
 import Countdown from './components/Countdown'
+import LiveTicker from './components/LiveTicker'
 
 // Cache the server render for 60 seconds — serves ~1k concurrent users from CDN
 // without hitting Supabase 1k times simultaneously. Pick deadline countdown
@@ -177,6 +178,9 @@ export default async function DashboardPage() {
           </nav>
         </div>
       </header>
+
+      {/* Live scores ticker — client component, polls independently of cached server render */}
+      <LiveTicker weekNumber={data?.week?.week_number} season={data?.week?.season_year} />
 
       {!data ? (
         <main className="mx-auto max-w-5xl px-4 py-20 text-center">
