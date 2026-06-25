@@ -38,9 +38,10 @@ export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
   const [weekNumber, setWeekNumber] = useState(
     activeWeek ? activeWeek.week_number : (weeks.length > 0 ? weeks[weeks.length - 1].week_number + 1 : 1)
   )
-  const [seasonYear, setSeasonYear] = useState(activeWeek?.season_year || 2025)
+  const [seasonYear, setSeasonYear] = useState(activeWeek?.season_year || 2026)
   const [newGames, setNewGames] = useState<NewGame[]>([{ ...BLANK_GAME }])
   const [submitting, setSubmitting] = useState(false)
+  const [syncing, setSyncing] = useState(false)
   const [message, setMessage] = useState('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
@@ -80,6 +81,29 @@ export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
         return updated
       })
     )
+  }
+
+  async function syncFromESPN() {
+    setSyncing(true)
+    setMessage('')
+    try {
+      const res = await fetch('/api/schedule/sync-espn', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ week_number: weekNumber, season_year: seasonYear }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setMessage(`Error: ${data.error}`)
+      } else {
+        setMessage(`✅ Synced ${data.games_synced} games from ESPN for Week ${weekNumber} ${seasonYear}`)
+        router.refresh()
+      }
+    } catch {
+      setMessage('Server error. Try again.')
+    } finally {
+      setSyncing(false)
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -128,6 +152,49 @@ export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
 
   return (
     <div className="space-y-8">
+
+      {/* ESPN Auto-Sync — primary action */}
+      <div className="rounded-xl border border-green-700 bg-green-950/40 p-5 space-y-4">
+        <div>
+          <h2 className="text-base font-bold text-green-400 tracking-wide">⚡ Auto-Sync from ESPN</h2>
+          <p className="text-xs text-slate-400 mt-1">Pulls schedule directly from ESPN — no manual entry. Also auto-detects SNF/MNF.</p>
+        </div>
+        <div className="flex gap-3 items-end">
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Season</label>
+            <input
+              type="number"
+              value={seasonYear}
+              onChange={(e) => setSeasonYear(Number(e.target.value))}
+              className="w-24 rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-white focus:border-green-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Week</label>
+            <input
+              type="number"
+              value={weekNumber}
+              min={1}
+              max={22}
+              onChange={(e) => setWeekNumber(Number(e.target.value))}
+              className="w-20 rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-white focus:border-green-500 focus:outline-none"
+            />
+          </div>
+          <button
+            onClick={syncFromESPN}
+            disabled={syncing}
+            className="rounded-lg bg-green-700 hover:bg-green-600 disabled:opacity-50 px-6 py-2 text-sm font-bold text-white transition-colors"
+          >
+            {syncing ? 'Syncing…' : 'SYNC FROM ESPN →'}
+          </button>
+        </div>
+        {message && (
+          <p className={`text-sm ${message.startsWith('✅') ? 'text-green-400' : 'text-red-400'}`}>
+            {message}
+          </p>
+        )}
+      </div>
+
       {/* Existing games */}
       {activeWeek && (
         <div>
