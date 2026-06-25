@@ -107,23 +107,28 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Admin reassignment: delete the existing pick before inserting the new one
     if (isAdmin && existingPick) {
-      await supabase.from('picks').delete().eq('id', existingPick.id)
-    }
-
-    // Insert the pick
-    const { error: insertError } = await supabase.from('picks').insert({
-      player_id: playerId,
-      week_id,
-      team,
-      auto_assigned: false,
-      submitted_by_admin: submitted_by_admin || false,
-    })
-
-    if (insertError) {
-      console.error('insert error', insertError)
-      return NextResponse.json({ error: 'Failed to save pick' }, { status: 500 })
+      // UPDATE in place — atomic, no window where the player has zero picks
+      const { error: updateError } = await supabase
+        .from('picks')
+        .update({ team, auto_assigned: false, submitted_by_admin: true })
+        .eq('id', existingPick.id)
+      if (updateError) {
+        console.error('update error', updateError)
+        return NextResponse.json({ error: 'Failed to update pick' }, { status: 500 })
+      }
+    } else {
+      const { error: insertError } = await supabase.from('picks').insert({
+        player_id: playerId,
+        week_id,
+        team,
+        auto_assigned: false,
+        submitted_by_admin: submitted_by_admin || false,
+      })
+      if (insertError) {
+        console.error('insert error', insertError)
+        return NextResponse.json({ error: 'Failed to save pick' }, { status: 500 })
+      }
     }
 
     // Send confirmation email (non-blocking)

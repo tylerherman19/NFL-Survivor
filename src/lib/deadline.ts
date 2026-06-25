@@ -76,7 +76,9 @@ export function getWeekSundayDeadline(games: Game[]): Date | null {
   const kickoff = new Date(anyGame.kickoff_central)
   const chicagoKickoff = toZonedTime(kickoff, CHICAGO_TZ)
   const dow = chicagoKickoff.getDay()
-  const daysToSunday = dow === 0 ? 0 : dow === 1 ? -1 : -dow
+  // Mon (-1) goes back to the Sunday deadline that already passed for MNF.
+  // Thu/Fri/Sat/Tue/Wed (7-dow) go forward to the upcoming Sunday.
+  const daysToSunday = dow === 0 ? 0 : dow === 1 ? -1 : 7 - dow
   const sunday = new Date(chicagoKickoff)
   sunday.setDate(chicagoKickoff.getDate() + daysToSunday)
   sunday.setHours(12, 0, 0, 0)
