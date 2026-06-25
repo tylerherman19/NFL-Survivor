@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { supabase } from '@/lib/supabase'
 import { getSession, getAdminSession } from '@/lib/session'
 import { getTeamDeadline } from '@/lib/deadline'
@@ -142,6 +143,7 @@ export async function POST(req: NextRequest) {
       ).catch(console.error)
     }
 
+    revalidatePath('/')
     return NextResponse.json({ ok: true, team })
   } catch (err) {
     console.error('picks error', err)

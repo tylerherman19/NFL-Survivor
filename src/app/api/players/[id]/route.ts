@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { supabase } from '@/lib/supabase'
 import { getAdminSession } from '@/lib/session'
 
@@ -21,6 +22,7 @@ export async function PATCH(
   const { error } = await supabase.from('players').update(updates).eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+  revalidatePath('/')
   return NextResponse.json({ ok: true })
 }
 
@@ -35,5 +37,6 @@ export async function DELETE(
   const { error } = await supabase.from('players').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+  revalidatePath('/')
   return NextResponse.json({ ok: true })
 }
