@@ -5,12 +5,16 @@
       "schedule": "0 10 * * 5"
     },
     {
+      "path": "/api/cron/reminders",
+      "schedule": "0 14 * * 0"
+    },
+    {
       "path": "/api/cron/auto-assign",
       "schedule": "0 19 * * 0"
     },
     {
       "path": "/api/cron/sync-results",
-      "schedule": "0 4 * * *"
+      "schedule": "0 6 * * *"
     }
   ]
 }

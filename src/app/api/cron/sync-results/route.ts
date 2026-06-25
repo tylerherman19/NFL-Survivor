@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { sendEliminationEmail } from '@/lib/email'
 
 // Vercel Cron — auto-syncs ESPN game results + grades picks, no admin needed.
-// Runs daily at 4am UTC (10pm CT) to catch TNF, Sunday, and MNF completions.
+// Runs daily at 6am UTC (midnight CST / 1am CDT) to catch TNF, Sunday, and MNF completions.
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {

@@ -9,8 +9,6 @@ import LiveTicker from './components/LiveTicker'
 // updates client-side via the Countdown component regardless.
 export const revalidate = 60
 
-const ALIVE_PREVIEW = 7
-const ELIM_PREVIEW = 5
 const TOTAL_WEEKS = 18
 
 async function getDashboardData() {
@@ -41,6 +39,7 @@ async function getDashboardData() {
     let games: Game[] = []
     let nextDeadline: string | null = null
     let nextDeadlineFormatted: string | null = null
+    let picksRevealed = false
 
     if (week) {
       const { data: picksData } = await supabase
@@ -74,6 +73,7 @@ async function getDashboardData() {
             timeZoneName: 'short',
           })
         }
+        picksRevealed = sundayDeadline ? sundayDeadline <= new Date() : false
       }
     }
 
@@ -146,6 +146,7 @@ async function getDashboardData() {
       totalPlayers: players.length,
       nextDeadline,
       nextDeadlineFormatted,
+      picksRevealed,
     }
   } catch {
     return null
@@ -167,6 +168,7 @@ export default async function DashboardPage() {
           <nav className="flex items-center gap-6">
             <a href="#standings" className="text-xs tracking-widest uppercase text-gray-400 hover:text-white transition-colors hidden sm:block">Standings</a>
             <a href="#rules" className="text-xs tracking-widest uppercase text-gray-400 hover:text-white transition-colors hidden sm:block">Rules</a>
+            <Link href="/grid" className="text-xs tracking-widest uppercase text-gray-400 hover:text-white transition-colors hidden sm:block">Pick Grid</Link>
             <Link href="/login" className="text-xs tracking-widest uppercase text-gray-400 hover:text-white transition-colors">Log In</Link>
             <Link
               href="/pick"
@@ -181,6 +183,16 @@ export default async function DashboardPage() {
 
       {/* Live scores ticker — client component, polls independently of cached server render */}
       <LiveTicker weekNumber={data?.week?.week_number} season={data?.week?.season_year} />
+
+      {data && data.aliveCount === 1 && aliveRows.length === 1 && (
+        <div style={{ background: 'var(--dark)', borderBottom: '4px solid var(--green)' }}>
+          <div className="mx-auto max-w-5xl px-4 py-8 text-center">
+            <p className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: 'var(--green)' }}>SURVIVOR CHAMPION</p>
+            <p className="font-display text-7xl sm:text-8xl" style={{ color: 'var(--cream)' }}>{aliveRows[0].full_name.toUpperCase()}</p>
+            <p className="mt-3 text-sm tracking-widest uppercase" style={{ color: 'var(--green)' }}>WINNER TAKES ${data.potSize}</p>
+          </div>
+        </div>
+      )}
 
       {!data ? (
         <main className="mx-auto max-w-5xl px-4 py-20 text-center">
@@ -245,7 +257,7 @@ export default async function DashboardPage() {
                     </td>
                   </tr>
                 )}
-                {aliveRows.slice(0, ALIVE_PREVIEW).map((row, i) => (
+                {aliveRows.map((row, i) => (
                   <tr key={row.player_id} className="border-b" style={{ borderColor: 'var(--border)' }}>
                     <td className="py-3 text-sm" style={{ color: 'var(--muted)' }}>{i + 1}</td>
                     <td className="py-3 font-bold" style={{ color: 'var(--dark)' }}>{row.full_name}</td>
@@ -254,7 +266,14 @@ export default async function DashboardPage() {
                     </td>
                     <td className="py-3">
                       {row.current_pick ? (
-                        <span className="text-xs font-semibold" style={{ color: 'var(--green)' }}>✓ Pick In</span>
+                        data.picksRevealed ? (
+                          <div>
+                            <span className="font-bold font-mono text-sm" style={{ color: 'var(--green)' }}>{row.current_pick}</span>
+                            <span className="ml-1 text-xs" style={{ color: 'var(--muted)' }}>{NFL_TEAM_NAMES[row.current_pick]}</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs font-semibold" style={{ color: 'var(--green)' }}>✓ Pick In</span>
+                        )
                       ) : (
                         <span className="text-xs italic" style={{ color: 'var(--red)' }}>no pick yet</span>
                       )}
@@ -264,13 +283,6 @@ export default async function DashboardPage() {
                     </td>
                   </tr>
                 ))}
-                {aliveRows.length > ALIVE_PREVIEW && (
-                  <tr>
-                    <td colSpan={5} className="py-2 text-xs italic" style={{ color: 'var(--muted)' }}>
-                      + {aliveRows.length - ALIVE_PREVIEW} more still alive
-                    </td>
-                  </tr>
-                )}
 
                 {/* Eliminated section */}
                 {elimRows.length > 0 && (
@@ -282,7 +294,7 @@ export default async function DashboardPage() {
                     </td>
                   </tr>
                 )}
-                {elimRows.slice(0, ELIM_PREVIEW).map((row) => (
+                {elimRows.map((row) => (
                   <tr key={row.player_id} className="border-b" style={{ borderColor: 'var(--border)', opacity: 0.6 }}>
                     <td className="py-2.5 text-sm" style={{ color: 'var(--muted)' }}>—</td>
                     <td className="py-2.5 text-sm" style={{ color: 'var(--muted)', textDecoration: 'line-through' }}>{row.full_name}</td>
@@ -297,13 +309,6 @@ export default async function DashboardPage() {
                     </td>
                   </tr>
                 ))}
-                {elimRows.length > ELIM_PREVIEW && (
-                  <tr>
-                    <td colSpan={5} className="py-2 text-xs italic" style={{ color: 'var(--muted)' }}>
-                      + {elimRows.length - ELIM_PREVIEW} more eliminated
-                    </td>
-                  </tr>
-                )}
               </tbody>
             </table>
           </div>

@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation'
 import { NFL_TEAM_NAMES } from '@/types'
 
 interface AvailableTeam { team: string; deadline: string | null; locked: boolean }
-interface Props { weekId: string; weekNumber: number; playerId: string; availableTeams: AvailableTeam[]; usedTeams: string[] }
+interface Props { weekId: string; weekNumber: number; playerId: string; availableTeams: AvailableTeam[]; usedTeams: string[]; teamRecords?: Record<string, string> }
 
-export default function PickForm({ weekId, weekNumber, availableTeams, usedTeams }: Props) {
+export default function PickForm({ weekId, weekNumber, availableTeams, usedTeams, teamRecords }: Props) {
   const router = useRouter()
   const [selected, setSelected] = useState<string | null>(null)
   const [confirmed, setConfirmed] = useState(false)
@@ -81,6 +81,9 @@ export default function PickForm({ weekId, weekNumber, availableTeams, usedTeams
               >
                 <p className="font-bold font-mono text-sm" style={{ color: 'var(--dark)' }}>{team}</p>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>{NFL_TEAM_NAMES[team]}</p>
+                {teamRecords?.[team] && (
+                  <p className="text-xs mt-0.5 font-mono" style={{ color: 'var(--muted)' }}>{teamRecords[team]}</p>
+                )}
                 {deadline && (
                   <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>
                     Locks {new Date(deadline).toLocaleString('en-US', { timeZone: 'America/Chicago', weekday: 'short', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })}

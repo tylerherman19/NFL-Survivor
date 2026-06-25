@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { getAdminSession } from '@/lib/session'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
+import AdvanceWeekButton from './AdvanceWeekButton'
 
 export default async function AdminDashboard() {
   const isAdmin = await getAdminSession()
@@ -55,6 +56,7 @@ export default async function AdminDashboard() {
           </p>
         </div>
       )}
+      {week && <AdvanceWeekButton currentWeekNumber={week.week_number} seasonYear={week.season_year} />}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <AdminCard

@@ -237,8 +237,93 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
         </div>
       )}
 
+      {/* Mobile cards */}
+      <div className="sm:hidden space-y-3">
+        {players.map((p) => {
+          const pick = currentPicks[p.id]
+          const weeks = weeksSurvived[p.id] || 0
+          return (
+            <div
+              key={p.id}
+              className="rounded-xl border border-slate-700 bg-slate-800 p-4 space-y-3"
+              style={selected.has(p.id) ? { borderColor: '#6366f1' } : {}}
+            >
+              {/* Top row: checkbox + name + status */}
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={selected.has(p.id)}
+                  onChange={() => toggleSelect(p.id)}
+                  className="accent-green-500 shrink-0"
+                />
+                <span className="font-medium text-white flex-1">{p.full_name}</span>
+                <span className={`text-xs font-bold ${p.status === 'alive' ? 'text-green-400' : 'text-red-400'}`}>
+                  {p.status === 'alive' ? '✅ Alive' : '❌ Out'}
+                </span>
+              </div>
+
+              {/* Second row: paid + week pick */}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => togglePaid(p.id, p.paid)}
+                  className={`rounded px-2 py-0.5 text-xs font-medium ${
+                    p.paid
+                      ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+                      : 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                  }`}
+                >
+                  {p.paid ? '✓ Paid' : '✗ Unpaid'}
+                </button>
+                {pick ? (
+                  <span className="rounded bg-slate-700 px-2 py-0.5 text-xs font-mono font-bold text-white">{pick}</span>
+                ) : p.status === 'alive' ? (
+                  <span className="text-amber-400 text-xs">pending pick</span>
+                ) : null}
+              </div>
+
+              {/* Third row: weeks survived */}
+              <p className="text-xs text-slate-500">{weeks > 0 ? `${weeks} week${weeks !== 1 ? 's' : ''} survived` : 'No weeks survived'}</p>
+
+              {/* Bottom row: actions */}
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={() => regenPin(p.id, p.full_name)}
+                  className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-300 hover:border-slate-400 hover:text-white"
+                >
+                  Regen PIN
+                </button>
+                <button
+                  onClick={() => toggleElimination(p)}
+                  className={`rounded border px-2 py-1 text-xs ${
+                    p.status === 'alive'
+                      ? 'border-red-700 text-red-400 hover:border-red-500'
+                      : 'border-green-700 text-green-400 hover:border-green-500'
+                  }`}
+                >
+                  {p.status === 'alive' ? 'Eliminate' : 'Restore'}
+                </button>
+                {activeWeekId && p.status === 'alive' && (
+                  <button
+                    onClick={() => setPickModal({ player: p, team: '' })}
+                    className="rounded border border-blue-700 px-2 py-1 text-xs text-blue-400 hover:border-blue-500"
+                  >
+                    Submit Pick
+                  </button>
+                )}
+                <button
+                  onClick={() => deletePlayer(p)}
+                  className="rounded border border-red-900 px-2 py-1 text-xs text-red-500 hover:border-red-600 hover:text-red-400"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
       {/* Players table */}
-      <div className="overflow-x-auto rounded-xl border border-slate-700">
+      <div className="hidden sm:block overflow-x-auto rounded-xl border border-slate-700">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-700 bg-slate-800 text-slate-400 text-left">

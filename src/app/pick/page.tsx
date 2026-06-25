@@ -54,6 +54,23 @@ export default async function PickPage() {
       })
       .sort((a, b) => a.team.localeCompare(b.team))
 
+    let teamRecords: Record<string, string> = {}
+    try {
+      const espnRes = await fetch(
+        'https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams?limit=32',
+        { next: { revalidate: 3600 } }
+      )
+      if (espnRes.ok) {
+        const espnData = await espnRes.json()
+        const teams = espnData.sports?.[0]?.leagues?.[0]?.teams ?? []
+        for (const entry of teams) {
+          const abbr: string = entry.team?.abbreviation
+          const record: string = entry.team?.record?.items?.[0]?.summary ?? ''
+          if (abbr && record) teamRecords[abbr] = record
+        }
+      }
+    } catch { /* non-critical */ }
+
     return (
       <Shell session={session} weekNumber={week.week_number}>
         {player.status === 'eliminated' ? (
@@ -89,6 +106,7 @@ export default async function PickPage() {
             playerId={session.player_id}
             availableTeams={availableTeams}
             usedTeams={usedTeams}
+            teamRecords={teamRecords}
           />
         )}
       </Shell>
@@ -112,6 +130,7 @@ function Shell({ children, session, weekNumber }: { children: React.ReactNode; s
             {weekNumber && <p className="text-xs tracking-widest uppercase mt-0.5" style={{ color: '#666' }}>Week {weekNumber}</p>}
           </div>
           <div className="flex items-center gap-4">
+            <Link href="/history" className="text-xs tracking-widest uppercase" style={{ color: '#888' }}>My Picks</Link>
             <span className="text-xs tracking-widest uppercase" style={{ color: '#888' }}>{session.full_name}</span>
             <LogoutButton />
           </div>
