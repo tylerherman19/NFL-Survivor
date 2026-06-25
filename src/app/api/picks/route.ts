@@ -68,15 +68,15 @@ export async function POST(req: NextRequest) {
       .eq('week_id', week_id)
       .single()
 
-    if (existingPick) {
+    if (existingPick && !isAdmin) {
       return NextResponse.json({ error: 'You already have a pick for this week' }, { status: 409 })
     }
 
-    // Check team hasn't been used by this player before
-    const { data: pastPicks } = await supabase
-      .from('picks')
-      .select('team')
-      .eq('player_id', playerId)
+    // Check team hasn't been used by this player in other weeks
+    // When admin is reassigning, exclude the current week so the replaced team doesn't block
+    let pastPicksQuery = supabase.from('picks').select('team').eq('player_id', playerId)
+    if (isAdmin && existingPick) pastPicksQuery = pastPicksQuery.neq('week_id', week_id)
+    const { data: pastPicks } = await pastPicksQuery
 
     const usedTeams = (pastPicks || []).map((p: { team: string }) => p.team)
     if (usedTeams.includes(team)) {
@@ -105,6 +105,11 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         )
       }
+    }
+
+    // Admin reassignment: delete the existing pick before inserting the new one
+    if (isAdmin && existingPick) {
+      await supabase.from('picks').delete().eq('id', existingPick.id)
     }
 
     // Insert the pick

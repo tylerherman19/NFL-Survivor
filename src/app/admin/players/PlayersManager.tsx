@@ -304,10 +304,10 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
                 </button>
                 {activeWeekId && p.status === 'alive' && (
                   <button
-                    onClick={() => setPickModal({ player: p, team: '' })}
+                    onClick={() => setPickModal({ player: p, team: pick || '' })}
                     className="rounded border border-blue-700 px-2 py-1 text-xs text-blue-400 hover:border-blue-500"
                   >
-                    Submit Pick
+                    {pick ? 'Change Pick' : 'Submit Pick'}
                   </button>
                 )}
                 <button
@@ -407,10 +407,10 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
                       </button>
                       {activeWeekId && p.status === 'alive' && (
                         <button
-                          onClick={() => setPickModal({ player: p, team: '' })}
+                          onClick={() => setPickModal({ player: p, team: currentPicks[p.id] || '' })}
                           className="rounded border border-blue-700 px-2 py-0.5 text-xs text-blue-400 hover:border-blue-500"
                         >
-                          Submit Pick
+                          {currentPicks[p.id] ? 'Change Pick' : 'Submit Pick'}
                         </button>
                       )}
                       <button
@@ -433,8 +433,13 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
           <div className="rounded-xl border border-slate-700 bg-slate-800 p-6 w-full max-w-sm space-y-4">
             <h3 className="text-lg font-bold text-white">
-              Submit Pick for {pickModal.player.full_name}
+              {currentPicks[pickModal.player.id] ? 'Change Pick' : 'Submit Pick'} — {pickModal.player.full_name}
             </h3>
+            {currentPicks[pickModal.player.id] && (
+              <p className="text-xs text-slate-400">
+                Current pick: <span className="font-mono font-bold text-white">{currentPicks[pickModal.player.id]}</span>
+              </p>
+            )}
             <div>
               <label className="block text-xs text-slate-400 mb-1">Team</label>
               <select
@@ -456,7 +461,7 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
                 disabled={!pickModal.team || submittingPick}
                 className="flex-1 rounded-lg bg-blue-600 py-2 font-semibold text-white hover:bg-blue-500 disabled:opacity-50"
               >
-                {submittingPick ? 'Submitting…' : 'Submit Pick'}
+                {submittingPick ? 'Submitting…' : currentPicks[pickModal.player.id] ? 'Change Pick' : 'Submit Pick'}
               </button>
               <button
                 onClick={() => setPickModal(null)}
