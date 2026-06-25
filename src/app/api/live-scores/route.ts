@@ -67,6 +67,18 @@ export async function GET() {
     }
 
     const espnData = await espnRes.json()
+
+    // ESPN silently falls back to the most recent completed season when the
+    // requested season has no data yet (e.g. querying 2026 in June 2026 returns
+    // 2025 data). Validate the season matches before using any game data.
+    const espnSeasonYear: number | null = espnData.season?.year ?? null
+    if (espnSeasonYear !== null && espnSeasonYear !== week.season_year) {
+      return NextResponse.json({
+        weekNumber: week.week_number, season: week.season_year,
+        games: [], picksVisible: false, hasLiveGames: false,
+      }, { headers: { 'Cache-Control': 'public, max-age=300' } })
+    }
+
     const events: ESPNEvent[] = espnData.events || []
 
     // Build game list from ESPN
