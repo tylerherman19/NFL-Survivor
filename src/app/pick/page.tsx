@@ -6,6 +6,7 @@ import type { Game } from '@/types'
 import PickForm from './PickForm'
 import LogoutButton from '../components/LogoutButton'
 import { getPickDeadline } from '@/lib/deadline'
+import { getNflOdds, matchGameOdds } from '@/lib/kalshi'
 import Link from 'next/link'
 
 export default async function PickPage() {
@@ -53,6 +54,18 @@ export default async function PickPage() {
         return { team, deadline: deadline?.toISOString() || null, locked: deadline ? now >= deadline : false }
       })
       .sort((a, b) => a.team.localeCompare(b.team))
+
+    const teamOdds: Record<string, number> = {}
+    try {
+      const kalshiEvents = await getNflOdds()
+      for (const g of gamesData) {
+        const odds = matchGameOdds(g.home_team, g.away_team, g.kickoff_central, kalshiEvents)
+        if (odds) {
+          teamOdds[g.home_team] = odds.homeProb
+          teamOdds[g.away_team] = odds.awayProb
+        }
+      }
+    } catch { /* non-critical */ }
 
     let teamRecords: Record<string, string> = {}
     try {
@@ -107,6 +120,7 @@ export default async function PickPage() {
             availableTeams={availableTeams}
             usedTeams={usedTeams}
             teamRecords={teamRecords}
+            teamOdds={teamOdds}
           />
         )}
       </Shell>

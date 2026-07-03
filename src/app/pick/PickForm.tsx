@@ -5,17 +5,30 @@ import { useRouter } from 'next/navigation'
 import { NFL_TEAM_NAMES } from '@/types'
 
 interface AvailableTeam { team: string; deadline: string | null; locked: boolean }
-interface Props { weekId: string; weekNumber: number; playerId: string; availableTeams: AvailableTeam[]; usedTeams: string[]; teamRecords?: Record<string, string> }
+interface Props { weekId: string; weekNumber: number; playerId: string; availableTeams: AvailableTeam[]; usedTeams: string[]; teamRecords?: Record<string, string>; teamOdds?: Record<string, number> }
 
-export default function PickForm({ weekId, weekNumber, availableTeams, usedTeams, teamRecords }: Props) {
+function oddsColor(prob: number): string {
+  if (prob >= 0.6) return 'var(--green)'
+  if (prob >= 0.4) return 'var(--dark)'
+  return 'var(--red)'
+}
+
+export default function PickForm({ weekId, weekNumber, availableTeams, usedTeams, teamRecords, teamOdds }: Props) {
   const router = useRouter()
   const [selected, setSelected] = useState<string | null>(null)
   const [confirmed, setConfirmed] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [sortBy, setSortBy] = useState<'alpha' | 'odds'>('alpha')
 
-  const unlocked = availableTeams.filter((t) => !t.locked)
+  const hasOdds = Object.keys(teamOdds ?? {}).length > 0
+  const sortTeams = (list: AvailableTeam[]) =>
+    sortBy === 'odds' && hasOdds
+      ? [...list].sort((a, b) => (teamOdds?.[b.team] ?? -1) - (teamOdds?.[a.team] ?? -1))
+      : list
+
+  const unlocked = sortTeams(availableTeams.filter((t) => !t.locked))
   const locked = availableTeams.filter((t) => t.locked)
 
   async function handleSubmit() {
@@ -66,7 +79,28 @@ export default function PickForm({ weekId, weekNumber, availableTeams, usedTeams
 
       {unlocked.length > 0 && (
         <div>
-          <p className="text-xs font-bold tracking-widest uppercase mb-3" style={{ color: 'var(--muted)' }}>Select a team</p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-bold tracking-widest uppercase" style={{ color: 'var(--muted)' }}>Select a team</p>
+            {hasOdds && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs tracking-widest uppercase" style={{ color: 'var(--muted)' }}>Sort:</span>
+                {(['alpha', 'odds'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setSortBy(mode)}
+                    className="text-xs tracking-widest uppercase px-2 py-1 border transition-colors"
+                    style={{
+                      borderColor: sortBy === mode ? 'var(--dark)' : 'var(--border)',
+                      color: sortBy === mode ? 'var(--dark)' : 'var(--muted)',
+                      fontWeight: sortBy === mode ? 700 : 400,
+                    }}
+                  >
+                    {mode === 'alpha' ? 'A–Z' : 'Win %'}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {unlocked.map(({ team, deadline }) => (
               <button
@@ -83,6 +117,11 @@ export default function PickForm({ weekId, weekNumber, availableTeams, usedTeams
                 <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>{NFL_TEAM_NAMES[team]}</p>
                 {teamRecords?.[team] && (
                   <p className="text-xs mt-0.5 font-mono" style={{ color: 'var(--muted)' }}>{teamRecords[team]}</p>
+                )}
+                {teamOdds?.[team] !== undefined && (
+                  <p className="text-xs mt-0.5 font-mono" style={{ color: oddsColor(teamOdds[team]) }}>
+                    {Math.round(teamOdds[team] * 100)}% win odds · Kalshi
+                  </p>
                 )}
                 {deadline && (
                   <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>

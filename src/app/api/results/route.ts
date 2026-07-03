@@ -12,6 +12,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing game_id or result' }, { status: 400 })
     }
 
+    const VALID_RESULTS = ['home_win', 'away_win', 'tie', 'pending']
+    if (!VALID_RESULTS.includes(result)) {
+      return NextResponse.json({ error: 'Invalid result value' }, { status: 400 })
+    }
+
     // Update the game result
     const { data: game, error } = await supabase
       .from('games')

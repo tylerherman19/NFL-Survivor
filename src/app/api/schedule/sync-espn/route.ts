@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Fetch from ESPN
-    const url = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?seasontype=2&season=${season_year}&week=${week_number}`
+    const url = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?seasontype=2&dates=${season_year}&week=${week_number}`
     const espnRes = await fetch(url)
     if (!espnRes.ok) {
       return NextResponse.json({ error: 'ESPN API unavailable' }, { status: 502 })
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Create/activate week in DB
-    await supabase.from('weeks').update({ is_active: false }).neq('id', '00000000-0000-0000-0000-000000000000')
+    await supabase.from('weeks').update({ is_active: false }).gt('week_number', 0)
 
     const { data: existingWeek } = await supabase
       .from('weeks')

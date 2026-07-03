@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
       weekId = existingWeek.id
     } else {
       // Deactivate all other weeks first
-      await supabase.from('weeks').update({ is_active: false }).neq('id', '00000000-0000-0000-0000-000000000000')
+      await supabase.from('weeks').update({ is_active: false }).gt('week_number', 0)
 
       const { data: newWeek, error } = await supabase
         .from('weeks')

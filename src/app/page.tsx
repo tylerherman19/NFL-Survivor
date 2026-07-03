@@ -29,6 +29,7 @@ async function getDashboardData() {
 
     if (!allPlayers) return null
     const players = allPlayers.filter((p: { email: string }) => !p.email?.endsWith('@nflsurvivor.internal'))
+    const realPlayerIds = new Set(players.map((p: { id: string }) => p.id))
 
     const totalPaid = players.filter((p: { paid: boolean }) => p.paid).length
     const potSize = totalPaid * 25
@@ -49,7 +50,9 @@ async function getDashboardData() {
 
       if (picksData) {
         currentPicks = Object.fromEntries(
-          picksData.map((p: { player_id: string; team: string }) => [p.player_id, p.team])
+          picksData
+            .filter((p: { player_id: string }) => realPlayerIds.has(p.player_id))
+            .map((p: { player_id: string; team: string }) => [p.player_id, p.team])
         )
       }
 
@@ -103,7 +106,7 @@ async function getDashboardData() {
       return b.weeks_survived - a.weeks_survived
     })
 
-    const pastPicksQuery = supabase.from('picks').select('team, week_id')
+    const pastPicksQuery = supabase.from('picks').select('team, week_id, player_id')
     if (week) pastPicksQuery.neq('week_id', week.id)
     const { data: allPicksWithTeam } = await pastPicksQuery
 
@@ -135,6 +138,62 @@ async function getDashboardData() {
       }))
       .sort((a, b) => b.times_picked - a.times_picked)
 
+    // Current-week pick distribution (only shown publicly after the reveal)
+    const distMap: Record<string, number> = {}
+    for (const team of Object.values(currentPicks)) {
+      distMap[team] = (distMap[team] || 0) + 1
+    }
+    const pickDistribution = Object.entries(distMap)
+      .map(([team, count]) => ({ team, count }))
+      .sort((a, b) => b.count - a.count || a.team.localeCompare(b.team))
+    const picksMade = alive.filter((p: { id: string }) => currentPicks[p.id]).length
+    const picksPending = alive.length - picksMade
+
+    // Survival curve: players remaining after each completed week
+    const { data: allWeeks } = await supabase
+      .from('weeks')
+      .select('id, week_number')
+      .order('week_number')
+    const completedWeeks = (allWeeks || []).filter(
+      (w: { week_number: number }) => !week || w.week_number < week.week_number
+    )
+    const survivalCurve = completedWeeks.map((w: { week_number: number }) => ({
+      week_number: w.week_number,
+      remaining:
+        players.length -
+        players.filter(
+          (p: { elimination_week: number | null }) =>
+            p.elimination_week !== null && p.elimination_week <= w.week_number
+        ).length,
+    }))
+
+    // Weekly carnage: eliminations per past week and the team most responsible
+    const weekIdByNumber: Record<number, string> = {}
+    for (const w of allWeeks || []) weekIdByNumber[w.week_number] = w.id
+    const carnage = completedWeeks
+      .map((w: { week_number: number }) => {
+        const elim = players.filter(
+          (p: { elimination_week: number | null }) => p.elimination_week === w.week_number
+        )
+        if (elim.length === 0) return null
+        const teamCounts: Record<string, number> = {}
+        for (const p of elim) {
+          const pick = (allPicksWithTeam || []).find(
+            (pk: { player_id: string; week_id: string }) =>
+              pk.player_id === p.id && pk.week_id === weekIdByNumber[w.week_number]
+          )
+          const key = pick ? pick.team : 'no pick'
+          teamCounts[key] = (teamCounts[key] || 0) + 1
+        }
+        let topTeam: string | null = null
+        let topCount = 0
+        for (const [team, count] of Object.entries(teamCounts)) {
+          if (count > topCount) { topTeam = team; topCount = count }
+        }
+        return { week_number: w.week_number, eliminated: elim.length, topTeam }
+      })
+      .filter((c): c is { week_number: number; eliminated: number; topTeam: string | null } => c !== null)
+
     return {
       week: week as Week | null,
       standings,
@@ -147,6 +206,11 @@ async function getDashboardData() {
       nextDeadline,
       nextDeadlineFormatted,
       picksRevealed,
+      pickDistribution,
+      picksMade,
+      picksPending,
+      survivalCurve,
+      carnage,
     }
   } catch {
     return null
@@ -169,6 +233,7 @@ export default async function DashboardPage() {
             <a href="#standings" className="text-xs tracking-widest uppercase text-gray-400 hover:text-white transition-colors hidden sm:block">Standings</a>
             <a href="#rules" className="text-xs tracking-widest uppercase text-gray-400 hover:text-white transition-colors hidden sm:block">Rules</a>
             <Link href="/grid" className="text-xs tracking-widest uppercase text-gray-400 hover:text-white transition-colors hidden sm:block">Pick Grid</Link>
+            <Link href="/schedule" className="text-xs tracking-widest uppercase text-gray-400 hover:text-white transition-colors hidden sm:block">Schedule</Link>
             <Link href="/login" className="text-xs tracking-widest uppercase text-gray-400 hover:text-white transition-colors">Log In</Link>
             <Link
               href="/pick"
@@ -312,6 +377,96 @@ export default async function DashboardPage() {
               </tbody>
             </table>
           </div>
+
+          {/* This Week's Pick Distribution */}
+          {data.week && (
+            <div className="py-8 border-t" style={{ borderColor: 'var(--border)' }}>
+              <p className="text-xs font-bold tracking-widest uppercase mb-4" style={{ color: 'var(--muted)' }}>
+                Week {data.week.week_number} Pick Distribution
+              </p>
+              {data.picksRevealed ? (
+                data.pickDistribution.length === 0 ? (
+                  <p className="text-sm" style={{ color: 'var(--muted)' }}>No picks were made this week.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {data.pickDistribution.map((d) => {
+                      const max = data.pickDistribution[0].count
+                      return (
+                        <div key={d.team} className="flex items-center gap-3">
+                          <span className="font-bold font-mono text-sm w-12 shrink-0" style={{ color: 'var(--dark)' }}>{d.team}</span>
+                          <div className="flex-1 border" style={{ borderColor: 'var(--border)', background: 'white' }}>
+                            <div
+                              style={{
+                                width: `${Math.max((d.count / max) * 100, 4)}%`,
+                                background: 'var(--green)',
+                                height: 10,
+                              }}
+                            />
+                          </div>
+                          <span className="text-sm w-16 shrink-0 text-right" style={{ color: 'var(--dark)' }}>
+                            {d.count} {d.count === 1 ? 'pick' : 'picks'}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              ) : (
+                <p className="text-sm" style={{ color: 'var(--dark)' }}>
+                  <span className="font-bold" style={{ color: 'var(--green)' }}>{data.picksMade}</span> picks in ·{' '}
+                  <span className="font-bold" style={{ color: 'var(--red)' }}>{data.picksPending}</span> pending
+                  <span className="text-xs ml-2" style={{ color: 'var(--muted)' }}>— team breakdown revealed after Sunday 12 PM CT</span>
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Survival curve */}
+          {data.survivalCurve.length > 0 && (
+            <div className="py-8 border-t" style={{ borderColor: 'var(--border)' }}>
+              <p className="text-xs font-bold tracking-widest uppercase mb-4" style={{ color: 'var(--muted)' }}>Survivors by Week</p>
+              <div className="flex flex-wrap gap-2">
+                <div className="border px-4 py-2 text-center" style={{ borderColor: 'var(--border)', background: 'white' }}>
+                  <p className="font-display text-2xl leading-none" style={{ color: 'var(--dark)' }}>{data.totalPlayers}</p>
+                  <p className="text-xs tracking-widest uppercase mt-1" style={{ color: 'var(--muted)' }}>Start</p>
+                </div>
+                {data.survivalCurve.map((s) => (
+                  <div key={s.week_number} className="border px-4 py-2 text-center" style={{ borderColor: 'var(--border)', background: 'white' }}>
+                    <p
+                      className="font-display text-2xl leading-none"
+                      style={{ color: s.remaining <= data.aliveCount ? 'var(--green)' : 'var(--dark)' }}
+                    >
+                      {s.remaining}
+                    </p>
+                    <p className="text-xs tracking-widest uppercase mt-1" style={{ color: 'var(--muted)' }}>After Wk {s.week_number}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Weekly carnage */}
+          {data.carnage.length > 0 && (
+            <div className="py-8 border-t" style={{ borderColor: 'var(--border)' }}>
+              <p className="text-xs font-bold tracking-widest uppercase mb-4" style={{ color: 'var(--muted)' }}>Weekly Carnage</p>
+              <div className="space-y-2 text-sm" style={{ color: 'var(--dark)' }}>
+                {data.carnage.map((c) => (
+                  <p key={c.week_number}>
+                    <span className="font-bold" style={{ color: 'var(--red)' }}>Week {c.week_number}:</span>{' '}
+                    {c.eliminated} player{c.eliminated !== 1 ? 's' : ''} eliminated
+                    {c.topTeam && c.topTeam !== 'no pick' ? (
+                      <span style={{ color: 'var(--muted)' }}>
+                        {' '}(mostly on <span className="font-mono font-bold" style={{ color: 'var(--dark)' }}>{c.topTeam}</span>
+                        {NFL_TEAM_NAMES[c.topTeam] ? ` — ${NFL_TEAM_NAMES[c.topTeam]}` : ''})
+                      </span>
+                    ) : c.topTeam === 'no pick' ? (
+                      <span style={{ color: 'var(--muted)' }}> (mostly missed picks)</span>
+                    ) : null}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Team Pick Stats (past weeks only) */}
           {data.teamStats.length > 0 && (

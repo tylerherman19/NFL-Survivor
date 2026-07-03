@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
 
     if (error || !players || players.length === 0) {
       return NextResponse.json(
-        { error: 'Name not found. Check spelling and try again.' },
+        { error: 'Invalid name or PIN. Check spelling and try again.' },
         { status: 401 }
       )
     }
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
 
     const valid = await verifyPin(pin, player.pin_hash)
     if (!valid) {
-      return NextResponse.json({ error: 'Incorrect PIN.' }, { status: 401 })
+      return NextResponse.json({ error: 'Invalid name or PIN. Check spelling and try again.' }, { status: 401 })
     }
 
     await createSession({
