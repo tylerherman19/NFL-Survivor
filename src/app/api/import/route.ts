@@ -44,25 +44,35 @@ export async function POST(req: NextRequest) {
     }
 
     let count = 0
+    let skipped = 0
     const errors: string[] = []
 
     for (const row of rows) {
       try {
+        // Check if player already exists — never overwrite their PIN or send a new welcome email
+        const { data: existing } = await supabase
+          .from('players')
+          .select('id')
+          .ilike('email', row.email)
+          .single()
+
+        if (existing) {
+          skipped++
+          continue
+        }
+
         const pin = generatePin()
         const pin_hash = await hashPin(pin)
 
-        const { error } = await supabase.from('players').upsert(
-          {
-            full_name: row.full_name,
-            phone: row.phone || null,
-            email: row.email,
-            venmo_handle: row.venmo_handle || null,
-            paid: row.paid,
-            status: 'alive',
-            pin_hash,
-          },
-          { onConflict: 'email', ignoreDuplicates: false }
-        )
+        const { error } = await supabase.from('players').insert({
+          full_name: row.full_name,
+          phone: row.phone || null,
+          email: row.email,
+          venmo_handle: row.venmo_handle || null,
+          paid: row.paid,
+          status: 'alive',
+          pin_hash,
+        })
 
         if (error) {
           errors.push(`${row.full_name}: ${error.message}`)
@@ -71,7 +81,7 @@ export async function POST(req: NextRequest) {
 
         await sendWelcomeEmail(row.email, row.full_name, pin)
         count++
-      } catch (err) {
+      } catch {
         errors.push(`${row.full_name}: unexpected error`)
       }
     }
@@ -79,6 +89,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       count,
+      skipped,
       errors: errors.length > 0 ? errors : undefined,
     })
   } catch (err) {

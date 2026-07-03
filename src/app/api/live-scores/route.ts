@@ -57,7 +57,7 @@ export async function GET() {
     }
 
     // Fetch ESPN scoreboard for active week
-    const espnUrl = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?seasontype=2&season=${week.season_year}&week=${week.week_number}`
+    const espnUrl = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?seasontype=2&dates=${week.season_year}&week=${week.week_number}`
     const espnRes = await fetch(espnUrl, { next: { revalidate: 30 } })
 
     if (!espnRes.ok) {

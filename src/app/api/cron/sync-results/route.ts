@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     if (!week) return NextResponse.json({ ok: true, message: 'No active week' })
 
     // Fetch ESPN scoreboard for active week
-    const url = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?seasontype=2&season=${week.season_year}&week=${week.week_number}`
+    const url = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?seasontype=2&dates=${week.season_year}&week=${week.week_number}`
     const espnRes = await fetch(url)
     if (!espnRes.ok) return NextResponse.json({ error: 'ESPN unavailable' }, { status: 502 })
 

@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { hashPin } from '@/lib/pin'
+import { checkRateLimit, getIP } from '@/lib/rateLimit'
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = await getIP()
+    const { allowed } = await checkRateLimit(`reset-pin:${ip}`, 10, 60 * 60)
+    if (!allowed) {
+      return NextResponse.json({ error: 'Too many attempts. Try again in an hour.' }, { status: 429 })
+    }
+
     const { token, pin } = await req.json()
 
     if (!token || !pin || !/^\d{6}$/.test(pin)) {
