@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 export default function AdminLoginPage() {
   const router = useRouter()
@@ -63,6 +64,13 @@ export default function AdminLoginPage() {
             {loading ? 'LOGGING IN…' : 'LOG IN →'}
           </button>
         </form>
+        <Link
+          href="/#standings"
+          className="mt-6 inline-block text-xs tracking-widest uppercase transition-colors"
+          style={{ color: '#666' }}
+        >
+          ← Standings
+        </Link>
       </div>
     </div>
   )
