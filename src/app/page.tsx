@@ -1,8 +1,9 @@
 import Link from 'next/link'
 import { NFL_TEAM_NAMES } from '@/types'
-import type { StandingRow, TeamStat, Week, Game } from '@/types'
+import type { StandingRow, TeamStat, Week } from '@/types'
 import Countdown from './components/Countdown'
 import LiveTicker from './components/LiveTicker'
+import SiteHeader from './components/SiteHeader'
 
 // Cache the server render for 60 seconds — serves ~1k concurrent users from CDN
 // without hitting Supabase 1k times simultaneously. Pick deadline countdown
@@ -16,16 +17,18 @@ async function getDashboardData() {
     const { supabase } = await import('@/lib/supabase')
     const { getWeekSundayDeadline } = await import('@/lib/deadline')
 
-    const { data: week } = await supabase
-      .from('weeks')
-      .select('*')
-      .eq('is_active', true)
-      .single()
-
-    const { data: allPlayers } = await supabase
-      .from('players')
-      .select('id, full_name, email, status, elimination_week, elimination_reason, paid')
-      .order('full_name')
+    // Single Promise.all with 4 queries: all weeks, all players, all picks with team, all games
+    const [
+      { data: allWeeks },
+      { data: allPlayers },
+      { data: allPicks },
+      { data: allGames }
+    ] = await Promise.all([
+      supabase.from('weeks').select('*').order('week_number'),
+      supabase.from('players').select('id, full_name, email, status, elimination_week, elimination_reason, paid').order('full_name'),
+      supabase.from('picks').select('player_id, week_id, team'),
+      supabase.from('games').select('*')
+    ])
 
     if (!allPlayers) return null
     const players = allPlayers.filter((p: { email: string }) => !p.email?.endsWith('@nflsurvivor.internal'))
@@ -36,18 +39,17 @@ async function getDashboardData() {
     const alive = players.filter((p: { status: string }) => p.status === 'alive')
     const payoutPerSurvivor = alive.length > 0 ? Math.floor(potSize / alive.length) : 0
 
+    // Find active week from allWeeks
+    const week = (allWeeks || []).find((w: { is_active: boolean }) => w.is_active) || null
+
     let currentPicks: Record<string, string> = {}
-    let games: Game[] = []
     let nextDeadline: string | null = null
     let nextDeadlineFormatted: string | null = null
     let picksRevealed = false
 
     if (week) {
-      const { data: picksData } = await supabase
-        .from('picks')
-        .select('player_id, team')
-        .eq('week_id', week.id)
-
+      // Filter picks for current week from allPicks
+      const picksData = (allPicks || []).filter((p: { week_id: string }) => p.week_id === week.id)
       if (picksData) {
         currentPicks = Object.fromEntries(
           picksData
@@ -56,13 +58,9 @@ async function getDashboardData() {
         )
       }
 
-      const { data: gamesData } = await supabase
-        .from('games')
-        .select('*')
-        .eq('week_id', week.id)
-
+      // Filter games for current week from allGames
+      const gamesData = (allGames || []).filter((g: { week_id: string }) => g.week_id === week.id)
       if (gamesData) {
-        games = gamesData
         const sundayDeadline = getWeekSundayDeadline(gamesData)
         if (sundayDeadline && sundayDeadline > new Date()) {
           nextDeadline = sundayDeadline.toISOString()
@@ -80,7 +78,7 @@ async function getDashboardData() {
       }
     }
 
-    const { data: allPicks } = await supabase.from('picks').select('player_id, week_id')
+    // Count weeks survived per player from all picks (including current week)
     const weeksSurvivedByPlayer: Record<string, number> = {}
     if (allPicks) {
       for (const pick of allPicks) {
@@ -106,19 +104,15 @@ async function getDashboardData() {
       return b.weeks_survived - a.weeks_survived
     })
 
-    const pastPicksQuery = supabase.from('picks').select('team, week_id, player_id')
-    if (week) pastPicksQuery.neq('week_id', week.id)
-    const { data: allPicksWithTeam } = await pastPicksQuery
+    // Filter picks to exclude current week for team stats and carnage
+    const allPicksWithTeam = (allPicks || []).filter((p: { week_id: string }) => !week || p.week_id !== week.id)
 
     const teamMap: Record<string, { times_picked: number; wins: number; eliminations: number }> = {}
     if (allPicksWithTeam) {
-      const { data: allGames } = await supabase.from('games').select('*')
       const winnersByWeek: Record<string, string[]> = {}
-      if (allGames) {
-        for (const g of allGames) {
-          if (g.result === 'home_win') winnersByWeek[g.week_id] = [...(winnersByWeek[g.week_id] || []), g.home_team]
-          else if (g.result === 'away_win') winnersByWeek[g.week_id] = [...(winnersByWeek[g.week_id] || []), g.away_team]
-        }
+      for (const g of allGames || []) {
+        if (g.result === 'home_win') winnersByWeek[g.week_id] = [...(winnersByWeek[g.week_id] || []), g.home_team]
+        else if (g.result === 'away_win') winnersByWeek[g.week_id] = [...(winnersByWeek[g.week_id] || []), g.away_team]
       }
       for (const pick of allPicksWithTeam) {
         if (!teamMap[pick.team]) teamMap[pick.team] = { times_picked: 0, wins: 0, eliminations: 0 }
@@ -150,10 +144,6 @@ async function getDashboardData() {
     const picksPending = alive.length - picksMade
 
     // Survival curve: players remaining after each completed week
-    const { data: allWeeks } = await supabase
-      .from('weeks')
-      .select('id, week_number')
-      .order('week_number')
     const completedWeeks = (allWeeks || []).filter(
       (w: { week_number: number }) => !week || w.week_number < week.week_number
     )
@@ -226,25 +216,7 @@ export default async function DashboardPage() {
   return (
     <div style={{ background: 'var(--cream)', minHeight: '100vh' }}>
       {/* Header */}
-      <header style={{ background: 'var(--dark)' }}>
-        <div className="mx-auto max-w-5xl px-4 py-4 flex items-center justify-between">
-          <span className="font-display text-white text-lg tracking-wider">NFL SURVIVOR POOL</span>
-          <nav className="flex items-center gap-6">
-            <a href="#standings" className="text-xs tracking-widest uppercase text-gray-400 hover:text-white transition-colors hidden sm:block">Standings</a>
-            <a href="#rules" className="text-xs tracking-widest uppercase text-gray-400 hover:text-white transition-colors hidden sm:block">Rules</a>
-            <Link href="/grid" className="text-xs tracking-widest uppercase text-gray-400 hover:text-white transition-colors hidden sm:block">Pick Grid</Link>
-            <Link href="/schedule" className="text-xs tracking-widest uppercase text-gray-400 hover:text-white transition-colors hidden sm:block">Schedule</Link>
-            <Link href="/login" className="text-xs tracking-widest uppercase text-gray-400 hover:text-white transition-colors">Log In</Link>
-            <Link
-              href="/pick"
-              className="font-display text-sm tracking-wider px-4 py-2 text-white"
-              style={{ background: 'var(--red)' }}
-            >
-              SUBMIT PICK →
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader />
 
       {/* Live scores ticker — client component, polls independently of cached server render */}
       <LiveTicker weekNumber={data?.week?.week_number} season={data?.week?.season_year} />

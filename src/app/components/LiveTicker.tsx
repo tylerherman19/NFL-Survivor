@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import type { LiveGame, LiveScoresResponse } from '@/app/api/live-scores/route'
 
 function scoreColor(myScore: number, theirScore: number, state: string): string {
@@ -92,30 +92,32 @@ export default function LiveTicker({ weekNumber, season }: { weekNumber?: number
   const [data, setData] = useState<LiveScoresResponse | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
 
-  const fetchScores = useCallback(async () => {
-    try {
-      const res = await fetch('/api/live-scores', { cache: 'no-store' })
-      if (res.ok) {
+  const hasLive = data?.hasLiveGames ?? false
+
+  useEffect(() => {
+    let cancelled = false
+
+    const load = async () => {
+      try {
+        const res = await fetch('/api/live-scores', { cache: 'no-store' })
+        if (!res.ok) return
         const json = await res.json()
+        if (cancelled) return
         setData(json)
         setLastUpdated(new Date())
+      } catch {
+        // silently fail — scores are non-critical
       }
-    } catch {
-      // silently fail — scores are non-critical
     }
-  }, [])
 
-  useEffect(() => {
-    fetchScores()
-  }, [fetchScores])
+    load()
+    const timer = setInterval(load, hasLive ? 30_000 : 5 * 60_000)
 
-  useEffect(() => {
-    if (!data) return
-    // Poll every 30s during live games, every 5min otherwise
-    const interval = data.hasLiveGames ? 30_000 : 5 * 60_000
-    const timer = setInterval(fetchScores, interval)
-    return () => clearInterval(timer)
-  }, [data?.hasLiveGames, fetchScores])
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+  }, [hasLive])
 
   // Don't render if no active week or no games
   if (!data || data.games.length === 0) return null
