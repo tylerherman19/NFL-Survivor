@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { NFL_TEAM_NAMES } from '@/types'
+import { teamColor } from '@/lib/teamColors'
 
 interface AvailableTeam { team: string; deadline: string | null; locked: boolean }
 interface Props { weekId: string; weekNumber: number; playerId: string; availableTeams: AvailableTeam[]; usedTeams: string[]; teamRecords?: Record<string, string>; teamOdds?: Record<string, number> }
@@ -80,18 +81,19 @@ export default function PickForm({ weekId, weekNumber, availableTeams, usedTeams
       {unlocked.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-bold tracking-widest uppercase" style={{ color: 'var(--muted)' }}>Select a team</p>
+            <p className="eyebrow">Select a team</p>
             {hasOdds && (
               <div className="flex items-center gap-2">
-                <span className="text-xs tracking-widest uppercase" style={{ color: 'var(--muted)' }}>Sort:</span>
+                <span className="eyebrow">Sort:</span>
                 {(['alpha', 'odds'] as const).map((mode) => (
                   <button
                     key={mode}
                     onClick={() => setSortBy(mode)}
-                    className="text-xs tracking-widest uppercase px-2 py-1 border transition-colors"
+                    className="text-xs tracking-widest uppercase px-2.5 py-1 rounded-full transition-colors"
                     style={{
-                      borderColor: sortBy === mode ? 'var(--dark)' : 'var(--border)',
-                      color: sortBy === mode ? 'var(--dark)' : 'var(--muted)',
+                      background: sortBy === mode ? 'var(--dark)' : 'transparent',
+                      border: `1px solid ${sortBy === mode ? 'var(--dark)' : 'var(--border)'}`,
+                      color: sortBy === mode ? '#fff' : 'var(--muted)',
                       fontWeight: sortBy === mode ? 700 : 400,
                     }}
                   >
@@ -101,48 +103,60 @@ export default function PickForm({ weekId, weekNumber, availableTeams, usedTeams
               </div>
             )}
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {unlocked.map(({ team, deadline }) => (
-              <button
-                key={team}
-                onClick={() => { setSelected(team); setConfirmed(false) }}
-                className="border p-3 text-left transition-all"
-                style={{
-                  borderColor: selected === team ? 'var(--green)' : 'var(--border)',
-                  borderWidth: selected === team ? 2 : 1,
-                  background: selected === team ? 'rgba(30,82,24,0.06)' : 'white',
-                }}
-              >
-                <p className="font-bold font-mono text-sm" style={{ color: 'var(--dark)' }}>{team}</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>{NFL_TEAM_NAMES[team]}</p>
-                {teamRecords?.[team] && (
-                  <p className="text-xs mt-0.5 font-mono" style={{ color: 'var(--muted)' }}>{teamRecords[team]}</p>
-                )}
-                {teamOdds?.[team] !== undefined && (
-                  <p className="text-xs mt-0.5 font-mono" style={{ color: oddsColor(teamOdds[team]) }}>
-                    {Math.round(teamOdds[team] * 100)}% win odds · Kalshi
-                  </p>
-                )}
-                {deadline && (
-                  <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>
-                    Locks {new Date(deadline).toLocaleString('en-US', { timeZone: 'America/Chicago', weekday: 'short', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })}
-                  </p>
-                )}
-              </button>
-            ))}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            {unlocked.map(({ team, deadline }) => {
+              const c = teamColor(team).primary
+              const isSel = selected === team
+              return (
+                <button
+                  key={team}
+                  onClick={() => { setSelected(team); setConfirmed(false) }}
+                  className="card text-left transition-all relative overflow-hidden"
+                  style={{
+                    padding: '12px 12px 12px 16px',
+                    borderColor: isSel ? c : 'var(--border)',
+                    boxShadow: isSel ? `0 0 0 2px ${c}` : undefined,
+                  }}
+                >
+                  <span className="absolute left-0 top-0 h-full" style={{ width: 4, background: c }} />
+                  <div className="flex items-center gap-2">
+                    <span className="team-chip-swatch" style={{ background: c }}>{team.slice(0, 3)}</span>
+                    <span className="font-bold text-sm" style={{ color: 'var(--dark)' }}>{team}</span>
+                    {isSel && <span className="ml-auto text-sm" style={{ color: c }}>✓</span>}
+                  </div>
+                  <p className="text-xs mt-1.5" style={{ color: 'var(--muted)' }}>{NFL_TEAM_NAMES[team]}</p>
+                  {teamRecords?.[team] && (
+                    <p className="text-xs mt-0.5 tnum" style={{ color: 'var(--muted)' }}>{teamRecords[team]}</p>
+                  )}
+                  {teamOdds?.[team] !== undefined && (
+                    <p className="text-xs mt-0.5 font-semibold tnum" style={{ color: oddsColor(teamOdds[team]) }}>
+                      {Math.round(teamOdds[team] * 100)}% win odds · Kalshi
+                    </p>
+                  )}
+                  {deadline && (
+                    <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>
+                      Locks {new Date(deadline).toLocaleString('en-US', { timeZone: 'America/Chicago', weekday: 'short', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })}
+                    </p>
+                  )}
+                </button>
+              )
+            })}
           </div>
         </div>
       )}
 
       {locked.length > 0 && (
         <div>
-          <p className="text-xs font-bold tracking-widest uppercase mb-3" style={{ color: 'var(--muted)' }}>Deadline passed</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <p className="eyebrow mb-3">Deadline passed</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
             {locked.map(({ team }) => (
-              <div key={team} className="border p-3 opacity-40 cursor-not-allowed" style={{ borderColor: 'var(--border)', background: 'white' }}>
-                <p className="font-bold font-mono text-sm" style={{ color: 'var(--muted)' }}>{team}</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>{NFL_TEAM_NAMES[team]}</p>
-                <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>Locked</p>
+              <div key={team} className="card p-3 opacity-50 cursor-not-allowed">
+                <div className="flex items-center gap-2">
+                  <span className="team-chip-swatch" style={{ background: 'var(--muted)' }}>{team.slice(0, 3)}</span>
+                  <span className="font-bold text-sm" style={{ color: 'var(--muted)' }}>{team}</span>
+                </div>
+                <p className="text-xs mt-1.5" style={{ color: 'var(--muted)' }}>{NFL_TEAM_NAMES[team]}</p>
+                <p className="text-xs mt-1 font-semibold" style={{ color: 'var(--red)' }}>🔒 Locked</p>
               </div>
             ))}
           </div>
@@ -150,22 +164,25 @@ export default function PickForm({ weekId, weekNumber, availableTeams, usedTeams
       )}
 
       {selected && (
-        <div className="border p-5 space-y-4" style={{ borderColor: 'var(--green)', borderWidth: 2 }}>
-          <p className="font-bold" style={{ color: 'var(--dark)' }}>
-            Selected: <span className="font-display text-xl">{NFL_TEAM_NAMES[selected] || selected}</span>
-          </p>
+        <div className="card p-5 space-y-4" style={{ borderColor: teamColor(selected).primary, boxShadow: `0 0 0 2px ${teamColor(selected).primary}` }}>
+          <div className="flex items-center gap-3">
+            <span className="team-chip-swatch" style={{ background: teamColor(selected).primary, width: 32, height: 32, fontSize: 11, borderRadius: 7 }}>{selected.slice(0, 3)}</span>
+            <div>
+              <p className="eyebrow" style={{ color: 'var(--muted)' }}>Your Pick</p>
+              <p className="font-display text-2xl leading-none" style={{ color: 'var(--dark)' }}>{NFL_TEAM_NAMES[selected] || selected}</p>
+            </div>
+          </div>
           <label className="flex items-start gap-3 cursor-pointer">
             <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} className="mt-0.5" />
             <span className="text-sm" style={{ color: 'var(--dark)' }}>
               I confirm this pick. Picks cannot be changed once submitted.
             </span>
           </label>
-          {error && <p className="text-sm" style={{ color: 'var(--red)' }}>{error}</p>}
+          {error && <p className="text-sm rounded-md px-3 py-2" style={{ color: 'var(--red)', background: 'var(--red-tint)' }}>{error}</p>}
           <button
             onClick={handleSubmit}
             disabled={!confirmed || submitting}
-            className="w-full font-display tracking-wider text-white py-3 disabled:opacity-40 transition-opacity"
-            style={{ background: 'var(--red)' }}
+            className="btn-primary w-full font-display tracking-wider py-3"
           >
             {submitting ? 'LOCKING IN…' : `LOCK IN ${selected} →`}
           </button>

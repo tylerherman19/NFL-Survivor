@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { NFL_TEAM_NAMES } from '@/types'
 import type { StandingRow, TeamStat, Week } from '@/types'
+import { teamColor } from '@/lib/teamColors'
 import Countdown from './components/Countdown'
 import LiveTicker from './components/LiveTicker'
 import SiteHeader from './components/SiteHeader'
@@ -223,258 +224,247 @@ export default async function DashboardPage() {
 
       {data && data.aliveCount === 1 && aliveRows.length === 1 && (
         <div style={{ background: 'var(--dark)', borderBottom: '4px solid var(--green)' }}>
-          <div className="mx-auto max-w-5xl px-4 py-8 text-center">
-            <p className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: 'var(--green)' }}>SURVIVOR CHAMPION</p>
+          <div className="mx-auto max-w-5xl px-4 py-10 text-center">
+            <p className="eyebrow mb-2" style={{ color: 'var(--green)' }}>Survivor Champion</p>
             <p className="font-display text-7xl sm:text-8xl" style={{ color: 'var(--cream)' }}>{aliveRows[0].full_name.toUpperCase()}</p>
-            <p className="mt-3 text-sm tracking-widest uppercase" style={{ color: 'var(--green)' }}>WINNER TAKES ${data.potSize}</p>
+            <p className="mt-3 eyebrow" style={{ color: 'var(--green)' }}>Winner Takes ${data.potSize}</p>
           </div>
         </div>
       )}
 
       {!data ? (
-        <main className="mx-auto max-w-5xl px-4 py-20 text-center">
+        <main className="mx-auto max-w-5xl px-4 py-24 text-center">
           <p className="font-display text-6xl" style={{ color: 'var(--dark)' }}>POOL SETUP IN PROGRESS</p>
-          <p className="mt-4 text-sm tracking-widest uppercase" style={{ color: 'var(--muted)' }}>Check back soon</p>
+          <p className="mt-4 eyebrow">Check back soon</p>
         </main>
       ) : (
-        <main className="mx-auto max-w-5xl px-4">
+        <main className="mx-auto max-w-5xl px-4 pb-4">
           {/* Hero */}
-          <div className="py-8 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 border-b" style={{ borderColor: 'var(--border)' }}>
+          <div className="pt-9 pb-7 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-5">
             <div>
-              <h1 className="font-display text-7xl sm:text-8xl leading-none" style={{ color: 'var(--dark)' }}>
+              <h1 className="font-display text-6xl sm:text-8xl leading-[0.9]" style={{ color: 'var(--dark)' }}>
                 {data.week?.season_year ?? '2026'} SEASON
               </h1>
-              <p className="mt-1 text-xs tracking-widest uppercase" style={{ color: 'var(--muted)' }}>
-                Week {data.week?.week_number ?? '—'} of {TOTAL_WEEKS}
-              </p>
+              <div className="mt-3 flex items-center gap-3">
+                <span className="eyebrow">Week {data.week?.week_number ?? '—'} of {TOTAL_WEEKS}</span>
+                <span className="hidden sm:block h-2 w-40 rounded-full overflow-hidden" style={{ background: 'var(--surface-sunken)' }}>
+                  <span className="block h-full rounded-full" style={{ background: 'var(--dark)', width: `${((data.week?.week_number ?? 0) / TOTAL_WEEKS) * 100}%` }} />
+                </span>
+              </div>
             </div>
             {data.nextDeadline && (
-              <div className="sm:text-right">
-                <p className="text-xs font-bold tracking-widest uppercase" style={{ color: 'var(--red)' }}>Pick Deadline</p>
-                <p className="font-bold text-base mt-0.5" style={{ color: 'var(--dark)' }}>{data.nextDeadlineFormatted}</p>
+              <div className="card px-5 py-4 sm:min-w-[240px]" style={{ borderColor: 'var(--border-strong)' }}>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="pill-dot" style={{ background: 'var(--red)' }} />
+                  <p className="eyebrow" style={{ color: 'var(--red)' }}>Pick Deadline</p>
+                </div>
+                <p className="font-bold text-[15px]" style={{ color: 'var(--dark)' }}>{data.nextDeadlineFormatted}</p>
                 <Countdown deadline={data.nextDeadline} />
               </div>
             )}
           </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 border-b" style={{ borderColor: 'var(--border)' }}>
-            <StatCol value={data.aliveCount} label="Still Alive" valueColor="var(--green)" />
-            <StatCol value={data.eliminatedCount} label="Eliminated" valueColor="var(--red)" border />
-            <StatCol value={`$${data.potSize}`} label="Pot Size" border />
-            <StatCol
+          {/* Stat cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <StatCard value={data.aliveCount} label="Still Alive" accent="var(--green)" />
+            <StatCard value={data.eliminatedCount} label="Eliminated" accent="var(--red)" />
+            <StatCard value={`$${data.potSize}`} label="Pot Size" accent="var(--dark)" />
+            <StatCard
               value={data.aliveCount > 0 ? `$${data.payoutPerSurvivor}` : '—'}
               label={data.aliveCount === 1 ? 'Winner Takes' : 'Split Estimate'}
-              border
+              accent="var(--dark)"
             />
           </div>
 
           {/* Standings */}
-          <div id="standings" className="py-8">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b" style={{ borderColor: 'var(--border)' }}>
-                  <th className="py-2 w-8 text-left text-xs tracking-widest uppercase" style={{ color: 'var(--muted)' }}>#</th>
-                  <th className="py-2 text-left text-xs tracking-widest uppercase" style={{ color: 'var(--muted)' }}>Player</th>
-                  <th className="py-2 text-left text-xs tracking-widest uppercase hidden sm:table-cell" style={{ color: 'var(--muted)' }}>Status</th>
-                  <th className="py-2 text-left text-xs tracking-widest uppercase" style={{ color: 'var(--muted)' }}>
-                    {data.week ? `Wk ${data.week.week_number} Pick` : 'Pick'}
-                  </th>
-                  <th className="py-2 text-right text-xs tracking-widest uppercase hidden sm:table-cell" style={{ color: 'var(--muted)' }}>Streak</th>
-                </tr>
-              </thead>
-              <tbody>
-                {/* Alive section */}
-                {aliveRows.length > 0 && (
-                  <tr>
-                    <td colSpan={5} className="pt-5 pb-2">
-                      <span className="text-xs font-bold tracking-widest uppercase" style={{ color: 'var(--green)' }}>
-                        • {aliveRows.length} Still Alive
-                      </span>
-                    </td>
+          <Section id="standings" title="Standings" className="pt-10">
+            <div className="card overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ background: 'var(--surface-sunken)' }}>
+                    <th className="py-2.5 pl-4 w-10 text-left eyebrow">#</th>
+                    <th className="py-2.5 text-left eyebrow">Player</th>
+                    <th className="py-2.5 text-left eyebrow hidden sm:table-cell">Status</th>
+                    <th className="py-2.5 text-left eyebrow">{data.week ? `Wk ${data.week.week_number} Pick` : 'Pick'}</th>
+                    <th className="py-2.5 pr-4 text-right eyebrow hidden sm:table-cell">Streak</th>
                   </tr>
-                )}
-                {aliveRows.map((row, i) => (
-                  <tr key={row.player_id} className="border-b" style={{ borderColor: 'var(--border)' }}>
-                    <td className="py-3 text-sm" style={{ color: 'var(--muted)' }}>{i + 1}</td>
-                    <td className="py-3 font-bold" style={{ color: 'var(--dark)' }}>{row.full_name}</td>
-                    <td className="py-3 hidden sm:table-cell">
-                      <span className="text-xs font-bold tracking-wider" style={{ color: 'var(--green)' }}>• ALIVE</span>
-                    </td>
-                    <td className="py-3">
-                      {row.current_pick ? (
-                        data.picksRevealed ? (
-                          <div>
-                            <span className="font-bold font-mono text-sm" style={{ color: 'var(--green)' }}>{row.current_pick}</span>
-                            <span className="ml-1 text-xs" style={{ color: 'var(--muted)' }}>{NFL_TEAM_NAMES[row.current_pick]}</span>
-                          </div>
+                </thead>
+                <tbody>
+                  {aliveRows.length > 0 && (
+                    <tr>
+                      <td colSpan={5} className="pt-4 pb-1.5 pl-4">
+                        <span className="pill pill-alive"><span className="pill-dot" />{aliveRows.length} Still Alive</span>
+                      </td>
+                    </tr>
+                  )}
+                  {aliveRows.map((row, i) => (
+                    <tr key={row.player_id} className="row-hover border-t" style={{ borderColor: 'var(--border)' }}>
+                      <td className="py-3 pl-4 tnum text-sm" style={{ color: 'var(--muted)' }}>{i + 1}</td>
+                      <td className="py-3 font-bold" style={{ color: 'var(--dark)' }}>{row.full_name}</td>
+                      <td className="py-3 hidden sm:table-cell">
+                        <span className="pill pill-alive"><span className="pill-dot" />Alive</span>
+                      </td>
+                      <td className="py-3">
+                        {row.current_pick ? (
+                          data.picksRevealed ? (
+                            <TeamChip team={row.current_pick} showName />
+                          ) : (
+                            <span className="pill pill-alive">✓ Pick In</span>
+                          )
                         ) : (
-                          <span className="text-xs font-semibold" style={{ color: 'var(--green)' }}>✓ Pick In</span>
-                        )
-                      ) : (
-                        <span className="text-xs italic" style={{ color: 'var(--red)' }}>no pick yet</span>
-                      )}
-                    </td>
-                    <td className="py-3 text-right text-xs hidden sm:table-cell" style={{ color: 'var(--muted)' }}>
-                      {row.weeks_survived > 0 ? `${row.weeks_survived} wk${row.weeks_survived !== 1 ? 's' : ''}` : '—'}
-                    </td>
-                  </tr>
-                ))}
+                          <span className="text-xs italic" style={{ color: 'var(--red)' }}>no pick yet</span>
+                        )}
+                      </td>
+                      <td className="py-3 pr-4 text-right text-xs tnum hidden sm:table-cell" style={{ color: 'var(--muted)' }}>
+                        {row.weeks_survived > 0 ? `${row.weeks_survived} wk${row.weeks_survived !== 1 ? 's' : ''}` : '—'}
+                      </td>
+                    </tr>
+                  ))}
 
-                {/* Eliminated section */}
-                {elimRows.length > 0 && (
-                  <tr>
-                    <td colSpan={5} className="pt-6 pb-2">
-                      <span className="text-xs font-bold tracking-widest uppercase" style={{ color: 'var(--red)' }}>
-                        ♦ {elimRows.length} Eliminated
-                      </span>
-                    </td>
-                  </tr>
-                )}
-                {elimRows.map((row) => (
-                  <tr key={row.player_id} className="border-b" style={{ borderColor: 'var(--border)', opacity: 0.6 }}>
-                    <td className="py-2.5 text-sm" style={{ color: 'var(--muted)' }}>—</td>
-                    <td className="py-2.5 text-sm" style={{ color: 'var(--muted)', textDecoration: 'line-through' }}>{row.full_name}</td>
-                    <td className="py-2.5 hidden sm:table-cell">
-                      <span className="text-xs font-bold tracking-wider" style={{ color: 'var(--red)' }}>
-                        OUT{(row as StandingRow & { elimination_week?: number | null }).elimination_week ? ` WK ${(row as StandingRow & { elimination_week?: number | null }).elimination_week}` : ''}
-                      </span>
-                    </td>
-                    <td className="py-2.5 text-xs font-mono" style={{ color: 'var(--muted)' }}>—</td>
-                    <td className="py-2.5 text-right text-xs hidden sm:table-cell" style={{ color: 'var(--muted)' }}>
-                      {row.weeks_survived > 0 ? `${row.weeks_survived} wk${row.weeks_survived !== 1 ? 's' : ''}` : '1 wk'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                  {elimRows.length > 0 && (
+                    <tr>
+                      <td colSpan={5} className="pt-6 pb-1.5 pl-4">
+                        <span className="pill pill-out">♦ {elimRows.length} Eliminated</span>
+                      </td>
+                    </tr>
+                  )}
+                  {elimRows.map((row) => {
+                    const ew = (row as StandingRow & { elimination_week?: number | null }).elimination_week
+                    return (
+                      <tr key={row.player_id} className="border-t" style={{ borderColor: 'var(--border)', opacity: 0.65 }}>
+                        <td className="py-2.5 pl-4 text-sm" style={{ color: 'var(--muted)' }}>—</td>
+                        <td className="py-2.5 text-sm" style={{ color: 'var(--muted)', textDecoration: 'line-through' }}>{row.full_name}</td>
+                        <td className="py-2.5 hidden sm:table-cell">
+                          <span className="pill pill-out">Out{ew ? ` · Wk ${ew}` : ''}</span>
+                        </td>
+                        <td className="py-2.5 text-xs" style={{ color: 'var(--muted)' }}>—</td>
+                        <td className="py-2.5 pr-4 text-right text-xs tnum hidden sm:table-cell" style={{ color: 'var(--muted)' }}>
+                          {row.weeks_survived > 0 ? `${row.weeks_survived} wk${row.weeks_survived !== 1 ? 's' : ''}` : '1 wk'}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Section>
 
           {/* This Week's Pick Distribution */}
           {data.week && (
-            <div className="py-8 border-t" style={{ borderColor: 'var(--border)' }}>
-              <p className="text-xs font-bold tracking-widest uppercase mb-4" style={{ color: 'var(--muted)' }}>
-                Week {data.week.week_number} Pick Distribution
-              </p>
-              {data.picksRevealed ? (
-                data.pickDistribution.length === 0 ? (
-                  <p className="text-sm" style={{ color: 'var(--muted)' }}>No picks were made this week.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {data.pickDistribution.map((d) => {
-                      const max = data.pickDistribution[0].count
-                      return (
-                        <div key={d.team} className="flex items-center gap-3">
-                          <span className="font-bold font-mono text-sm w-12 shrink-0" style={{ color: 'var(--dark)' }}>{d.team}</span>
-                          <div className="flex-1 border" style={{ borderColor: 'var(--border)', background: 'white' }}>
-                            <div
-                              style={{
-                                width: `${Math.max((d.count / max) * 100, 4)}%`,
-                                background: 'var(--green)',
-                                height: 10,
-                              }}
-                            />
+            <Section title={`Week ${data.week.week_number} Pick Distribution`}>
+              <div className="card p-5">
+                {data.picksRevealed ? (
+                  data.pickDistribution.length === 0 ? (
+                    <p className="text-sm" style={{ color: 'var(--muted)' }}>No picks were made this week.</p>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {data.pickDistribution.map((d) => {
+                        const max = data.pickDistribution[0].count
+                        const c = teamColor(d.team).primary
+                        return (
+                          <div key={d.team} className="flex items-center gap-3">
+                            <div className="w-16 shrink-0"><TeamChip team={d.team} /></div>
+                            <div className="flex-1 rounded-full overflow-hidden" style={{ background: 'var(--surface-sunken)', height: 12 }}>
+                              <div className="h-full rounded-full" style={{ width: `${Math.max((d.count / max) * 100, 5)}%`, background: c }} />
+                            </div>
+                            <span className="text-sm w-16 shrink-0 text-right tnum" style={{ color: 'var(--dark)' }}>
+                              {d.count} {d.count === 1 ? 'pick' : 'picks'}
+                            </span>
                           </div>
-                          <span className="text-sm w-16 shrink-0 text-right" style={{ color: 'var(--dark)' }}>
-                            {d.count} {d.count === 1 ? 'pick' : 'picks'}
-                          </span>
-                        </div>
-                      )
-                    })}
+                        )
+                      })}
+                    </div>
+                  )
+                ) : (
+                  <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                    <div className="flex items-baseline gap-2">
+                      <span className="font-display text-4xl leading-none" style={{ color: 'var(--green)' }}>{data.picksMade}</span>
+                      <span className="eyebrow">Picks In</span>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="font-display text-4xl leading-none" style={{ color: 'var(--red)' }}>{data.picksPending}</span>
+                      <span className="eyebrow">Pending</span>
+                    </div>
+                    <span className="text-xs" style={{ color: 'var(--muted)' }}>Team breakdown revealed after Sunday 12 PM CT</span>
                   </div>
-                )
-              ) : (
-                <p className="text-sm" style={{ color: 'var(--dark)' }}>
-                  <span className="font-bold" style={{ color: 'var(--green)' }}>{data.picksMade}</span> picks in ·{' '}
-                  <span className="font-bold" style={{ color: 'var(--red)' }}>{data.picksPending}</span> pending
-                  <span className="text-xs ml-2" style={{ color: 'var(--muted)' }}>— team breakdown revealed after Sunday 12 PM CT</span>
-                </p>
-              )}
-            </div>
+                )}
+              </div>
+            </Section>
           )}
 
           {/* Survival curve */}
           {data.survivalCurve.length > 0 && (
-            <div className="py-8 border-t" style={{ borderColor: 'var(--border)' }}>
-              <p className="text-xs font-bold tracking-widest uppercase mb-4" style={{ color: 'var(--muted)' }}>Survivors by Week</p>
-              <div className="flex flex-wrap gap-2">
-                <div className="border px-4 py-2 text-center" style={{ borderColor: 'var(--border)', background: 'white' }}>
-                  <p className="font-display text-2xl leading-none" style={{ color: 'var(--dark)' }}>{data.totalPlayers}</p>
-                  <p className="text-xs tracking-widest uppercase mt-1" style={{ color: 'var(--muted)' }}>Start</p>
-                </div>
-                {data.survivalCurve.map((s) => (
-                  <div key={s.week_number} className="border px-4 py-2 text-center" style={{ borderColor: 'var(--border)', background: 'white' }}>
-                    <p
-                      className="font-display text-2xl leading-none"
-                      style={{ color: s.remaining <= data.aliveCount ? 'var(--green)' : 'var(--dark)' }}
-                    >
-                      {s.remaining}
-                    </p>
-                    <p className="text-xs tracking-widest uppercase mt-1" style={{ color: 'var(--muted)' }}>After Wk {s.week_number}</p>
-                  </div>
-                ))}
+            <Section title="Survivors by Week">
+              <div className="card p-5">
+                <SurvivalChart start={data.totalPlayers} points={data.survivalCurve} aliveCount={data.aliveCount} />
               </div>
-            </div>
+            </Section>
           )}
 
           {/* Weekly carnage */}
           {data.carnage.length > 0 && (
-            <div className="py-8 border-t" style={{ borderColor: 'var(--border)' }}>
-              <p className="text-xs font-bold tracking-widest uppercase mb-4" style={{ color: 'var(--muted)' }}>Weekly Carnage</p>
-              <div className="space-y-2 text-sm" style={{ color: 'var(--dark)' }}>
+            <Section title="Weekly Carnage">
+              <div className="grid sm:grid-cols-2 gap-3">
                 {data.carnage.map((c) => (
-                  <p key={c.week_number}>
-                    <span className="font-bold" style={{ color: 'var(--red)' }}>Week {c.week_number}:</span>{' '}
-                    {c.eliminated} player{c.eliminated !== 1 ? 's' : ''} eliminated
-                    {c.topTeam && c.topTeam !== 'no pick' ? (
-                      <span style={{ color: 'var(--muted)' }}>
-                        {' '}(mostly on <span className="font-mono font-bold" style={{ color: 'var(--dark)' }}>{c.topTeam}</span>
-                        {NFL_TEAM_NAMES[c.topTeam] ? ` — ${NFL_TEAM_NAMES[c.topTeam]}` : ''})
-                      </span>
-                    ) : c.topTeam === 'no pick' ? (
-                      <span style={{ color: 'var(--muted)' }}> (mostly missed picks)</span>
-                    ) : null}
-                  </p>
+                  <div key={c.week_number} className="card px-4 py-3 flex items-center gap-4">
+                    <div className="text-center shrink-0 w-12">
+                      <p className="font-display text-3xl leading-none" style={{ color: 'var(--red)' }}>{c.eliminated}</p>
+                      <p className="eyebrow mt-0.5" style={{ fontSize: 9 }}>out</p>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-bold text-sm" style={{ color: 'var(--dark)' }}>Week {c.week_number}</p>
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
+                        {c.topTeam && c.topTeam !== 'no pick' ? (
+                          <>mostly on <span className="font-semibold" style={{ color: 'var(--dark)' }}>{NFL_TEAM_NAMES[c.topTeam] ?? c.topTeam}</span></>
+                        ) : c.topTeam === 'no pick' ? 'mostly missed picks' : 'eliminations'}
+                      </p>
+                    </div>
+                  </div>
                 ))}
               </div>
-            </div>
+            </Section>
           )}
 
           {/* Team Pick Stats (past weeks only) */}
           {data.teamStats.length > 0 && (
-            <div className="py-8 border-t" style={{ borderColor: 'var(--border)' }}>
-              <p className="text-xs font-bold tracking-widest uppercase mb-4" style={{ color: 'var(--muted)' }}>Team Pick History</p>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b" style={{ borderColor: 'var(--border)' }}>
-                    {['Team', 'Times Picked', 'Win Rate', 'Eliminations'].map((h) => (
-                      <th key={h} className="py-2 text-left text-xs tracking-widest uppercase" style={{ color: 'var(--muted)' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.teamStats.map((stat) => (
-                    <tr key={stat.team} className="border-b" style={{ borderColor: 'var(--border)' }}>
-                      <td className="py-2.5">
-                        <span className="font-bold font-mono" style={{ color: 'var(--dark)' }}>{stat.team}</span>
-                        <span className="ml-2 text-xs hidden sm:inline" style={{ color: 'var(--muted)' }}>{NFL_TEAM_NAMES[stat.team]}</span>
-                      </td>
-                      <td className="py-2.5" style={{ color: 'var(--dark)' }}>{stat.times_picked}</td>
-                      <td className="py-2.5 font-semibold" style={{ color: stat.win_rate >= 0.6 ? 'var(--green)' : stat.win_rate >= 0.4 ? 'var(--dark)' : 'var(--red)' }}>
-                        {(stat.win_rate * 100).toFixed(0)}%
-                      </td>
-                      <td className="py-2.5" style={{ color: 'var(--dark)' }}>{stat.eliminations_caused}</td>
+            <Section title="Team Pick History">
+              <div className="card overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr style={{ background: 'var(--surface-sunken)' }}>
+                      <th className="py-2.5 pl-4 text-left eyebrow">Team</th>
+                      <th className="py-2.5 text-left eyebrow">Times Picked</th>
+                      <th className="py-2.5 text-left eyebrow">Win Rate</th>
+                      <th className="py-2.5 pr-4 text-left eyebrow">Eliminations</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {data.teamStats.map((stat) => (
+                      <tr key={stat.team} className="row-hover border-t" style={{ borderColor: 'var(--border)' }}>
+                        <td className="py-2.5 pl-4"><TeamChip team={stat.team} showName /></td>
+                        <td className="py-2.5 tnum" style={{ color: 'var(--dark)' }}>{stat.times_picked}</td>
+                        <td className="py-2.5">
+                          <div className="flex items-center gap-2">
+                            <div className="w-16 rounded-full overflow-hidden hidden sm:block" style={{ background: 'var(--surface-sunken)', height: 6 }}>
+                              <div className="h-full rounded-full" style={{ width: `${stat.win_rate * 100}%`, background: stat.win_rate >= 0.6 ? 'var(--green)' : stat.win_rate >= 0.4 ? 'var(--dark)' : 'var(--red)' }} />
+                            </div>
+                            <span className="font-semibold tnum" style={{ color: stat.win_rate >= 0.6 ? 'var(--green)' : stat.win_rate >= 0.4 ? 'var(--dark)' : 'var(--red)' }}>
+                              {(stat.win_rate * 100).toFixed(0)}%
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-2.5 pr-4 tnum" style={{ color: 'var(--dark)' }}>{stat.eliminations_caused}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Section>
           )}
 
           {/* Rules */}
-          <div id="rules" className="py-8 border-t" style={{ borderColor: 'var(--border)' }}>
-            <p className="text-xs font-bold tracking-widest uppercase mb-4" style={{ color: 'var(--muted)' }}>How It Works</p>
-            <div className="grid sm:grid-cols-2 gap-x-12 gap-y-3 text-sm" style={{ color: 'var(--dark)' }}>
+          <Section id="rules" title="How It Works">
+            <div className="card p-5 sm:p-6 grid sm:grid-cols-2 gap-x-10 gap-y-4">
               <Rule n="1" text="Pay $25 entry via Venmo to @griffinsell." />
               <Rule n="2" text="Each week, pick one NFL team to win their game." />
               <Rule n="3" text="You can't pick the same team twice all season." />
@@ -482,13 +472,13 @@ export default async function DashboardPage() {
               <Rule n="5" text="Thu/Fri/Sat games lock at kickoff. All other picks lock Sunday 12 PM CT." />
               <Rule n="6" text="Miss the deadline and you'll be auto-assigned the SNF away team, then MNF. Miss both and you're eliminated." />
             </div>
-          </div>
+          </Section>
         </main>
       )}
 
       {/* Footer */}
-      <footer style={{ background: 'var(--dark)' }} className="mt-8">
-        <div className="mx-auto max-w-5xl px-4 py-5 flex items-center justify-between">
+      <footer style={{ background: 'var(--dark)' }} className="mt-10">
+        <div className="mx-auto max-w-5xl px-4 py-6 flex items-center justify-between">
           <span className="text-xs tracking-widest uppercase text-gray-500">$25 Entry · Venmo @griffinsell</span>
           <div className="flex items-center gap-6">
             <Link href="/signup" className="text-xs tracking-widest uppercase text-gray-500 hover:text-white transition-colors">Sign Up</Link>
@@ -500,16 +490,67 @@ export default async function DashboardPage() {
   )
 }
 
-function StatCol({ value, label, valueColor, border }: { value: string | number; label: string; valueColor?: string; border?: boolean }) {
+function Section({ id, title, children, className }: { id?: string; title: string; children: React.ReactNode; className?: string }) {
   return (
-    <div
-      className="py-6 px-4 sm:px-6"
-      style={{ borderLeft: border ? `1px solid var(--border)` : undefined }}
-    >
-      <p className="font-display text-5xl sm:text-6xl leading-none" style={{ color: valueColor ?? 'var(--dark)' }}>
-        {value}
-      </p>
-      <p className="mt-1 text-xs tracking-widest uppercase" style={{ color: 'var(--muted)' }}>{label}</p>
+    <section id={id} className={`pt-9 ${className ?? ''}`}>
+      <p className="eyebrow mb-3">{title}</p>
+      {children}
+    </section>
+  )
+}
+
+function StatCard({ value, label, accent }: { value: string | number; label: string; accent: string }) {
+  return (
+    <div className="card px-4 py-5 sm:px-5 relative overflow-hidden">
+      <span className="absolute left-0 top-0 h-full w-1" style={{ background: accent }} />
+      <p className="font-display text-5xl sm:text-6xl leading-none tnum" style={{ color: accent }}>{value}</p>
+      <p className="mt-1.5 eyebrow">{label}</p>
+    </div>
+  )
+}
+
+function TeamChip({ team, showName }: { team: string; showName?: boolean }) {
+  const c = teamColor(team).primary
+  return (
+    <span className="team-chip text-sm" style={{ color: 'var(--dark)' }}>
+      <span className="team-chip-swatch" style={{ background: c }}>{team.slice(0, 3)}</span>
+      {showName && <span className="hidden sm:inline text-xs font-normal" style={{ color: 'var(--muted)' }}>{NFL_TEAM_NAMES[team] ?? team}</span>}
+    </span>
+  )
+}
+
+function SurvivalChart({ start, points, aliveCount }: { start: number; points: { week_number: number; remaining: number }[]; aliveCount: number }) {
+  const series = [{ week_number: 0, remaining: start }, ...points]
+  const W = 640, H = 180, padL = 8, padR = 8, padT = 12, padB = 24
+  const maxN = start
+  const n = series.length
+  const x = (i: number) => padL + (i / Math.max(n - 1, 1)) * (W - padL - padR)
+  const y = (v: number) => padT + (1 - v / maxN) * (H - padT - padB)
+  const linePts = series.map((s, i) => `${x(i)},${y(s.remaining)}`).join(' ')
+  const areaPts = `${x(0)},${y(0)} ${linePts} ${x(n - 1)},${y(0)}`
+  return (
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ display: 'block' }} preserveAspectRatio="none" height={180}>
+        <defs>
+          <linearGradient id="survFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--green)" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="var(--green)" stopOpacity="0.02" />
+          </linearGradient>
+        </defs>
+        <polygon points={areaPts} fill="url(#survFill)" />
+        <polyline points={linePts} fill="none" stroke="var(--green)" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        {series.map((s, i) => (
+          <circle key={i} cx={x(i)} cy={y(s.remaining)} r={3} fill="var(--surface)" stroke="var(--green)" strokeWidth={2} vectorEffect="non-scaling-stroke" />
+        ))}
+      </svg>
+      <div className="flex justify-between mt-2 text-center">
+        {series.map((s, i) => (
+          <div key={i} className="flex-1">
+            <p className="font-bold text-sm tnum" style={{ color: s.remaining <= aliveCount ? 'var(--green)' : 'var(--dark)' }}>{s.remaining}</p>
+            <p className="eyebrow" style={{ fontSize: 9 }}>{i === 0 ? 'Start' : `Wk ${s.week_number}`}</p>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -517,8 +558,8 @@ function StatCol({ value, label, valueColor, border }: { value: string | number;
 function Rule({ n, text }: { n: string; text: string }) {
   return (
     <div className="flex gap-3">
-      <span className="font-bold shrink-0" style={{ color: 'var(--red)' }}>{n}.</span>
-      <span>{text}</span>
+      <span className="flex items-center justify-center shrink-0 rounded-full font-bold text-xs" style={{ background: 'var(--red-tint)', color: 'var(--red)', width: 22, height: 22 }}>{n}</span>
+      <span className="text-sm pt-0.5" style={{ color: 'var(--dark)' }}>{text}</span>
     </div>
   )
 }

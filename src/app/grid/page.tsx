@@ -120,18 +120,19 @@ export default async function GridPage() {
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-8">
-        <p className="font-display text-5xl mb-6" style={{ color: 'var(--dark)' }}>PICK GRID</p>
+        <h1 className="font-display text-6xl leading-none" style={{ color: 'var(--dark)' }}>PICK GRID</h1>
+        <p className="mt-2 mb-6 eyebrow">Full-season pick history · green won · red lost</p>
 
         {weeks.length === 0 ? (
           <p className="text-sm" style={{ color: 'var(--muted)' }}>No weeks scheduled yet.</p>
         ) : (
-          <div className="overflow-x-auto" style={{ borderRadius: 4 }}>
+          <div className="card overflow-x-auto p-1">
             <table className="text-sm" style={{ borderCollapse: 'collapse', width: '100%' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid var(--border)' }}>
                   <th
                     className="text-left py-2 pr-4"
-                    style={{ color: 'var(--muted)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', minWidth: 140, position: 'sticky', left: 0, background: 'var(--cream)', zIndex: 1 }}
+                    style={{ color: 'var(--muted)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', minWidth: 140, position: 'sticky', left: 0, background: 'var(--surface)', zIndex: 1 }}
                   >
                     Player
                   </th>
@@ -162,7 +163,7 @@ export default async function GridPage() {
                   <tr key={player.id} style={{ borderBottom: '1px solid var(--border)', opacity: player.status === 'eliminated' ? 0.7 : 1 }}>
                     <td
                       className="py-2 pr-4"
-                      style={{ position: 'sticky', left: 0, background: 'var(--cream)', zIndex: 1 }}
+                      style={{ position: 'sticky', left: 0, background: 'var(--surface)', zIndex: 1 }}
                     >
                       <div className="flex items-center gap-1.5">
                         <span

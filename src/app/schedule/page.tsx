@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { NFL_TEAM_NAMES } from '@/types'
+import { teamColor } from '@/lib/teamColors'
 import { getNflOdds, matchGameOdds, type KalshiNflEvent } from '@/lib/kalshi'
 
 export const revalidate = 3600
@@ -116,8 +116,7 @@ export default async function SchedulePage() {
             <Link href="/login" className="text-xs tracking-widest uppercase text-gray-400 hover:text-white transition-colors">Log In</Link>
             <Link
               href="/pick"
-              className="font-display text-sm tracking-wider px-4 py-2 text-white"
-              style={{ background: 'var(--red)' }}
+              className="btn-primary font-display text-sm tracking-wider px-4 py-2"
             >
               SUBMIT PICK →
             </Link>
@@ -126,11 +125,11 @@ export default async function SchedulePage() {
       </header>
 
       <main className="flex-1 mx-auto w-full max-w-5xl px-4 py-10">
-        <div className="border-b pb-6" style={{ borderColor: 'var(--border)' }}>
+        <div className="pb-2">
           <h1 className="font-display text-6xl sm:text-7xl leading-none" style={{ color: 'var(--dark)' }}>
             UPCOMING SCHEDULE
           </h1>
-          <p className="mt-2 text-xs tracking-widest uppercase" style={{ color: 'var(--muted)' }}>
+          <p className="mt-2 eyebrow">
             {season} Season{activeWeek ? ` · Currently Week ${activeWeek}` : ''}
           </p>
           <p className="mt-3 text-sm" style={{ color: 'var(--muted)' }}>
@@ -146,36 +145,39 @@ export default async function SchedulePage() {
         ) : (
           weeks.map(({ weekNumber, games }) =>
             games.length === 0 ? null : (
-              <section key={weekNumber} className="py-8 border-b" style={{ borderColor: 'var(--border)' }}>
-                <p className="font-display text-3xl mb-4" style={{ color: 'var(--dark)' }}>WEEK {weekNumber}</p>
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b" style={{ borderColor: 'var(--border)' }}>
-                      <th className="py-2 text-left text-xs tracking-widest uppercase" style={{ color: 'var(--muted)' }}>Matchup</th>
-                      <th className="py-2 text-right text-xs tracking-widest uppercase" style={{ color: 'var(--muted)' }}>Away Win</th>
-                      <th className="py-2 text-right text-xs tracking-widest uppercase" style={{ color: 'var(--muted)' }}>Home Win</th>
-                      <th className="py-2 text-right text-xs tracking-widest uppercase hidden sm:table-cell" style={{ color: 'var(--muted)' }}>Kickoff (CT)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {games.map((g) => (
-                      <tr key={`${g.awayAbbr}@${g.homeAbbr}`} className="border-b" style={{ borderColor: 'var(--border)' }}>
-                        <td className="py-3">
-                          <span className="font-bold font-mono" style={{ color: 'var(--dark)' }}>{g.awayAbbr}</span>
-                          <span className="mx-1 text-xs" style={{ color: 'var(--muted)' }}>@</span>
-                          <span className="font-bold font-mono" style={{ color: 'var(--dark)' }}>{g.homeAbbr}</span>
-                          <span className="block sm:inline sm:ml-2 text-xs" style={{ color: 'var(--muted)' }}>
-                            {NFL_TEAM_NAMES[g.awayAbbr] ?? g.awayAbbr} at {NFL_TEAM_NAMES[g.homeAbbr] ?? g.homeAbbr}
-                          </span>
-                          <span className="block sm:hidden text-xs mt-0.5" style={{ color: 'var(--muted)' }}>{formatKickoff(g.kickoff)}</span>
-                        </td>
-                        <td className="py-3 text-right"><OddsCell prob={g.awayProb} /></td>
-                        <td className="py-3 text-right"><OddsCell prob={g.homeProb} /></td>
-                        <td className="py-3 text-right text-xs hidden sm:table-cell" style={{ color: 'var(--muted)' }}>{formatKickoff(g.kickoff)}</td>
+              <section key={weekNumber} className="pt-9">
+                <p className="eyebrow mb-3">Week {weekNumber}</p>
+                <div className="card overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr style={{ background: 'var(--surface-sunken)' }}>
+                        <th className="py-2.5 pl-4 text-left eyebrow">Matchup</th>
+                        <th className="py-2.5 text-right eyebrow">Away</th>
+                        <th className="py-2.5 text-right eyebrow">Home</th>
+                        <th className="py-2.5 pr-4 text-right eyebrow hidden sm:table-cell">Kickoff (CT)</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {games.map((g) => (
+                        <tr key={`${g.awayAbbr}@${g.homeAbbr}`} className="row-hover border-t" style={{ borderColor: 'var(--border)' }}>
+                          <td className="py-3 pl-4">
+                            <div className="flex items-center gap-2">
+                              <span className="team-chip-swatch" style={{ background: teamColor(g.awayAbbr).primary }}>{g.awayAbbr.slice(0, 3)}</span>
+                              <span className="font-bold" style={{ color: 'var(--dark)' }}>{g.awayAbbr}</span>
+                              <span className="text-xs" style={{ color: 'var(--muted)' }}>@</span>
+                              <span className="team-chip-swatch" style={{ background: teamColor(g.homeAbbr).primary }}>{g.homeAbbr.slice(0, 3)}</span>
+                              <span className="font-bold" style={{ color: 'var(--dark)' }}>{g.homeAbbr}</span>
+                            </div>
+                            <span className="block sm:hidden text-xs mt-1" style={{ color: 'var(--muted)' }}>{formatKickoff(g.kickoff)}</span>
+                          </td>
+                          <td className="py-3 text-right"><OddsCell prob={g.awayProb} /></td>
+                          <td className="py-3 text-right"><OddsCell prob={g.homeProb} /></td>
+                          <td className="py-3 pr-4 text-right text-xs hidden sm:table-cell tnum" style={{ color: 'var(--muted)' }}>{formatKickoff(g.kickoff)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </section>
             )
           )

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { NFL_TEAM_NAMES } from '@/types'
+import { teamColor } from '@/lib/teamColors'
 import type { SweatResponse, SweatGame, SweatPlayer } from '@/app/api/sweat/route'
 
 function scoreColor(myScore: number, theirScore: number, state: string): string {
@@ -32,17 +33,18 @@ function TeamRow({ game, side }: { game: SweatGame; side: 'home' | 'away' }) {
   return (
     <div className="py-2">
       <div className="flex items-center justify-between gap-3">
-        <div>
-          <span className="font-bold font-mono" style={{ color }}>{team}</span>
-          <span className="ml-2 text-xs hidden sm:inline" style={{ color: 'var(--muted)' }}>{NFL_TEAM_NAMES[team]}</span>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="team-chip-swatch" style={{ background: teamColor(team).primary }}>{team.slice(0, 3)}</span>
+          <span className="font-bold" style={{ color }}>{team}</span>
+          <span className="text-xs hidden sm:inline truncate" style={{ color: 'var(--muted)' }}>{NFL_TEAM_NAMES[team]}</span>
           {pickers.length > 0 && (
-            <span className="ml-2 text-xs font-semibold" style={{ color: 'var(--muted)' }}>
+            <span className="text-xs font-semibold shrink-0" style={{ color: 'var(--muted)' }}>
               {pickers.length} {pickers.length === 1 ? 'pick' : 'picks'}
             </span>
           )}
         </div>
         {!isPre && (
-          <span className="font-display text-2xl tabular-nums leading-none" style={{ color }}>{my}</span>
+          <span className="font-display text-2xl tnum leading-none shrink-0" style={{ color }}>{my}</span>
         )}
       </div>
       {pickers.length > 0 && (
@@ -60,21 +62,21 @@ function GameCard({ game }: { game: SweatGame }) {
 
   return (
     <div
-      className="border px-4 py-3"
+      className="card px-4 py-3"
       style={{
         borderColor: isLive ? 'var(--red)' : 'var(--border)',
-        background: 'white',
+        boxShadow: isLive ? '0 0 0 2px var(--red)' : undefined,
         opacity: game.state === 'post' && sweatCount === 0 ? 0.6 : 1,
       }}
     >
       <div className="flex items-center justify-between mb-1">
         {isLive ? (
-          <span className="flex items-center gap-1.5 text-xs font-bold tracking-widest uppercase" style={{ color: 'var(--red)' }}>
+          <span className="flex items-center gap-1.5 eyebrow" style={{ color: 'var(--red)' }}>
             <span className="inline-block w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--red)' }} />
             {game.statusText}
           </span>
         ) : (
-          <span className="text-xs tracking-widest uppercase" style={{ color: 'var(--muted)' }}>
+          <span className="eyebrow">
             {game.state === 'pre' ? kickoffLabel(game.kickoff) : game.statusText}
           </span>
         )}
@@ -88,9 +90,9 @@ function GameCard({ game }: { game: SweatGame }) {
 
 function StatTile({ value, label, color }: { value: number; label: string; color?: string }) {
   return (
-    <div className="border px-4 py-3 text-center" style={{ borderColor: 'var(--border)', background: 'white' }}>
-      <p className="font-display text-4xl leading-none" style={{ color: color ?? 'var(--dark)' }}>{value}</p>
-      <p className="text-xs tracking-widest uppercase mt-1" style={{ color: 'var(--muted)' }}>{label}</p>
+    <div className="card px-4 py-3 text-center">
+      <p className="font-display text-4xl leading-none tnum" style={{ color: color ?? 'var(--dark)' }}>{value}</p>
+      <p className="eyebrow mt-1">{label}</p>
     </div>
   )
 }
@@ -99,7 +101,7 @@ function NameList({ title, players, color, note }: { title: string; players: Swe
   if (players.length === 0) return null
   return (
     <div className="py-4 border-t" style={{ borderColor: 'var(--border)' }}>
-      <p className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color }}>
+      <p className="eyebrow mb-2" style={{ color }}>
         {title} ({players.length})
       </p>
       <p className="text-sm leading-relaxed" style={{ color: 'var(--dark)' }}>
@@ -177,7 +179,7 @@ export default function SweatBoard() {
       <div className="py-8 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 border-b" style={{ borderColor: 'var(--border)' }}>
         <div>
           <h1 className="font-display text-7xl leading-none" style={{ color: 'var(--dark)' }}>SWEAT BOARD</h1>
-          <p className="mt-1 text-xs tracking-widest uppercase" style={{ color: 'var(--muted)' }}>
+          <p className="mt-1 eyebrow">
             Week {data.weekNumber} · live picks &amp; scores
             {data.hasLiveGames && (
               <span className="ml-2 font-bold" style={{ color: 'var(--red)' }}>● LIVE</span>
@@ -193,7 +195,7 @@ export default function SweatBoard() {
 
       {/* Danger banner */}
       {inDanger > 0 && (
-        <div className="mt-6 border px-4 py-3 flex items-center gap-3" style={{ borderColor: 'var(--red)', background: 'white' }}>
+        <div className="mt-6 rounded-lg px-4 py-3 flex items-center gap-3" style={{ background: 'var(--red-tint)', boxShadow: '0 0 0 1px var(--red)' }}>
           <span className="inline-block w-2 h-2 rounded-full animate-pulse shrink-0" style={{ background: 'var(--red)' }} />
           <p className="text-sm font-bold" style={{ color: 'var(--red)' }}>
             {inDanger} player{inDanger !== 1 ? 's' : ''} facing elimination right now
