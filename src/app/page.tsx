@@ -521,8 +521,8 @@ function TeamChip({ team, showName }: { team: string; showName?: boolean }) {
 
 function SurvivalChart({ start, points, aliveCount }: { start: number; points: { week_number: number; remaining: number }[]; aliveCount: number }) {
   const series = [{ week_number: 0, remaining: start }, ...points]
-  const W = 640, H = 180, padL = 8, padR = 8, padT = 12, padB = 24
-  const maxN = start
+  const W = 900, H = 190, padL = 8, padR = 8, padT = 12, padB = 24
+  const maxN = Math.max(start, 1) // guard: start can be 0 (no real players yet) → avoid divide-by-zero → NaN coords
   const n = series.length
   const x = (i: number) => padL + (i / Math.max(n - 1, 1)) * (W - padL - padR)
   const y = (v: number) => padT + (1 - v / maxN) * (H - padT - padB)
@@ -530,7 +530,8 @@ function SurvivalChart({ start, points, aliveCount }: { start: number; points: {
   const areaPts = `${x(0)},${y(0)} ${linePts} ${x(n - 1)},${y(0)}`
   return (
     <div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ display: 'block' }} preserveAspectRatio="none" height={180}>
+      {/* uniform scaling (no preserveAspectRatio="none") keeps the point circles round */}
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ display: 'block', height: 'auto' }}>
         <defs>
           <linearGradient id="survFill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--green)" stopOpacity="0.22" />
