@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
-import { supabase } from '@/lib/supabase'
+import { getDb } from '@/lib/testMode'
 import { getSession, getAdminSession } from '@/lib/session'
 import { getTeamDeadline } from '@/lib/deadline'
 import { sendPickConfirmationEmail } from '@/lib/email'
@@ -37,6 +37,8 @@ export async function POST(req: NextRequest) {
     if (!/^[0-9a-f-]{36}$/i.test(week_id)) {
       return NextResponse.json({ error: 'Invalid week_id' }, { status: 400 })
     }
+
+    const supabase = await getDb()
 
     // Check player is alive
     const { data: player } = await supabase

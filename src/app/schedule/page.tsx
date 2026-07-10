@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase'
+import { getDb } from '@/lib/testMode'
 import { teamColor } from '@/lib/teamColors'
 import { getNflOdds, matchGameOdds, type KalshiNflEvent } from '@/lib/kalshi'
 
@@ -61,6 +61,7 @@ async function getScheduleData(): Promise<{ weeks: ScheduleWeek[]; season: numbe
   let activeWeek: number | null = null
   let season = 2026
   try {
+    const supabase = await getDb()
     const { data: week } = await supabase
       .from('weeks')
       .select('week_number, season_year')

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getDb } from '@/lib/testMode'
 import { getAdminSession } from '@/lib/session'
 
 export async function POST(req: NextRequest) {
@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid result value' }, { status: 400 })
     }
 
+    const supabase = await getDb()
     // Update the game result
     const { data: game, error } = await supabase
       .from('games')

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getDb } from '@/lib/testMode'
 import { getAdminSession } from '@/lib/session'
 import { sendEliminationEmail } from '@/lib/email'
 
@@ -10,6 +10,8 @@ export async function POST(req: NextRequest) {
   try {
     const { week_id } = await req.json()
     if (!week_id) return NextResponse.json({ error: 'Missing week_id' }, { status: 400 })
+
+    const supabase = await getDb()
 
     const { data: week } = await supabase
       .from('weeks')

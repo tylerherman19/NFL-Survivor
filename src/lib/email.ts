@@ -14,11 +14,18 @@ function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
+// Internal/test accounts (including sandbox test users) carry fake addresses
+// that would bounce — never hand them to Resend.
+function isDeliverable(email: string): boolean {
+  return !email.endsWith('@nflsurvivor.internal')
+}
+
 export async function sendWelcomeEmail(
   email: string,
   fullName: string,
   pin: string
 ): Promise<void> {
+  if (!isDeliverable(email)) return
   const name = esc(fullName)
   await getResend().emails.send({
     from: FROM_EMAIL,
@@ -49,6 +56,7 @@ export async function sendPickConfirmationEmail(
   weekNumber: number,
   deadlineStr: string
 ): Promise<void> {
+  if (!isDeliverable(email)) return
   const teamName = NFL_TEAM_NAMES[teamAbbr] || teamAbbr
   await getResend().emails.send({
     from: FROM_EMAIL,
@@ -76,6 +84,7 @@ export async function sendEliminationEmail(
   reason: string,
   weekNumber: number
 ): Promise<void> {
+  if (!isDeliverable(email)) return
   await getResend().emails.send({
     from: FROM_EMAIL,
     to: email,
@@ -100,6 +109,7 @@ export async function sendPinResetEmail(
   fullName: string,
   resetToken: string
 ): Promise<void> {
+  if (!isDeliverable(email)) return
   const resetUrl = `${APP_URL}/reset-pin?token=${encodeURIComponent(resetToken)}`
   await getResend().emails.send({
     from: FROM_EMAIL,
@@ -123,6 +133,7 @@ export async function sendReminderEmail(
   weekNumber: number,
   deadlineStr: string
 ): Promise<void> {
+  if (!isDeliverable(email)) return
   await getResend().emails.send({
     from: FROM_EMAIL,
     to: email,

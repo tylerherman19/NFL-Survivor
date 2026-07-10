@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getDb } from '@/lib/testMode'
 import { generatePin, hashPin } from '@/lib/pin'
 import { sendWelcomeEmail } from '@/lib/email'
 import { checkRateLimit, getIP } from '@/lib/rateLimit'
@@ -36,6 +36,8 @@ export async function POST(req: NextRequest) {
     if (venmo && venmo.length > 50) {
       return NextResponse.json({ error: 'Venmo handle too long' }, { status: 400 })
     }
+
+    const supabase = await getDb()
 
     // Check for duplicate email
     const { data: byEmail } = await supabase

@@ -1,11 +1,12 @@
 import { redirect } from 'next/navigation'
 import { getAdminSession } from '@/lib/session'
-import { supabase } from '@/lib/supabase'
+import { getDb } from '@/lib/testMode'
 import BroadcastForm from './BroadcastForm'
 
 export default async function AdminEmailPage() {
   const isAdmin = await getAdminSession()
   if (!isAdmin) redirect('/admin/login')
+  const supabase = await getDb()
 
   const [{ data: players }, { data: week }] = await Promise.all([
     supabase.from('players').select('id, email, status'),

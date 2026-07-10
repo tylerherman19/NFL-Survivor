@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
-import { supabase } from '@/lib/supabase'
+import { getDb } from '@/lib/testMode'
 import { getAdminSession } from '@/lib/session'
 
 // Sends are paced at ~1.6/sec for Resend rate limits, so allow up to 4 min of runtime
@@ -39,6 +39,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid audience. Use all, alive, or unpicked' }, { status: 400 })
     }
 
+    const supabase = await getDb()
     const { data: allPlayers, error } = await supabase
       .from('players')
       .select('id, full_name, email, status')

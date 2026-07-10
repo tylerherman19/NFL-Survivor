@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getDb } from '@/lib/testMode'
 import { getAdminSession } from '@/lib/session'
 
 type GameDay = 'thursday' | 'friday' | 'saturday' | 'sunday' | 'monday' | 'tuesday'
@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Create/activate week in DB
+    const supabase = await getDb()
     await supabase.from('weeks').update({ is_active: false }).gt('week_number', 0)
 
     const { data: existingWeek } = await supabase

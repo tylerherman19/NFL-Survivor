@@ -15,7 +15,8 @@ const TOTAL_WEEKS = 18
 
 async function getDashboardData() {
   try {
-    const { supabase } = await import('@/lib/supabase')
+    const { getDb } = await import('@/lib/testMode')
+    const supabase = await getDb()
     const { getWeekSundayDeadline } = await import('@/lib/deadline')
 
     // Single Promise.all with 4 queries: all weeks, all players, all picks with team, all games

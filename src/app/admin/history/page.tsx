@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getAdminSession } from '@/lib/session'
-import { supabase } from '@/lib/supabase'
+import { getDb } from '@/lib/testMode'
 import { NFL_TEAM_NAMES } from '@/types'
 import { formatCentralTime } from '@/lib/deadline'
 
@@ -23,6 +23,7 @@ interface GameRow {
 export default async function AdminHistoryPage() {
   const isAdmin = await getAdminSession()
   if (!isAdmin) redirect('/admin/login')
+  const supabase = await getDb()
 
   const [{ data: weeks }, { data: games }, { data: picks }, { data: players }] = await Promise.all([
     supabase.from('weeks').select('id, week_number, season_year, is_active').order('week_number'),

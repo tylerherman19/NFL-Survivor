@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getDb, isTestMode } from '@/lib/testMode'
 import { getWeekSundayDeadline } from '@/lib/deadline'
 import type { Game } from '@/types'
 
@@ -83,6 +83,8 @@ const EMPTY: SweatResponse = {
 
 export async function GET() {
   try {
+    const supabase = await getDb()
+    const testMode = await isTestMode()
     const { data: week } = await supabase
       .from('weeks')
       .select('id, week_number, season_year')
@@ -90,7 +92,7 @@ export async function GET() {
       .single()
 
     if (!week) {
-      return NextResponse.json(EMPTY, { headers: { 'Cache-Control': 'public, max-age=300' } })
+      return NextResponse.json(EMPTY, { headers: { 'Cache-Control': testMode ? 'private, no-store' : 'public, max-age=300' } })
     }
 
     const [playersRes, picksRes, dbGamesRes, espnRes] = await Promise.all([
@@ -214,7 +216,10 @@ export async function GET() {
       } satisfies SweatResponse,
       {
         headers: {
-          'Cache-Control': hasLiveGames
+          // Sandbox responses must never land in the shared CDN cache
+          'Cache-Control': testMode
+            ? 'private, no-store'
+            : hasLiveGames
             ? 'public, max-age=30, stale-while-revalidate=10'
             : 'public, max-age=300, stale-while-revalidate=60',
         },

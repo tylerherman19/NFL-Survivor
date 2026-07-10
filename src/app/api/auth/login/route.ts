@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getDb } from '@/lib/testMode'
 import { verifyPin } from '@/lib/pin'
 import { createSession } from '@/lib/session'
 import { checkRateLimit, getIP } from '@/lib/rateLimit'
@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Case-insensitive name lookup
+    const supabase = await getDb()
     const { data: players, error } = await supabase
       .from('players')
       .select('id, full_name, pin_hash, status')

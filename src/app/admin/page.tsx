@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getAdminSession } from '@/lib/session'
-import { supabase } from '@/lib/supabase'
+import { getDb } from '@/lib/testMode'
 import { NFL_TEAM_NAMES } from '@/types'
 import Link from 'next/link'
 import AdvanceWeekButton from './AdvanceWeekButton'
@@ -9,6 +9,7 @@ import SetActiveWeek from './SetActiveWeek'
 export default async function AdminDashboard() {
   const isAdmin = await getAdminSession()
   if (!isAdmin) redirect('/admin/login')
+  const supabase = await getDb()
 
   const [{ data: week }, { data: players }, { data: allWeeks }] = await Promise.all([
     supabase.from('weeks').select('*').eq('is_active', true).single(),
@@ -195,6 +196,11 @@ export default async function AdminDashboard() {
           href="/admin/email"
           title="✉️ Email Players"
           desc="Broadcast a message to everyone, alive players, or those missing a pick"
+        />
+        <AdminCard
+          href="/admin/testing"
+          title="🧪 Testing Mode"
+          desc="Black-box sandbox with its own test users and schedule — rehearse the full game flow without touching real data"
         />
       </div>
 

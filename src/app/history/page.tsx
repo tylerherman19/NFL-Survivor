@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
-import { supabase } from '@/lib/supabase'
+import { getDb } from '@/lib/testMode'
 import { NFL_TEAM_NAMES, NFL_TEAMS } from '@/types'
 import type { Week, Game } from '@/types'
 import Link from 'next/link'
@@ -9,6 +9,8 @@ import LogoutButton from '../components/LogoutButton'
 export default async function HistoryPage() {
   const session = await getSession()
   if (!session) redirect('/login')
+
+  const supabase = await getDb()
 
   const [picksRes, weeksRes, gamesRes, playersRes, allPicksRes] = await Promise.all([
     supabase.from('picks').select('team, auto_assigned, week_id').eq('player_id', session.player_id),

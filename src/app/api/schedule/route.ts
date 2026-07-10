@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getDb } from '@/lib/testMode'
 import { getAdminSession } from '@/lib/session'
 import { fromZonedTime } from 'date-fns-tz'
 
@@ -11,6 +11,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const { week_number, season_year, games } = await req.json()
+    const supabase = await getDb()
 
     // Upsert the week — create it if it doesn't exist, set it as active
     let weekId: string
@@ -76,6 +77,7 @@ export async function DELETE(req: NextRequest) {
   const id = searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
 
+  const supabase = await getDb()
   await supabase.from('games').delete().eq('id', id)
   return NextResponse.json({ ok: true })
 }

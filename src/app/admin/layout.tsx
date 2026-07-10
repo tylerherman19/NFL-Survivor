@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getAdminSession } from '@/lib/session'
+import { isTestMode } from '@/lib/testMode'
 import Link from 'next/link'
 import AdminLogoutButton from './AdminLogoutButton'
 
@@ -9,6 +10,7 @@ export default async function AdminLayout({
   children: React.ReactNode
 }) {
   const isAdmin = await getAdminSession()
+  const testMode = await isTestMode()
 
   // Allow /admin/login without auth
   // (Next.js will still render the layout for /admin/login — handle in the page)
@@ -24,6 +26,9 @@ export default async function AdminLayout({
               {([['/admin','Dashboard'],['/admin/schedule','Schedule'],['/admin/results','Results'],['/admin/players','Players'],['/admin/recap','Recap'],['/admin/history','History'],['/admin/email','Email']] as [string,string][]).map(([href, label]) => (
                 <Link key={href} href={href} className="text-xs tracking-widest uppercase text-gray-400 hover:text-white transition-colors" style={{ color: '#888' }}>{label}</Link>
               ))}
+              <Link href="/admin/testing" className="text-xs tracking-widest uppercase transition-colors" style={{ color: testMode ? '#fbbf24' : '#888' }}>
+                Testing{testMode ? ' ●' : ''}
+              </Link>
             </div>
             <div className="ml-auto">
               <AdminLogoutButton />
