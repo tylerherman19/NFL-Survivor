@@ -6,7 +6,12 @@ import { NFL_TEAM_NAMES } from '@/types'
 import { teamColor } from '@/lib/teamColors'
 
 interface AvailableTeam { team: string; deadline: string | null; locked: boolean }
-interface Props { weekId: string; weekNumber: number; playerId: string; availableTeams: AvailableTeam[]; usedTeams: string[]; teamRecords?: Record<string, string>; teamOdds?: Record<string, number> }
+interface CurrentPick { team: string; deadline: string | null }
+interface Props { weekId: string; weekNumber: number; playerId: string; availableTeams: AvailableTeam[]; usedTeams: string[]; teamRecords?: Record<string, string>; teamOdds?: Record<string, number>; currentPick?: CurrentPick | null }
+
+function formatLockTime(iso: string): string {
+  return new Date(iso).toLocaleString('en-US', { timeZone: 'America/Chicago', weekday: 'short', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })
+}
 
 function oddsColor(prob: number): string {
   if (prob >= 0.6) return 'var(--green)'
@@ -14,7 +19,7 @@ function oddsColor(prob: number): string {
   return 'var(--red)'
 }
 
-export default function PickForm({ weekId, weekNumber, availableTeams, usedTeams, teamRecords, teamOdds }: Props) {
+export default function PickForm({ weekId, weekNumber, availableTeams, usedTeams, teamRecords, teamOdds, currentPick }: Props) {
   const router = useRouter()
   const [selected, setSelected] = useState<string | null>(null)
   const [confirmed, setConfirmed] = useState(false)
@@ -29,8 +34,9 @@ export default function PickForm({ weekId, weekNumber, availableTeams, usedTeams
       ? [...list].sort((a, b) => (teamOdds?.[b.team] ?? -1) - (teamOdds?.[a.team] ?? -1))
       : list
 
-  const unlocked = sortTeams(availableTeams.filter((t) => !t.locked))
-  const locked = availableTeams.filter((t) => t.locked)
+  const isChange = !!currentPick
+  const unlocked = sortTeams(availableTeams.filter((t) => !t.locked && t.team !== currentPick?.team))
+  const locked = availableTeams.filter((t) => t.locked && t.team !== currentPick?.team)
 
   async function handleSubmit() {
     if (!selected || !confirmed) return
@@ -55,14 +61,14 @@ export default function PickForm({ weekId, weekNumber, availableTeams, usedTeams
 
   if (success) return (
     <div className="text-center py-16">
-      <p className="font-display text-6xl" style={{ color: 'var(--green)' }}>LOCKED IN!</p>
+      <p className="font-display text-6xl" style={{ color: 'var(--green)' }}>{isChange ? 'PICK UPDATED!' : 'LOCKED IN!'}</p>
       <p className="text-sm mt-4" style={{ color: 'var(--muted)' }}>
         {NFL_TEAM_NAMES[selected!] || selected} — Week {weekNumber}. Confirmation email on its way.
       </p>
     </div>
   )
 
-  if (unlocked.length === 0 && locked.length === 0) return (
+  if (!isChange && unlocked.length === 0 && locked.length === 0) return (
     <div className="text-center py-16">
       <p className="font-display text-4xl" style={{ color: 'var(--dark)' }}>ALL TEAMS LOCKED</p>
       <p className="text-sm mt-3" style={{ color: 'var(--muted)' }}>All deadlines passed or you&apos;ve used every team playing this week.</p>
@@ -78,10 +84,31 @@ export default function PickForm({ weekId, weekNumber, availableTeams, usedTeams
         )}
       </div>
 
+      {currentPick && (
+        <div className="border p-6" style={{ borderColor: 'var(--green)', borderWidth: 2 }}>
+          <p className="text-xs font-bold tracking-widest uppercase" style={{ color: 'var(--green)' }}>
+            ✓ Your Week {weekNumber} Pick
+          </p>
+          <div className="flex items-center gap-3 mt-3">
+            <span className="team-chip-swatch" style={{ background: teamColor(currentPick.team).primary, width: 32, height: 32, fontSize: 11, borderRadius: 7 }}>{currentPick.team.slice(0, 3)}</span>
+            <p className="font-display text-3xl leading-none" style={{ color: 'var(--dark)' }}>
+              {NFL_TEAM_NAMES[currentPick.team] || currentPick.team}
+            </p>
+          </div>
+          <p className="text-xs mt-3" style={{ color: 'var(--muted)' }}>
+            You can still change this pick{currentPick.deadline ? ` until it locks ${formatLockTime(currentPick.deadline)}` : ''}. Select a different team below to switch.
+          </p>
+        </div>
+      )}
+
+      {isChange && unlocked.length === 0 && (
+        <p className="text-sm" style={{ color: 'var(--muted)' }}>No other teams are available to switch to.</p>
+      )}
+
       {unlocked.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-3">
-            <p className="eyebrow">Select a team</p>
+            <p className="eyebrow">{isChange ? 'Switch to a different team' : 'Select a team'}</p>
             {hasOdds && (
               <div className="flex items-center gap-2">
                 <span className="eyebrow">Sort:</span>
@@ -135,7 +162,7 @@ export default function PickForm({ weekId, weekNumber, availableTeams, usedTeams
                   )}
                   {deadline && (
                     <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>
-                      Locks {new Date(deadline).toLocaleString('en-US', { timeZone: 'America/Chicago', weekday: 'short', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })}
+                      Locks {formatLockTime(deadline)}
                     </p>
                   )}
                 </button>
@@ -168,14 +195,14 @@ export default function PickForm({ weekId, weekNumber, availableTeams, usedTeams
           <div className="flex items-center gap-3">
             <span className="team-chip-swatch" style={{ background: teamColor(selected).primary, width: 32, height: 32, fontSize: 11, borderRadius: 7 }}>{selected.slice(0, 3)}</span>
             <div>
-              <p className="eyebrow" style={{ color: 'var(--muted)' }}>Your Pick</p>
+              <p className="eyebrow" style={{ color: 'var(--muted)' }}>{isChange ? 'New Pick' : 'Your Pick'}</p>
               <p className="font-display text-2xl leading-none" style={{ color: 'var(--dark)' }}>{NFL_TEAM_NAMES[selected] || selected}</p>
             </div>
           </div>
           <label className="flex items-start gap-3 cursor-pointer">
             <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} className="mt-0.5" />
             <span className="text-sm" style={{ color: 'var(--dark)' }}>
-              I confirm this pick. Picks cannot be changed once submitted.
+              I confirm this pick. Picks can be changed until your team&apos;s deadline, then they lock for good.
             </span>
           </label>
           {error && <p className="text-sm rounded-md px-3 py-2" style={{ color: 'var(--red)', background: 'var(--red-tint)' }}>{error}</p>}
@@ -184,7 +211,7 @@ export default function PickForm({ weekId, weekNumber, availableTeams, usedTeams
             disabled={!confirmed || submitting}
             className="btn-primary w-full font-display tracking-wider py-3"
           >
-            {submitting ? 'LOCKING IN…' : `LOCK IN ${selected} →`}
+            {submitting ? 'LOCKING IN…' : isChange ? `SWITCH TO ${selected} →` : `LOCK IN ${selected} →`}
           </button>
         </div>
       )}
