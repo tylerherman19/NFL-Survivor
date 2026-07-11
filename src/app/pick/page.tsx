@@ -5,7 +5,7 @@ import { NFL_TEAM_NAMES } from '@/types'
 import type { Game } from '@/types'
 import PickForm from './PickForm'
 import LogoutButton from '../components/LogoutButton'
-import { getPickDeadline } from '@/lib/deadline'
+import { getPickDeadline, getTeamDeadline } from '@/lib/deadline'
 import { getNflOdds, matchGameOdds } from '@/lib/kalshi'
 import Link from 'next/link'
 
@@ -30,12 +30,19 @@ export default async function PickPage() {
     if (!player) redirect('/login')
 
     const { data: pastPicks } = await supabase.from('picks').select('team, week_id').eq('player_id', session.player_id)
-    const usedTeams = (pastPicks || []).map((p: { team: string }) => p.team)
+    // Teams burned in previous weeks — this week's pick isn't "used" while it can still be changed
+    const usedTeams = (pastPicks || [])
+      .filter((p: { week_id: string }) => p.week_id !== week.id)
+      .map((p: { team: string }) => p.team)
 
     const { data: currentPick } = await supabase.from('picks').select('*').eq('player_id', session.player_id).eq('week_id', week.id).single()
 
     const { data: games } = await supabase.from('games').select('*').eq('week_id', week.id).order('kickoff_central')
     const gamesData: Game[] = games || []
+
+    // A pick stays changeable until the picked team's own deadline passes
+    const currentPickDeadline = currentPick ? getTeamDeadline(currentPick.team, gamesData) : null
+    const pickLocked = currentPick ? !currentPickDeadline || new Date() >= currentPickDeadline : false
 
     const allTeamsThisWeek = new Set<string>()
     const gameByTeam: Record<string, Game> = {}
@@ -95,7 +102,7 @@ export default async function PickPage() {
               <Link href="/" className="underline" style={{ color: 'var(--dark)' }}>standings page</Link>.
             </p>
           </div>
-        ) : currentPick ? (
+        ) : currentPick && pickLocked ? (
           <div className="space-y-6">
             <div className="border p-8 text-center" style={{ borderColor: 'var(--green)', borderWidth: 2 }}>
               <p className="text-xs font-bold tracking-widest uppercase mb-3" style={{ color: 'var(--green)' }}>
@@ -110,7 +117,7 @@ export default async function PickPage() {
               )}
             </div>
             <p className="text-xs text-center" style={{ color: 'var(--muted)' }}>
-              Teams used: {usedTeams.join(', ') || 'None yet'}
+              Teams used: {[...usedTeams, currentPick.team].join(', ')}
             </p>
           </div>
         ) : (
@@ -122,6 +129,7 @@ export default async function PickPage() {
             usedTeams={usedTeams}
             teamRecords={teamRecords}
             teamOdds={teamOdds}
+            currentPick={currentPick ? { team: currentPick.team, deadline: currentPickDeadline?.toISOString() || null } : null}
           />
         )}
       </Shell>

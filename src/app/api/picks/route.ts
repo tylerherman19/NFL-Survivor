@@ -63,22 +63,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'This week is not active' }, { status: 400 })
     }
 
-    // Check player hasn't already picked this week
+    // Look up any existing pick for this week — players may change it until
+    // their currently-picked team's deadline passes
     const { data: existingPick } = await supabase
       .from('picks')
-      .select('id')
+      .select('id, team')
       .eq('player_id', playerId)
       .eq('week_id', week_id)
       .single()
 
-    if (existingPick && !isAdmin) {
-      return NextResponse.json({ error: 'You already have a pick for this week' }, { status: 409 })
-    }
-
     // Check team hasn't been used by this player in other weeks
-    // When admin is reassigning, exclude the current week so the replaced team doesn't block
+    // When changing this week's pick, exclude it so the replaced team doesn't block
     let pastPicksQuery = supabase.from('picks').select('team').eq('player_id', playerId)
-    if (isAdmin && existingPick) pastPicksQuery = pastPicksQuery.neq('week_id', week_id)
+    if (existingPick) pastPicksQuery = pastPicksQuery.neq('week_id', week_id)
     const { data: pastPicks } = await pastPicksQuery
 
     const usedTeams = (pastPicks || []).map((p: { team: string }) => p.team)
@@ -102,6 +99,17 @@ export async function POST(req: NextRequest) {
     // Admins can bypass deadline for manual submissions
     const teamDeadline = getTeamDeadline(team, gamesData)
     if (!isAdmin) {
+      // Changing an existing pick requires the current team to still be unlocked —
+      // once your picked team's deadline passes, the pick is final
+      if (existingPick) {
+        const currentDeadline = getTeamDeadline(existingPick.team, gamesData)
+        if (!currentDeadline || new Date() >= currentDeadline) {
+          return NextResponse.json(
+            { error: 'Your pick is locked and can no longer be changed' },
+            { status: 400 }
+          )
+        }
+      }
       if (teamDeadline && new Date() >= teamDeadline) {
         return NextResponse.json(
           { error: `The deadline for picking ${team} has passed` },
@@ -110,14 +118,22 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (isAdmin && existingPick) {
+    // Re-submitting the same team is a no-op
+    if (existingPick && existingPick.team === team) {
+      return NextResponse.json({ ok: true, team })
+    }
+
+    if (existingPick) {
       // UPDATE in place — atomic, no window where the player has zero picks
       const { error: updateError } = await supabase
         .from('picks')
-        .update({ team, auto_assigned: false, submitted_by_admin: true })
+        .update({ team, auto_assigned: false, submitted_by_admin: isAdmin })
         .eq('id', existingPick.id)
       if (updateError) {
         console.error('update error', updateError)
+        if (updateError.code === '23505') {
+          return NextResponse.json({ error: `${player.full_name} already used ${team} in a previous week` }, { status: 400 })
+        }
         return NextResponse.json({ error: 'Failed to update pick' }, { status: 500 })
       }
     } else {
@@ -130,6 +146,9 @@ export async function POST(req: NextRequest) {
       })
       if (insertError) {
         console.error('insert error', insertError)
+        if (insertError.code === '23505') {
+          return NextResponse.json({ error: `${player.full_name} already has a pick for this week or already used ${team}` }, { status: 409 })
+        }
         return NextResponse.json({ error: 'Failed to save pick' }, { status: 500 })
       }
     }
