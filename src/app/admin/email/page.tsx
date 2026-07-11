@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getAdminSession } from '@/lib/session'
 import { getDb } from '@/lib/testMode'
+import { isDeliverable } from '@/lib/email'
 import BroadcastForm from './BroadcastForm'
 
 export default async function AdminEmailPage() {
@@ -14,7 +15,7 @@ export default async function AdminEmailPage() {
   ])
 
   // Match the broadcast route's recipient logic so previewed counts are accurate
-  const real = (players || []).filter((p) => !p.email?.endsWith('@nflsurvivor.internal'))
+  const real = (players || []).filter((p) => isDeliverable(p.email ?? ''))
   const aliveCount = real.filter((p) => p.status === 'alive').length
 
   let unpickedCount: number | null = null

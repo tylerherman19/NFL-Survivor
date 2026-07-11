@@ -48,7 +48,11 @@ export default async function TestingPage() {
   if (!isAdmin) redirect('/admin/login')
 
   const testMode = await isTestMode()
-  const snapshot = await getSandboxSnapshot()
+  // The panel only renders sandbox state while testing mode is on — skip the
+  // four sandbox queries otherwise.
+  const snapshot: SandboxSnapshot = testMode
+    ? await getSandboxSnapshot()
+    : { ok: true, error: null, players: [], activeWeek: null, gameCount: 0, pickCount: 0 }
   const inviteToken = testMode ? await createTestInviteToken() : null
 
   return (

@@ -17,7 +17,7 @@ function esc(s: string): string {
 // Internal/test accounts carry fake addresses that would bounce — never hand
 // them to Resend. Covers production's internal accounts and the sandbox's
 // seeded test users (@sandbox.test).
-function isDeliverable(email: string): boolean {
+export function isDeliverable(email: string): boolean {
   return !email.endsWith('@nflsurvivor.internal') && !email.endsWith('.test')
 }
 

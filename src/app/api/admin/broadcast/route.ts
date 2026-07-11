@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { getDb } from '@/lib/testMode'
 import { getAdminSession } from '@/lib/session'
+import { isDeliverable } from '@/lib/email'
 
 // Sends are paced at ~1.6/sec for Resend rate limits, so allow up to 4 min of runtime
 export const maxDuration = 300
@@ -45,8 +46,9 @@ export async function POST(req: NextRequest) {
       .select('id, full_name, email, status')
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    // Internal test accounts have fake emails that would bounce
-    let recipients = (allPlayers || []).filter((p) => !p.email?.endsWith('@nflsurvivor.internal'))
+    // Internal/test accounts (including sandbox @sandbox.test seeds) have
+    // fake emails that would bounce
+    let recipients = (allPlayers || []).filter((p) => isDeliverable(p.email ?? ''))
 
     if (audience === 'alive') {
       recipients = recipients.filter((p) => p.status === 'alive')

@@ -54,14 +54,16 @@ export async function POST(req: NextRequest) {
 
     for (const row of rows) {
       try {
-        // Check if player already exists — never overwrite their PIN or send a new welcome email
+        // Check if player already exists — never overwrite their PIN or send
+        // a new welcome email. limit(1) instead of single(): single() errors
+        // on multiple matches, which would read as "not found" and duplicate.
         const { data: existing } = await supabase
           .from('players')
           .select('id')
           .ilike(dedupeColumn, dedupeColumn === 'email' ? row.email : row.full_name)
-          .single()
+          .limit(1)
 
-        if (existing) {
+        if (existing && existing.length > 0) {
           skipped++
           continue
         }

@@ -3,15 +3,10 @@ import { SignJWT, jwtVerify } from 'jose'
 import { cookies } from 'next/headers'
 import type { SessionPayload } from '@/types'
 import { isTestMode } from './testMode'
+import { getJwtSecret } from './jwtSecret'
 
 const SESSION_COOKIE = 'survivor_session'
 const ADMIN_COOKIE = 'survivor_admin'
-
-function getSecret(): Uint8Array {
-  const s = process.env.SESSION_SECRET
-  if (!s) throw new Error('SESSION_SECRET env var is not set')
-  return new TextEncoder().encode(s)
-}
 
 export async function createSession(payload: SessionPayload): Promise<void> {
   const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
@@ -22,7 +17,7 @@ export async function createSession(payload: SessionPayload): Promise<void> {
   const token = await new SignJWT({ ...payload, test_mode })
     .setProtectedHeader({ alg: 'HS256' })
     .setExpirationTime(expires)
-    .sign(getSecret())
+    .sign(getJwtSecret())
 
   const cookieStore = await cookies()
   cookieStore.set(SESSION_COOKIE, token, {
@@ -39,7 +34,7 @@ export async function createAdminSession(): Promise<void> {
   const token = await new SignJWT({ is_admin: true })
     .setProtectedHeader({ alg: 'HS256' })
     .setExpirationTime(expires)
-    .sign(getSecret())
+    .sign(getJwtSecret())
 
   const cookieStore = await cookies()
   cookieStore.set(ADMIN_COOKIE, token, {
@@ -56,7 +51,11 @@ export async function getSession(): Promise<SessionPayload | null> {
   const token = cookieStore.get(SESSION_COOKIE)?.value
   if (!token) return null
   try {
-    const { payload } = await jwtVerify(token, getSecret())
+    const { payload } = await jwtVerify(token, getJwtSecret())
+    // All app JWTs share one secret, so a valid signature isn't enough — an
+    // admin/test-mode/invite token pasted into the session cookie would
+    // verify. Only tokens carrying a player identity are player sessions.
+    if (typeof payload.player_id !== 'string' || payload.player_id.length === 0) return null
     // Sessions are scoped to the environment they were created in — a sandbox
     // session is invisible in production and vice versa.
     if ((payload.test_mode === true) !== (await isTestMode())) return null
@@ -71,7 +70,7 @@ export async function getAdminSession(): Promise<boolean> {
   const token = cookieStore.get(ADMIN_COOKIE)?.value
   if (!token) return false
   try {
-    const { payload } = await jwtVerify(token, getSecret())
+    const { payload } = await jwtVerify(token, getJwtSecret())
     // Player sessions are signed with the same secret, so a valid signature is
     // not enough — require the is_admin claim that only createAdminSession sets.
     return payload.is_admin === true
