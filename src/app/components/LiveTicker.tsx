@@ -88,7 +88,7 @@ function GameCard({ game }: { game: LiveGame }) {
   )
 }
 
-export default function LiveTicker({ weekNumber, season }: { weekNumber?: number | null; season?: number | null }) {
+export default function LiveTicker() {
   const [data, setData] = useState<LiveScoresResponse | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
 

@@ -93,21 +93,14 @@ export default async function GridPage() {
     resultMap[pick.player_id][pick.week_id] = outcome
   }
 
-  // Sort players: alive first (by weeks survived desc, then name), then eliminated (by elimination_week desc, then name)
+  // Sort players: winners (alive) up top, losers (eliminated) at the bottom,
+  // each group alphabetical
   const withStats = players.map((p) => ({
     ...p,
     weeksSurvived: Object.keys(pickMap[p.id] ?? {}).length,
   }))
   withStats.sort((a, b) => {
     if (a.status !== b.status) return a.status === 'alive' ? -1 : 1
-    if (a.status === 'alive') {
-      if (b.weeksSurvived !== a.weeksSurvived) return b.weeksSurvived - a.weeksSurvived
-      return a.full_name.localeCompare(b.full_name)
-    }
-    // both eliminated
-    const aElim = a.elimination_week ?? 0
-    const bElim = b.elimination_week ?? 0
-    if (bElim !== aElim) return bElim - aElim
     return a.full_name.localeCompare(b.full_name)
   })
 

@@ -76,9 +76,11 @@ export function getWeekSundayDeadline(games: Game[]): Date | null {
   const kickoff = new Date(anyGame.kickoff_central)
   const chicagoKickoff = toZonedTime(kickoff, CHICAGO_TZ)
   const dow = chicagoKickoff.getDay()
-  // Mon (-1) goes back to the Sunday deadline that already passed for MNF.
-  // Thu/Fri/Sat/Tue/Wed (7-dow) go forward to the upcoming Sunday.
-  const daysToSunday = dow === 0 ? 0 : dow === 1 ? -1 : 7 - dow
+  // Mon (-1) and Tue (-2) go back to the Sunday deadline that already passed
+  // (matching getPickDeadline). Thu/Fri/Sat (7-dow) go forward to the upcoming
+  // Sunday. This makes the result identical for every game in a week, so the
+  // unordered games[0] input can't skew it.
+  const daysToSunday = dow === 0 ? 0 : dow <= 2 ? -dow : 7 - dow
   const sunday = new Date(chicagoKickoff)
   sunday.setDate(chicagoKickoff.getDate() + daysToSunday)
   sunday.setHours(12, 0, 0, 0)

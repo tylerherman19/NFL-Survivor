@@ -27,9 +27,9 @@ export default async function ResultsPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 space-y-6">
-      <h1 className="text-2xl font-bold text-white">🏆 Enter Results</h1>
+      <h1 className="font-display text-5xl leading-none" style={{ color: 'var(--dark)' }}>🏆 ENTER RESULTS</h1>
       {!activeWeek ? (
-        <p className="text-slate-400">No active week. Set up the schedule first.</p>
+        <p className="text-sm" style={{ color: 'var(--muted)' }}>No active week. Set up the schedule first.</p>
       ) : (
         <ResultsForm week={activeWeek as Week} games={games} />
       )}

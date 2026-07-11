@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/testMode'
+import { escapeIlike } from '@/lib/supabase'
 import { getAdminSession } from '@/lib/session'
 import { generatePin, hashPin } from '@/lib/pin'
 import { sendWelcomeEmail } from '@/lib/email'
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
         const { data: existing } = await supabase
           .from('players')
           .select('id')
-          .ilike('email', row.email)
+          .ilike('email', escapeIlike(row.email))
           .single()
 
         if (existing) {

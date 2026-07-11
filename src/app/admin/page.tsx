@@ -60,51 +60,49 @@ export default async function AdminDashboard() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
+        <h1 className="font-display text-5xl leading-none" style={{ color: 'var(--dark)' }}>ADMIN DASHBOARD</h1>
         {week && (
-          <p className="text-slate-400 mt-1">
+          <p className="mt-2 eyebrow">
             Active: Week {week.week_number} · Season {week.season_year}
           </p>
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Total Players" value={players?.length || 0} />
         <StatCard label="Paid" value={`${paid.length}/${players?.length || 0}`} />
-        <StatCard label="Still Alive" value={alive.length} color="text-green-400" />
+        <StatCard label="Still Alive" value={alive.length} accent="var(--green)" />
         <StatCard label="Picks This Week" value={`${pickCount}/${alive.length}`} />
       </div>
 
       {!week && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
-          <p className="text-amber-400 font-medium">No active week set.</p>
-          <p className="text-slate-400 text-sm mt-1">
-            Go to <Link href="/admin/schedule" className="text-blue-400 underline">Schedule</Link> to create Week 1 and add games.
+        <div className="card p-4" style={{ borderColor: 'var(--red)', background: 'var(--red-tint)' }}>
+          <p className="font-bold text-sm" style={{ color: 'var(--red)' }}>No active week set.</p>
+          <p className="text-sm mt-1" style={{ color: 'var(--dark)' }}>
+            Go to <Link href="/admin/schedule" className="underline font-semibold">Schedule</Link> to create Week 1 and add games.
           </p>
         </div>
       )}
       {week && <AdvanceWeekButton currentWeekNumber={week.week_number} seasonYear={week.season_year} />}
 
       {week && (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           {/* Pick distribution */}
-          <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-            <p className="text-slate-400 text-xs font-medium uppercase tracking-wide mb-3">
-              Week {week.week_number} Pick Distribution
-            </p>
+          <div className="card p-4">
+            <p className="eyebrow mb-3">Week {week.week_number} Pick Distribution</p>
             {pickDistribution.length === 0 ? (
-              <p className="text-slate-500 text-sm">No picks yet.</p>
+              <p className="text-sm" style={{ color: 'var(--muted)' }}>No picks yet.</p>
             ) : (
               <table className="w-full text-sm">
                 <tbody>
                   {pickDistribution.map(({ team, count, pct }) => (
-                    <tr key={team} className="border-b border-slate-700/60 last:border-0">
+                    <tr key={team} className="border-b last:border-0" style={{ borderColor: 'var(--border)' }}>
                       <td className="py-1.5">
-                        <span className="font-mono font-bold text-white">{team}</span>
-                        <span className="ml-2 text-xs text-slate-400 hidden sm:inline">{NFL_TEAM_NAMES[team]}</span>
+                        <span className="font-mono font-bold" style={{ color: 'var(--dark)' }}>{team}</span>
+                        <span className="ml-2 text-xs hidden sm:inline" style={{ color: 'var(--muted)' }}>{NFL_TEAM_NAMES[team]}</span>
                       </td>
-                      <td className="py-1.5 text-right text-white">{count}</td>
-                      <td className="py-1.5 text-right text-slate-400 w-16">{pct.toFixed(0)}%</td>
+                      <td className="py-1.5 text-right tnum" style={{ color: 'var(--dark)' }}>{count}</td>
+                      <td className="py-1.5 text-right w-16 tnum" style={{ color: 'var(--muted)' }}>{pct.toFixed(0)}%</td>
                     </tr>
                   ))}
                 </tbody>
@@ -113,16 +111,14 @@ export default async function AdminDashboard() {
           </div>
 
           {/* Missing picks */}
-          <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-            <p className="text-slate-400 text-xs font-medium uppercase tracking-wide mb-3">
-              Haven&apos;t Picked Yet ({notPickedYet.length})
-            </p>
+          <div className="card p-4">
+            <p className="eyebrow mb-3">Haven&apos;t Picked Yet ({notPickedYet.length})</p>
             {notPickedYet.length === 0 ? (
-              <p className="text-green-400 text-sm">Everyone alive has picked. 🎉</p>
+              <p className="text-sm" style={{ color: 'var(--green)' }}>Everyone alive has picked. 🎉</p>
             ) : (
               <>
-                <p className="text-sm text-slate-300 leading-relaxed">{notPickedYet.join(', ')}</p>
-                <Link href="/admin/email" className="inline-block mt-3 text-xs text-blue-400 underline">
+                <p className="text-sm leading-relaxed" style={{ color: 'var(--dark)' }}>{notPickedYet.join(', ')}</p>
+                <Link href="/admin/email" className="inline-block mt-3 text-xs underline font-semibold" style={{ color: 'var(--dark)' }}>
                   Email these players →
                 </Link>
               </>
@@ -130,17 +126,15 @@ export default async function AdminDashboard() {
           </div>
 
           {/* Games / results status */}
-          <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-            <p className="text-slate-400 text-xs font-medium uppercase tracking-wide mb-3">
-              Week {week.week_number} Games ({gradedCount}/{games.length} graded)
-            </p>
+          <div className="card p-4">
+            <p className="eyebrow mb-3">Week {week.week_number} Games ({gradedCount}/{games.length} graded)</p>
             {games.length === 0 ? (
-              <p className="text-slate-500 text-sm">No games entered.</p>
+              <p className="text-sm" style={{ color: 'var(--muted)' }}>No games entered.</p>
             ) : (
               <ul className="space-y-1.5 text-sm">
                 {games.map((g) => (
                   <li key={g.id} className="flex items-center justify-between">
-                    <span className="font-mono text-white">
+                    <span className="font-mono" style={{ color: 'var(--dark)' }}>
                       {g.away_team} @ {g.home_team}
                     </span>
                     <ResultBadge result={g.result} home={g.home_team} away={g.away_team} />
@@ -151,14 +145,12 @@ export default async function AdminDashboard() {
           </div>
 
           {/* Unpaid */}
-          <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-            <p className="text-slate-400 text-xs font-medium uppercase tracking-wide mb-3">
-              Unpaid Players ({unpaidPlayers.length})
-            </p>
+          <div className="card p-4">
+            <p className="eyebrow mb-3">Unpaid Players ({unpaidPlayers.length})</p>
             {unpaidPlayers.length === 0 ? (
-              <p className="text-green-400 text-sm">Everyone has paid. 💰</p>
+              <p className="text-sm" style={{ color: 'var(--green)' }}>Everyone has paid. 💰</p>
             ) : (
-              <p className="text-sm text-slate-300 leading-relaxed">
+              <p className="text-sm leading-relaxed" style={{ color: 'var(--dark)' }}>
                 {unpaidPlayers.map((p: { full_name: string }) => p.full_name).sort().join(', ')}
               </p>
             )}
@@ -166,7 +158,7 @@ export default async function AdminDashboard() {
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2">
         <AdminCard
           href="/admin/schedule"
           title="📅 Enter Schedule"
@@ -205,21 +197,16 @@ export default async function AdminDashboard() {
       </div>
 
       {/* Data export */}
-      <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-        <p className="text-slate-400 text-xs font-medium uppercase tracking-wide mb-3">Data Export</p>
+      <div className="card p-4">
+        <p className="eyebrow mb-1">Data Export</p>
+        <p className="text-xs mb-3" style={{ color: 'var(--muted)' }}>
+          Pick Grid is the weekly failsafe — the full pick spread (player × week, with W/L) as a
+          spreadsheet that opens straight in Excel.
+        </p>
         <div className="flex flex-wrap gap-3">
-          <a
-            href="/api/admin/export?type=players"
-            className="rounded-lg border border-slate-600 bg-slate-700 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-600 transition-colors"
-          >
-            ⬇ Export Players CSV
-          </a>
-          <a
-            href="/api/admin/export?type=picks"
-            className="rounded-lg border border-slate-600 bg-slate-700 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-600 transition-colors"
-          >
-            ⬇ Export Picks CSV
-          </a>
+          <ExportButton href="/api/admin/export?type=grid" label="⬇ Export Pick Grid (Excel)" />
+          <ExportButton href="/api/admin/export?type=picks" label="⬇ Export Picks CSV" />
+          <ExportButton href="/api/admin/export?type=players" label="⬇ Export Players CSV" />
         </div>
       </div>
 
@@ -228,26 +215,39 @@ export default async function AdminDashboard() {
   )
 }
 
+function ExportButton({ href, label }: { href: string; label: string }) {
+  return (
+    <a
+      href={href}
+      className="card px-4 py-2 text-sm font-semibold transition-colors hover:border-[var(--border-strong)]"
+      style={{ color: 'var(--dark)' }}
+    >
+      {label}
+    </a>
+  )
+}
+
 function ResultBadge({ result, home, away }: { result: string; home: string; away: string }) {
-  if (result === 'pending') return <span className="text-xs text-amber-400">pending</span>
-  if (result === 'home_win') return <span className="text-xs font-semibold text-green-400">{home} won</span>
-  if (result === 'away_win') return <span className="text-xs font-semibold text-green-400">{away} won</span>
-  return <span className="text-xs font-semibold text-red-400">tie</span>
+  if (result === 'pending') return <span className="text-xs italic" style={{ color: 'var(--muted)' }}>pending</span>
+  if (result === 'home_win') return <span className="text-xs font-semibold" style={{ color: 'var(--green)' }}>{home} won</span>
+  if (result === 'away_win') return <span className="text-xs font-semibold" style={{ color: 'var(--green)' }}>{away} won</span>
+  return <span className="text-xs font-semibold" style={{ color: 'var(--red)' }}>tie</span>
 }
 
 function StatCard({
   label,
   value,
-  color = 'text-white',
+  accent = 'var(--dark)',
 }: {
   label: string
   value: string | number
-  color?: string
+  accent?: string
 }) {
   return (
-    <div className="rounded-xl border border-slate-700 bg-slate-800 p-4 text-center">
-      <p className="text-slate-400 text-xs font-medium uppercase tracking-wide">{label}</p>
-      <p className={`mt-1 text-2xl font-bold ${color}`}>{value}</p>
+    <div className="card px-4 py-4 text-center relative overflow-hidden">
+      <span className="absolute left-0 top-0 h-full w-1" style={{ background: accent }} />
+      <p className="font-display text-4xl leading-none tnum" style={{ color: accent }}>{value}</p>
+      <p className="mt-1.5 eyebrow">{label}</p>
     </div>
   )
 }
@@ -264,10 +264,10 @@ function AdminCard({
   return (
     <Link
       href={href}
-      className="block rounded-xl border border-slate-700 bg-slate-800 p-5 hover:border-slate-500 hover:bg-slate-700/50 transition-all"
+      className="card block p-5 transition-all hover:border-[var(--border-strong)] hover:shadow-md"
     >
-      <p className="font-semibold text-white">{title}</p>
-      <p className="text-slate-400 text-sm mt-1">{desc}</p>
+      <p className="font-bold" style={{ color: 'var(--dark)' }}>{title}</p>
+      <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>{desc}</p>
     </Link>
   )
 }

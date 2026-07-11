@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/testMode'
 import { getAdminSession } from '@/lib/session'
-import { getSNFGame, getMNFGame } from '@/lib/deadline'
+import { getSNFGame, getMNFGame, getWeekSundayDeadline } from '@/lib/deadline'
 import { sendEliminationEmail, sendPickConfirmationEmail } from '@/lib/email'
 import type { Game } from '@/types'
 
@@ -63,17 +63,10 @@ export async function GET(req: NextRequest) {
       (p: { id: string }) => !playersWithPicks.has(p.id)
     )
 
-    // Only process players whose Sunday deadline has passed
-    // (SNF kickoff serves as a proxy — if SNF has kicked off, it's deadline time)
-    const sundayNoon = snfGame
-      ? (() => {
-          const kickoff = new Date(snfGame.kickoff_central)
-          // Sunday 12:00 PM Central is the deadline; compare in UTC
-          // We approximate: if current time is past SNF kickoff, definitely past noon Sunday
-          return kickoff
-        })()
-      : null
-
+    // Only process players once the week's Sunday 12 PM CT deadline has passed.
+    // The cron fires Sunday 19:00 UTC (early afternoon CT) — after the deadline
+    // but before SNF kickoff, so the SNF away team is still a fair assignment.
+    const sundayNoon = getWeekSundayDeadline(gamesData)
     if (!sundayNoon || now < sundayNoon) {
       return NextResponse.json({ ok: true, message: 'Not past deadline yet' })
     }

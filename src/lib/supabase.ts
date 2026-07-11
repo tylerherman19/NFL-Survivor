@@ -22,6 +22,12 @@ function lazySupabase(schema: string): SupabaseClient {
   })
 }
 
+// Escape LIKE wildcards so user input can't act as a pattern in .ilike()
+// lookups (a login name of "%" would otherwise match every player).
+export function escapeIlike(value: string): string {
+  return value.replace(/[\\%_]/g, '\\$&')
+}
+
 // Production data (public schema). Import this directly only for things that
 // must always hit production (rate limits, cron entry points); everything
 // request-scoped should go through getDb() in lib/testMode.ts instead.

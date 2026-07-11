@@ -47,16 +47,17 @@ export default function SetActiveWeek({ weeks }: { weeks: WeekOption[] }) {
   }
 
   return (
-    <div className="rounded-xl border border-red-900/60 bg-red-950/20 p-4 space-y-3">
-      <p className="text-sm font-semibold text-red-300">Set Active Week</p>
-      <p className="text-xs text-slate-400">
+    <div className="card p-4 space-y-3" style={{ borderColor: 'var(--red)', background: 'var(--red-tint)' }}>
+      <p className="eyebrow" style={{ color: 'var(--red)' }}>Set Active Week</p>
+      <p className="text-xs" style={{ color: 'var(--dark)' }}>
         Manually switch which week is active. Use this to roll back or jump ahead — normally you should use Advance Season instead.
       </p>
       <div className="flex items-center gap-3">
         <select
           value={selected}
           onChange={(e) => setSelected(e.target.value)}
-          className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-white"
+          className="field px-3 py-2 text-sm"
+          style={{ color: 'var(--dark)' }}
         >
           <option value="">Select a week…</option>
           {inactive.map((w) => (
@@ -68,13 +69,13 @@ export default function SetActiveWeek({ weeks }: { weeks: WeekOption[] }) {
         <button
           onClick={handleActivate}
           disabled={!selected || loading}
-          className="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-50 transition-colors"
+          className="btn-primary px-4 py-2 text-sm font-semibold"
         >
           {loading ? 'Activating…' : 'Activate'}
         </button>
       </div>
       {message && (
-        <p className={`text-xs ${message.startsWith('✅') ? 'text-green-400' : 'text-red-400'}`}>{message}</p>
+        <p className="text-xs" style={{ color: message.startsWith('✅') ? 'var(--green)' : 'var(--red)' }}>{message}</p>
       )}
     </div>
   )

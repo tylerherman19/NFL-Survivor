@@ -221,7 +221,7 @@ export default async function DashboardPage() {
       <SiteHeader />
 
       {/* Live scores ticker — client component, polls independently of cached server render */}
-      <LiveTicker weekNumber={data?.week?.week_number} season={data?.week?.season_year} />
+      <LiveTicker />
 
       {data && data.aliveCount === 1 && aliveRows.length === 1 && (
         <div style={{ background: 'var(--dark)', borderBottom: '4px solid var(--green)' }}>
