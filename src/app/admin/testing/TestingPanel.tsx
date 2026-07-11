@@ -121,7 +121,7 @@ export default function TestingPanel({
           <p className="font-semibold text-red-300">Sandbox database is not reachable</p>
           <p className="text-slate-300 text-sm">{snapshot.error}</p>
           <ol className="list-decimal pl-5 text-sm text-slate-300 space-y-1">
-            <li>Run <code className="text-amber-300">supabase/migrations/004_testing_sandbox.sql</code> in the Supabase SQL editor.</li>
+            <li>Run <code className="text-amber-300">supabase/migrations/004_testing_sandbox.sql</code>, <code className="text-amber-300">005_unique_team_per_player.sql</code>, and <code className="text-amber-300">006_sandbox_shared_emails.sql</code> in the Supabase SQL editor, in that order.</li>
             <li>In Supabase: Settings → API → Exposed schemas → add <code className="text-amber-300">sandbox</code>.</li>
           </ol>
         </div>
@@ -217,7 +217,9 @@ export default function TestingPanel({
               <p className="text-slate-400 text-sm mt-3">
                 Add more via <Link href="/admin/players" className="text-blue-400 underline">Manage Players</Link> (CSV
                 import), the public <Link href="/signup" className="text-blue-400 underline">signup form</Link>, or
-                another seed run.
+                another seed run. Unlike production, the sandbox lets any number of users share one email address —
+                handy for registering a whole test roster under your own inbox (names still have to differ; they&apos;re
+                the login key).
               </p>
             </div>
           )}

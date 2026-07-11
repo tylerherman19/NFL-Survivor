@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
         .select('email')
       if (playersErr) {
         return NextResponse.json(
-          { error: `Sandbox unreachable: ${playersErr.message}. Run migration 004 and add "sandbox" to the exposed schemas in Supabase API settings.` },
+          { error: `Sandbox unreachable: ${playersErr.message}. Run migrations 004-006 and add "sandbox" to the exposed schemas in Supabase API settings.` },
           { status: 500 }
         )
       }
@@ -87,7 +87,10 @@ export async function POST(req: NextRequest) {
       const pinHash = await hashPin(TEST_USER_PIN)
       const newUsers = []
       for (let i = 1; i <= userCount; i++) {
-        const email = `test.player${i}@nflsurvivor.internal`
+        // Not @nflsurvivor.internal — the public pages hide that domain from
+        // standings, and seeded players need to show up everywhere. The email
+        // lib still refuses to send to any .test address.
+        const email = `test.player${i}@sandbox.test`
         if (existingEmails.has(email)) continue
         newUsers.push({
           full_name: `Test Player ${i}`,

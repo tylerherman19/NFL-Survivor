@@ -30,7 +30,12 @@ never touches production data.
 
 1. Run `supabase/migrations/004_testing_sandbox.sql` in the Supabase SQL editor. It
    creates a `sandbox` schema mirroring the production tables.
-2. In the Supabase Dashboard: **Settings → API → Exposed schemas** — add `sandbox`.
+2. Run `supabase/migrations/005_unique_team_per_player.sql` — enforces the
+   one-team-per-season rule at the database level in both schemas. If it fails,
+   existing picks already violate the rule; the file includes a query to find them.
+3. Run `supabase/migrations/006_sandbox_shared_emails.sql` — lets sandbox test
+   users share a single email address (production emails stay unique).
+4. In the Supabase Dashboard: **Settings → API → Exposed schemas** — add `sandbox`.
 
 **Using it**
 

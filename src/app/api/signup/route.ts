@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getDb } from '@/lib/testMode'
+import { getDb, isTestMode } from '@/lib/testMode'
 import { generatePin, hashPin } from '@/lib/pin'
 import { sendWelcomeEmail } from '@/lib/email'
 import { checkRateLimit, getIP } from '@/lib/rateLimit'
@@ -39,18 +39,21 @@ export async function POST(req: NextRequest) {
 
     const supabase = await getDb()
 
-    // Check for duplicate email
-    const { data: byEmail } = await supabase
-      .from('players')
-      .select('id')
-      .ilike('email', emailLower)
-      .single()
+    // Check for duplicate email — except in the sandbox, where many test
+    // users may share one inbox. Names stay unique: they're the login key.
+    if (!(await isTestMode())) {
+      const { data: byEmail } = await supabase
+        .from('players')
+        .select('id')
+        .ilike('email', emailLower)
+        .single()
 
-    if (byEmail) {
-      return NextResponse.json(
-        { error: 'An account with that email already exists. Check your inbox for your PIN, or use "Forgot PIN" on the login page.' },
-        { status: 409 }
-      )
+      if (byEmail) {
+        return NextResponse.json(
+          { error: 'An account with that email already exists. Check your inbox for your PIN, or use "Forgot PIN" on the login page.' },
+          { status: 409 }
+        )
+      }
     }
 
     // Check for duplicate name (login key)

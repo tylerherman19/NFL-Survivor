@@ -17,13 +17,14 @@ export async function POST(req: NextRequest) {
     if (!email) return NextResponse.json({ ok: true }) // silent fail
 
     const supabase = await getDb()
-    const { data: player } = await supabase
+    // Email is unique in production (single match at most); the sandbox lets
+    // test users share one inbox, so send a reset per matching account.
+    const { data: players } = await supabase
       .from('players')
       .select('id, full_name, email')
       .ilike('email', email)
-      .single()
 
-    if (player) {
+    for (const player of players || []) {
       const token = generateResetToken()
       const expires = new Date(Date.now() + 60 * 60 * 1000).toISOString() // 1 hour
 

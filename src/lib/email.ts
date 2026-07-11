@@ -14,10 +14,11 @@ function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
-// Internal/test accounts (including sandbox test users) carry fake addresses
-// that would bounce — never hand them to Resend.
+// Internal/test accounts carry fake addresses that would bounce — never hand
+// them to Resend. Covers production's internal accounts and the sandbox's
+// seeded test users (@sandbox.test).
 function isDeliverable(email: string): boolean {
-  return !email.endsWith('@nflsurvivor.internal')
+  return !email.endsWith('@nflsurvivor.internal') && !email.endsWith('.test')
 }
 
 export async function sendWelcomeEmail(

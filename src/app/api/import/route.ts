@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getDb } from '@/lib/testMode'
+import { getDb, isTestMode } from '@/lib/testMode'
 import { getAdminSession } from '@/lib/session'
 import { generatePin, hashPin } from '@/lib/pin'
 import { sendWelcomeEmail } from '@/lib/email'
@@ -44,6 +44,9 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = await getDb()
+    // Sandbox test users may share one email, so dedupe on name (the login
+    // key) there; production keeps matching on email.
+    const dedupeColumn = (await isTestMode()) ? 'full_name' : 'email'
 
     let count = 0
     let skipped = 0
@@ -55,7 +58,7 @@ export async function POST(req: NextRequest) {
         const { data: existing } = await supabase
           .from('players')
           .select('id')
-          .ilike('email', row.email)
+          .ilike(dedupeColumn, dedupeColumn === 'email' ? row.email : row.full_name)
           .single()
 
         if (existing) {
