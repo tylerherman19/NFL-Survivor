@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getDb } from '@/lib/testMode'
 import { getAdminSession } from '@/lib/session'
 
 function csvField(value: unknown): string {
@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    const supabase = await getDb()
     if (type === 'players') {
       const { data: players, error } = await supabase
         .from('players')

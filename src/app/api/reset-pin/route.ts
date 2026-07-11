@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getDb } from '@/lib/testMode'
 import { hashPin } from '@/lib/pin'
 import { checkRateLimit, getIP } from '@/lib/rateLimit'
 
@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
     }
 
+    const supabase = await getDb()
     const { data: player } = await supabase
       .from('players')
       .select('id, pin_reset_token, pin_reset_expires')

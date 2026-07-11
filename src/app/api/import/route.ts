@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getDb } from '@/lib/testMode'
 import { getAdminSession } from '@/lib/session'
 import { generatePin, hashPin } from '@/lib/pin'
 import { sendWelcomeEmail } from '@/lib/email'
@@ -42,6 +42,8 @@ export async function POST(req: NextRequest) {
     if (rows.length === 0) {
       return NextResponse.json({ error: 'No valid rows found. Check CSV format.' }, { status: 400 })
     }
+
+    const supabase = await getDb()
 
     let count = 0
     let skipped = 0

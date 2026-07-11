@@ -20,6 +20,36 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Testing Mode (sandbox)
+
+The admin can rehearse the entire game — test users, a custom test schedule, picks,
+deadlines, grading, eliminations, auto-assign — against a fully separate sandbox that
+never touches production data.
+
+**One-time setup**
+
+1. Run `supabase/migrations/004_testing_sandbox.sql` in the Supabase SQL editor. It
+   creates a `sandbox` schema mirroring the production tables.
+2. In the Supabase Dashboard: **Settings → API → Exposed schemas** — add `sandbox`.
+
+**Using it**
+
+- Go to **Admin → Testing** and hit *Enter Testing Mode*. From then on, that browser
+  (and only that browser) sees the whole site running against the sandbox schema —
+  a striped 🧪 banner marks every page. Other visitors keep seeing production,
+  including the CDN-cached pages.
+- *Seed Test Week + Users* creates test players (PIN `1234`) and a one-week slate;
+  or build any schedule you like in Admin → Schedule while testing mode is on.
+- The invite link drops another device into the sandbox without admin access.
+- *Reset Sandbox* wipes all sandbox data. *Exit Testing Mode* (or closing the
+  browser) returns to production.
+
+Under the hood: testing mode is a signed cookie plus Next.js draft mode. Draft mode
+bypasses ISR for the testing browser, and every server-side query resolves its
+Supabase client through `getDb()` (`src/lib/testMode.ts`), which picks the `sandbox`
+schema only when the cookie verifies. Player sessions are stamped with the
+environment they were created in, so a sandbox login can never leak into production.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

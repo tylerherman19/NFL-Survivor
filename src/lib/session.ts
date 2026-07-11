@@ -2,6 +2,7 @@ import 'server-only'
 import { SignJWT, jwtVerify } from 'jose'
 import { cookies } from 'next/headers'
 import type { SessionPayload } from '@/types'
+import { isTestMode } from './testMode'
 
 const SESSION_COOKIE = 'survivor_session'
 const ADMIN_COOKIE = 'survivor_admin'
@@ -14,7 +15,11 @@ function getSecret(): Uint8Array {
 
 export async function createSession(payload: SessionPayload): Promise<void> {
   const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
-  const token = await new SignJWT({ ...payload })
+  // Stamp the environment: a session created in the testing sandbox holds a
+  // sandbox player_id, which must never resolve against production (and vice
+  // versa). getSession() rejects sessions whose stamp doesn't match.
+  const test_mode = await isTestMode()
+  const token = await new SignJWT({ ...payload, test_mode })
     .setProtectedHeader({ alg: 'HS256' })
     .setExpirationTime(expires)
     .sign(getSecret())
@@ -52,6 +57,9 @@ export async function getSession(): Promise<SessionPayload | null> {
   if (!token) return null
   try {
     const { payload } = await jwtVerify(token, getSecret())
+    // Sessions are scoped to the environment they were created in — a sandbox
+    // session is invisible in production and vice versa.
+    if ((payload.test_mode === true) !== (await isTestMode())) return null
     return payload as unknown as SessionPayload
   } catch {
     return null

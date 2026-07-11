@@ -1,12 +1,13 @@
 import { redirect } from 'next/navigation'
 import { getAdminSession } from '@/lib/session'
-import { supabase } from '@/lib/supabase'
+import { getDb } from '@/lib/testMode'
 import ScheduleForm from './ScheduleForm'
 import type { Game, Week } from '@/types'
 
 export default async function SchedulePage() {
   const isAdmin = await getAdminSession()
   if (!isAdmin) redirect('/admin/login')
+  const supabase = await getDb()
 
   const { data: weeks } = await supabase
     .from('weeks')

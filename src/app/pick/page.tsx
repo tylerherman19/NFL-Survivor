@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
-import { supabase } from '@/lib/supabase'
+import { getDb } from '@/lib/testMode'
 import { NFL_TEAM_NAMES } from '@/types'
 import type { Game } from '@/types'
 import PickForm from './PickForm'
@@ -14,6 +14,7 @@ export default async function PickPage() {
   if (!session) redirect('/login')
 
   try {
+    const supabase = await getDb()
     const { data: week } = await supabase.from('weeks').select('*').eq('is_active', true).single()
 
     if (!week) return (

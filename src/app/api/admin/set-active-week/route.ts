@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
-import { supabase } from '@/lib/supabase'
+import { getDb } from '@/lib/testMode'
 import { getAdminSession } from '@/lib/session'
 
 export async function POST(req: NextRequest) {
@@ -13,6 +13,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid week_id' }, { status: 400 })
     }
 
+    const supabase = await getDb()
     const { data: week, error: lookupErr } = await supabase
       .from('weeks')
       .select('id, week_number, season_year')

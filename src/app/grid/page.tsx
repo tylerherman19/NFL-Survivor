@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { getDb } from '@/lib/testMode'
 import { getWeekSundayDeadline } from '@/lib/deadline'
 import type { Game } from '@/types'
 import Link from 'next/link'
@@ -17,6 +17,7 @@ export default async function GridPage() {
   let allGames: { week_id: string; home_team: string; away_team: string; result: string }[] = []
   let activeWeekId: string | null = null
   try {
+    const supabase = await getDb()
     const [weeksRes, playersRes, picksRes, gamesRes, activeWeekRes] = await Promise.all([
       supabase.from('weeks').select('id, week_number, season_year').order('week_number'),
       supabase.from('players').select('id, full_name, status, elimination_week').not('email', 'like', '%@nflsurvivor.internal').order('full_name'),

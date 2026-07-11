@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getDb, isTestMode } from '@/lib/testMode'
 
 interface ESPNCompetitor {
   homeAway: 'home' | 'away'
@@ -43,6 +43,9 @@ export interface LiveScoresResponse {
 
 export async function GET() {
   try {
+    const supabase = await getDb()
+    const testMode = await isTestMode()
+
     // Get active week from our DB
     const { data: week } = await supabase
       .from('weeks')
@@ -53,7 +56,7 @@ export async function GET() {
     if (!week) {
       return NextResponse.json({
         weekNumber: null, games: [], picksVisible: false, hasLiveGames: false, season: null,
-      }, { headers: { 'Cache-Control': 'public, max-age=60' } })
+      }, { headers: { 'Cache-Control': testMode ? 'private, no-store' : 'public, max-age=60' } })
     }
 
     // Fetch ESPN scoreboard for active week
@@ -76,7 +79,7 @@ export async function GET() {
       return NextResponse.json({
         weekNumber: week.week_number, season: week.season_year,
         games: [], picksVisible: false, hasLiveGames: false,
-      }, { headers: { 'Cache-Control': 'public, max-age=300' } })
+      }, { headers: { 'Cache-Control': testMode ? 'private, no-store' : 'public, max-age=300' } })
     }
 
     const events: ESPNEvent[] = espnData.events || []
@@ -152,8 +155,10 @@ export async function GET() {
       hasLiveGames,
     }, {
       headers: {
-        // Cache 30s during live games, 5min otherwise
-        'Cache-Control': hasLiveGames
+        // Cache 30s during live games, 5min otherwise; never CDN-cache sandbox data
+        'Cache-Control': testMode
+          ? 'private, no-store'
+          : hasLiveGames
           ? 'public, max-age=30, stale-while-revalidate=10'
           : 'public, max-age=300, stale-while-revalidate=60',
       },

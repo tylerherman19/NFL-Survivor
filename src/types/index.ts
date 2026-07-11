@@ -87,6 +87,7 @@ export interface SessionPayload {
   full_name: string
   is_admin: boolean
   expires_at: string
+  test_mode?: boolean // set when the session was created in the testing sandbox
 }
 
 // 32 NFL teams
