@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/testMode'
+import { escapeIlike } from '@/lib/supabase'
 import { generatePin, hashPin } from '@/lib/pin'
 import { sendWelcomeEmail } from '@/lib/email'
 import { checkRateLimit, getIP } from '@/lib/rateLimit'
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
     const { data: byEmail } = await supabase
       .from('players')
       .select('id')
-      .ilike('email', emailLower)
+      .ilike('email', escapeIlike(emailLower))
       .single()
 
     if (byEmail) {
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest) {
     const { data: byName } = await supabase
       .from('players')
       .select('id')
-      .ilike('full_name', name)
+      .ilike('full_name', escapeIlike(name))
       .single()
 
     if (byName) {

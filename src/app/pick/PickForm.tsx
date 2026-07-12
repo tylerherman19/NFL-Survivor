@@ -7,7 +7,7 @@ import { teamColor } from '@/lib/teamColors'
 
 interface AvailableTeam { team: string; deadline: string | null; locked: boolean }
 interface CurrentPick { team: string; deadline: string | null }
-interface Props { weekId: string; weekNumber: number; playerId: string; availableTeams: AvailableTeam[]; usedTeams: string[]; teamRecords?: Record<string, string>; teamOdds?: Record<string, number>; currentPick?: CurrentPick | null }
+interface Props { weekId: string; weekNumber: number; availableTeams: AvailableTeam[]; usedTeams: string[]; teamRecords?: Record<string, string>; teamOdds?: Record<string, number>; currentPick?: CurrentPick | null }
 
 function formatLockTime(iso: string): string {
   return new Date(iso).toLocaleString('en-US', { timeZone: 'America/Chicago', weekday: 'short', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })

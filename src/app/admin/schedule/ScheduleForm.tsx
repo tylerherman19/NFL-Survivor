@@ -33,6 +33,9 @@ const BLANK_GAME: NewGame = {
   is_mnf: false,
 }
 
+const fieldClass = 'field px-3 py-2 text-sm'
+const labelStyle = { color: 'var(--muted)' } as const
+
 export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
   const router = useRouter()
   const [weekNumber, setWeekNumber] = useState(
@@ -154,42 +157,44 @@ export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
     <div className="space-y-8">
 
       {/* ESPN Auto-Sync — primary action */}
-      <div className="rounded-xl border border-green-700 bg-green-950/40 p-5 space-y-4">
+      <div className="card p-5 space-y-4" style={{ borderColor: 'var(--green)', background: 'var(--green-tint)' }}>
         <div>
-          <h2 className="text-base font-bold text-green-400 tracking-wide">⚡ Auto-Sync from ESPN</h2>
-          <p className="text-xs text-slate-400 mt-1">Pulls schedule directly from ESPN — no manual entry. Also auto-detects SNF/MNF.</p>
+          <h2 className="text-base font-bold tracking-wide" style={{ color: 'var(--green)' }}>⚡ Auto-Sync from ESPN</h2>
+          <p className="text-xs mt-1" style={{ color: 'var(--dark)' }}>Pulls schedule directly from ESPN — no manual entry. Also auto-detects SNF/MNF.</p>
         </div>
         <div className="flex gap-3 items-end">
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Season</label>
+            <label className="block text-xs mb-1" style={labelStyle}>Season</label>
             <input
               type="number"
               value={seasonYear}
               onChange={(e) => setSeasonYear(Number(e.target.value))}
-              className="w-24 rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-white focus:border-green-500 focus:outline-none"
+              className={`w-24 ${fieldClass}`}
+              style={{ color: 'var(--dark)' }}
             />
           </div>
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Week</label>
+            <label className="block text-xs mb-1" style={labelStyle}>Week</label>
             <input
               type="number"
               value={weekNumber}
               min={1}
               max={22}
               onChange={(e) => setWeekNumber(Number(e.target.value))}
-              className="w-20 rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-white focus:border-green-500 focus:outline-none"
+              className={`w-20 ${fieldClass}`}
+              style={{ color: 'var(--dark)' }}
             />
           </div>
           <button
             onClick={syncFromESPN}
             disabled={syncing}
-            className="rounded-lg bg-green-700 hover:bg-green-600 disabled:opacity-50 px-6 py-2 text-sm font-bold text-white transition-colors"
+            className="btn-primary px-6 py-2 text-sm font-bold"
           >
             {syncing ? 'Syncing…' : 'SYNC FROM ESPN →'}
           </button>
         </div>
         {message && (
-          <p className={`text-sm ${message.startsWith('✅') ? 'text-green-400' : 'text-red-400'}`}>
+          <p className="text-sm" style={{ color: message.startsWith('✅') ? 'var(--green)' : 'var(--red)' }}>
             {message}
           </p>
         )}
@@ -198,26 +203,26 @@ export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
       {/* Existing games */}
       {activeWeek && (
         <div>
-          <h2 className="text-lg font-semibold text-white mb-3">
+          <h2 className="eyebrow mb-3">
             Week {activeWeek.week_number} Current Schedule
           </h2>
           {games.length === 0 ? (
-            <p className="text-slate-400 text-sm">No games entered yet for this week.</p>
+            <p className="text-sm" style={{ color: 'var(--muted)' }}>No games entered yet for this week.</p>
           ) : (
             <div className="space-y-2">
               {games.map((g) => (
                 <div
                   key={g.id}
-                  className="flex items-center justify-between rounded-lg border border-slate-700 bg-slate-800 px-4 py-3"
+                  className="card flex items-center justify-between px-4 py-3"
                 >
                   <div>
-                    <span className="text-white font-medium font-mono">
+                    <span className="font-medium font-mono" style={{ color: 'var(--dark)' }}>
                       {g.away_team} @ {g.home_team}
                     </span>
-                    <span className="ml-3 text-slate-400 text-sm capitalize">{g.game_day}</span>
-                    {g.is_snf && <span className="ml-2 text-xs bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded">SNF</span>}
-                    {g.is_mnf && <span className="ml-2 text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">MNF</span>}
-                    <span className="ml-3 text-slate-500 text-xs">
+                    <span className="ml-3 text-sm capitalize" style={{ color: 'var(--muted)' }}>{g.game_day}</span>
+                    {g.is_snf && <span className="ml-2 pill pill-alive">SNF</span>}
+                    {g.is_mnf && <span className="ml-2 pill pill-out">MNF</span>}
+                    <span className="ml-3 text-xs" style={{ color: 'var(--muted)' }}>
                       {new Date(g.kickoff_central).toLocaleString('en-US', {
                         timeZone: 'America/Chicago',
                         weekday: 'short',
@@ -232,7 +237,8 @@ export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
                   <button
                     onClick={() => deleteGame(g.id)}
                     disabled={deletingId === g.id}
-                    className="text-red-400 hover:text-red-300 text-sm disabled:opacity-50"
+                    className="text-sm underline disabled:opacity-50"
+                    style={{ color: 'var(--red)' }}
                   >
                     {deletingId === g.id ? '…' : 'Delete'}
                   </button>
@@ -245,41 +251,44 @@ export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
 
       {/* Add new week/games */}
       <form onSubmit={handleSubmit} className="space-y-6">
-        <h2 className="text-lg font-semibold text-white">Add Games</h2>
+        <h2 className="eyebrow">Add Games Manually</h2>
 
         <div className="flex gap-4">
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Season Year</label>
+            <label className="block text-xs mb-1" style={labelStyle}>Season Year</label>
             <input
               type="number"
               value={seasonYear}
               onChange={(e) => setSeasonYear(Number(e.target.value))}
-              className="w-28 rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+              className={`w-28 ${fieldClass}`}
+              style={{ color: 'var(--dark)' }}
             />
           </div>
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Week Number</label>
+            <label className="block text-xs mb-1" style={labelStyle}>Week Number</label>
             <input
               type="number"
               value={weekNumber}
               min={1}
               max={22}
               onChange={(e) => setWeekNumber(Number(e.target.value))}
-              className="w-24 rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+              className={`w-24 ${fieldClass}`}
+              style={{ color: 'var(--dark)' }}
             />
           </div>
         </div>
 
         <div className="space-y-4">
           {newGames.map((g, i) => (
-            <div key={i} className="rounded-xl border border-slate-700 bg-slate-800 p-4 space-y-3">
+            <div key={i} className="card p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-slate-300">Game {i + 1}</p>
+                <p className="text-sm font-bold" style={{ color: 'var(--dark)' }}>Game {i + 1}</p>
                 {newGames.length > 1 && (
                   <button
                     type="button"
                     onClick={() => removeGame(i)}
-                    className="text-red-400 text-sm hover:text-red-300"
+                    className="text-sm underline"
+                    style={{ color: 'var(--red)' }}
                   >
                     Remove
                   </button>
@@ -288,12 +297,13 @@ export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Away Team</label>
+                  <label className="block text-xs mb-1" style={labelStyle}>Away Team</label>
                   <select
                     value={g.away_team}
                     onChange={(e) => updateGame(i, 'away_team', e.target.value)}
                     required
-                    className="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                    className={`w-full ${fieldClass}`}
+                    style={{ color: 'var(--dark)' }}
                   >
                     <option value="">Select…</option>
                     {NFL_TEAMS.map((t) => (
@@ -304,12 +314,13 @@ export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Home Team</label>
+                  <label className="block text-xs mb-1" style={labelStyle}>Home Team</label>
                   <select
                     value={g.home_team}
                     onChange={(e) => updateGame(i, 'home_team', e.target.value)}
                     required
-                    className="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                    className={`w-full ${fieldClass}`}
+                    style={{ color: 'var(--dark)' }}
                   >
                     <option value="">Select…</option>
                     {NFL_TEAMS.map((t) => (
@@ -323,31 +334,34 @@ export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Date (Central)</label>
+                  <label className="block text-xs mb-1" style={labelStyle}>Date (Central)</label>
                   <input
                     type="date"
                     value={g.kickoff_date}
                     onChange={(e) => updateGame(i, 'kickoff_date', e.target.value)}
                     required
-                    className="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                    className={`w-full ${fieldClass}`}
+                    style={{ color: 'var(--dark)' }}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Kickoff (Central)</label>
+                  <label className="block text-xs mb-1" style={labelStyle}>Kickoff (Central)</label>
                   <input
                     type="time"
                     value={g.kickoff_time}
                     onChange={(e) => updateGame(i, 'kickoff_time', e.target.value)}
                     required
-                    className="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                    className={`w-full ${fieldClass}`}
+                    style={{ color: 'var(--dark)' }}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Day</label>
+                  <label className="block text-xs mb-1" style={labelStyle}>Day</label>
                   <select
                     value={g.game_day}
                     onChange={(e) => updateGame(i, 'game_day', e.target.value)}
-                    className="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                    className={`w-full ${fieldClass}`}
+                    style={{ color: 'var(--dark)' }}
                   >
                     {(['thursday','friday','saturday','sunday','monday','tuesday'] as GameDay[]).map((d) => (
                       <option key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</option>
@@ -362,18 +376,18 @@ export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
                     type="checkbox"
                     checked={g.is_snf}
                     onChange={(e) => updateGame(i, 'is_snf', e.target.checked)}
-                    className="accent-yellow-500"
+                    style={{ accentColor: 'var(--green)' }}
                   />
-                  <span className="text-sm text-yellow-400">Sunday Night Football (SNF)</span>
+                  <span className="text-sm" style={{ color: 'var(--dark)' }}>Sunday Night Football (SNF)</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={g.is_mnf}
                     onChange={(e) => updateGame(i, 'is_mnf', e.target.checked)}
-                    className="accent-blue-500"
+                    style={{ accentColor: 'var(--dark)' }}
                   />
-                  <span className="text-sm text-blue-400">Monday Night Football (MNF)</span>
+                  <span className="text-sm" style={{ color: 'var(--dark)' }}>Monday Night Football (MNF)</span>
                 </label>
               </div>
             </div>
@@ -384,21 +398,22 @@ export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
           <button
             type="button"
             onClick={addGame}
-            className="rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-300 hover:border-slate-400 hover:text-white transition-colors"
+            className="card px-4 py-2 text-sm font-semibold transition-colors hover:border-[var(--border-strong)]"
+            style={{ color: 'var(--dark)' }}
           >
             + Add Another Game
           </button>
           <button
             type="submit"
             disabled={submitting}
-            className="rounded-lg bg-blue-600 px-6 py-2 text-sm font-semibold text-white hover:bg-blue-500 disabled:opacity-50 transition-colors"
+            className="btn-primary px-6 py-2 text-sm font-semibold"
           >
             {submitting ? 'Saving…' : 'Save Schedule'}
           </button>
         </div>
 
         {message && (
-          <p className={`text-sm ${message.startsWith('✅') ? 'text-green-400' : 'text-red-400'}`}>
+          <p className="text-sm" style={{ color: message.startsWith('✅') ? 'var(--green)' : 'var(--red)' }}>
             {message}
           </p>
         )}

@@ -110,7 +110,7 @@ export async function GET() {
     const hasLiveGames = games.some((g) => g.state === 'in')
 
     let picksVisible = false
-    let pickCounts: Record<string, number> = {}
+    const pickCounts: Record<string, number> = {}
 
     if (hasAnyStarted) {
       picksVisible = true

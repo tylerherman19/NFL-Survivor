@@ -1,4 +1,3 @@
-import { redirect } from 'next/navigation'
 import { getAdminSession } from '@/lib/session'
 import { isTestMode } from '@/lib/testMode'
 import Link from 'next/link'

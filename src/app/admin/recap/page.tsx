@@ -53,9 +53,9 @@ export default async function RecapPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 space-y-6">
-      <h1 className="text-2xl font-bold text-white">📋 Weekly Recap</h1>
+      <h1 className="font-display text-5xl leading-none" style={{ color: 'var(--dark)' }}>📋 WEEKLY RECAP</h1>
       {!activeWeek ? (
-        <p className="text-slate-400">No active week.</p>
+        <p className="text-sm" style={{ color: 'var(--muted)' }}>No active week.</p>
       ) : (
         <RecapClient weekNumber={activeWeek.week_number} recapText={recapText} />
       )}

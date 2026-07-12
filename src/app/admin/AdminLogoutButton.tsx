@@ -14,7 +14,8 @@ export default function AdminLogoutButton() {
   return (
     <button
       onClick={handleLogout}
-      className="text-sm text-slate-400 hover:text-white transition-colors"
+      className="text-xs tracking-widest uppercase transition-colors hover:text-white"
+      style={{ color: '#888' }}
     >
       Log out
     </button>

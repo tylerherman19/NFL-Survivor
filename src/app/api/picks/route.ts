@@ -142,7 +142,8 @@ export async function POST(req: NextRequest) {
         week_id,
         team,
         auto_assigned: false,
-        submitted_by_admin: submitted_by_admin || false,
+        // Trust the verified session, not the client-sent flag
+        submitted_by_admin: isAdmin,
       })
       if (insertError) {
         console.error('insert error', insertError)

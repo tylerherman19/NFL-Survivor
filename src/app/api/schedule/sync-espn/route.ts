@@ -44,6 +44,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'ESPN API unavailable' }, { status: 502 })
     }
     const espnData = await espnRes.json()
+
+    // ESPN silently falls back to the previous season when the requested one
+    // has no schedule yet — don't import last season's slate mislabeled.
+    const espnSeasonYear: number | null = espnData.season?.year ?? null
+    if (espnSeasonYear !== null && espnSeasonYear !== season_year) {
+      return NextResponse.json(
+        { error: `ESPN has no schedule for ${season_year} yet (returned ${espnSeasonYear} data)` },
+        { status: 404 }
+      )
+    }
+
     const events = espnData.events ?? []
 
     if (events.length === 0) {

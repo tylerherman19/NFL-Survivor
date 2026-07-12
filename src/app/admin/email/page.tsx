@@ -27,9 +27,9 @@ export default async function AdminEmailPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white">Email Players</h1>
-        <p className="text-slate-400 mt-1">
-          Send a broadcast to the pool. Plain text — line breaks are preserved.
+        <h1 className="font-display text-5xl leading-none" style={{ color: 'var(--dark)' }}>EMAIL PLAYERS</h1>
+        <p className="mt-2 eyebrow">
+          Send a broadcast to the pool · plain text, line breaks preserved
         </p>
       </div>
       <BroadcastForm

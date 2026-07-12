@@ -9,33 +9,48 @@ import { getPickDeadline, getTeamDeadline } from '@/lib/deadline'
 import { getNflOdds, matchGameOdds } from '@/lib/kalshi'
 import Link from 'next/link'
 
-export default async function PickPage() {
-  const session = await getSession()
-  if (!session) redirect('/login')
+interface PickPageData {
+  week: { id: string; week_number: number } | null
+  player: { id: string; full_name: string; status: string } | null
+  usedTeams: string[]
+  currentPick: { team: string; auto_assigned: boolean } | null
+  currentPickDeadline: Date | null
+  pickLocked: boolean
+  availableTeams: { team: string; deadline: string | null; locked: boolean }[]
+  teamOdds: Record<string, number>
+  teamRecords: Record<string, string>
+}
 
+// All data fetching lives here so the try/catch never wraps JSX construction
+// (rendering errors wouldn't be caught by it anyway).
+async function loadPickPageData(playerId: string): Promise<PickPageData | 'error'> {
   try {
     const supabase = await getDb()
     const { data: week } = await supabase.from('weeks').select('*').eq('is_active', true).single()
 
-    if (!week) return (
-      <Shell session={session}>
-        <div className="text-center py-20">
-          <p className="font-display text-4xl" style={{ color: 'var(--dark)' }}>NO ACTIVE WEEK</p>
-          <p className="text-sm mt-3" style={{ color: 'var(--muted)' }}>The pool hasn&apos;t started yet — check back soon.</p>
-        </div>
-      </Shell>
-    )
+    const empty: PickPageData = {
+      week: null,
+      player: null,
+      usedTeams: [],
+      currentPick: null,
+      currentPickDeadline: null,
+      pickLocked: false,
+      availableTeams: [],
+      teamOdds: {},
+      teamRecords: {},
+    }
+    if (!week) return empty
 
-    const { data: player } = await supabase.from('players').select('id, full_name, status, paid').eq('id', session.player_id).single()
-    if (!player) redirect('/login')
+    const { data: player } = await supabase.from('players').select('id, full_name, status, paid').eq('id', playerId).single()
+    if (!player) return { ...empty, week }
 
-    const { data: pastPicks } = await supabase.from('picks').select('team, week_id').eq('player_id', session.player_id)
+    const { data: pastPicks } = await supabase.from('picks').select('team, week_id').eq('player_id', playerId)
     // Teams burned in previous weeks — this week's pick isn't "used" while it can still be changed
     const usedTeams = (pastPicks || [])
       .filter((p: { week_id: string }) => p.week_id !== week.id)
       .map((p: { team: string }) => p.team)
 
-    const { data: currentPick } = await supabase.from('picks').select('*').eq('player_id', session.player_id).eq('week_id', week.id).single()
+    const { data: currentPick } = await supabase.from('picks').select('*').eq('player_id', playerId).eq('week_id', week.id).single()
 
     const { data: games } = await supabase.from('games').select('*').eq('week_id', week.id).order('kickoff_central')
     const gamesData: Game[] = games || []
@@ -75,7 +90,7 @@ export default async function PickPage() {
       }
     } catch { /* non-critical */ }
 
-    let teamRecords: Record<string, string> = {}
+    const teamRecords: Record<string, string> = {}
     try {
       const espnRes = await fetch(
         'https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams?limit=32',
@@ -92,55 +107,92 @@ export default async function PickPage() {
       }
     } catch { /* non-critical */ }
 
-    return (
-      <Shell session={session} weekNumber={week.week_number}>
-        {player.status === 'eliminated' ? (
-          <div className="border p-8 text-center" style={{ borderColor: 'var(--border)' }}>
-            <p className="font-display text-4xl" style={{ color: 'var(--red)' }}>ELIMINATED</p>
-            <p className="text-sm mt-3" style={{ color: 'var(--muted)' }}>
-              You can still follow along on the{' '}
-              <Link href="/" className="underline" style={{ color: 'var(--dark)' }}>standings page</Link>.
-            </p>
-          </div>
-        ) : currentPick && pickLocked ? (
-          <div className="space-y-6">
-            <div className="border p-8 text-center" style={{ borderColor: 'var(--green)', borderWidth: 2 }}>
-              <p className="text-xs font-bold tracking-widest uppercase mb-3" style={{ color: 'var(--green)' }}>
-                ✓ Week {week.week_number} Pick Locked In
-              </p>
-              <p className="font-display text-5xl" style={{ color: 'var(--dark)' }}>
-                {NFL_TEAM_NAMES[currentPick.team] || currentPick.team}
-              </p>
-              <p className="font-mono text-sm mt-1" style={{ color: 'var(--muted)' }}>{currentPick.team}</p>
-              {currentPick.auto_assigned && (
-                <p className="text-xs mt-3" style={{ color: 'var(--red)' }}>Auto-assigned (missed deadline)</p>
-              )}
-            </div>
-            <p className="text-xs text-center" style={{ color: 'var(--muted)' }}>
-              Teams used: {[...usedTeams, currentPick.team].join(', ')}
-            </p>
-          </div>
-        ) : (
-          <PickForm
-            weekId={week.id}
-            weekNumber={week.week_number}
-            playerId={session.player_id}
-            availableTeams={availableTeams}
-            usedTeams={usedTeams}
-            teamRecords={teamRecords}
-            teamOdds={teamOdds}
-            currentPick={currentPick ? { team: currentPick.team, deadline: currentPickDeadline?.toISOString() || null } : null}
-          />
-        )}
-      </Shell>
-    )
+    return {
+      week,
+      player,
+      usedTeams,
+      currentPick,
+      currentPickDeadline,
+      pickLocked,
+      availableTeams,
+      teamOdds,
+      teamRecords,
+    }
   } catch {
+    return 'error'
+  }
+}
+
+export default async function PickPage() {
+  const session = await getSession()
+  if (!session) redirect('/login')
+
+  const data = await loadPickPageData(session.player_id)
+
+  if (data === 'error') {
     return (
       <Shell session={session}>
         <p className="text-center text-sm" style={{ color: 'var(--muted)' }}>Failed to load. Try refreshing.</p>
       </Shell>
     )
   }
+
+  if (!data.week) {
+    return (
+      <Shell session={session}>
+        <div className="text-center py-20">
+          <p className="font-display text-4xl" style={{ color: 'var(--dark)' }}>NO ACTIVE WEEK</p>
+          <p className="text-sm mt-3" style={{ color: 'var(--muted)' }}>The pool hasn&apos;t started yet — check back soon.</p>
+        </div>
+      </Shell>
+    )
+  }
+
+  if (!data.player) redirect('/login')
+
+  const { week, player, usedTeams, currentPick, currentPickDeadline, pickLocked, availableTeams, teamOdds, teamRecords } = data
+
+  return (
+    <Shell session={session} weekNumber={week.week_number}>
+      {player.status === 'eliminated' ? (
+        <div className="border p-8 text-center" style={{ borderColor: 'var(--border)' }}>
+          <p className="font-display text-4xl" style={{ color: 'var(--red)' }}>ELIMINATED</p>
+          <p className="text-sm mt-3" style={{ color: 'var(--muted)' }}>
+            You can still follow along on the{' '}
+            <Link href="/" className="underline" style={{ color: 'var(--dark)' }}>standings page</Link>.
+          </p>
+        </div>
+      ) : currentPick && pickLocked ? (
+        <div className="space-y-6">
+          <div className="border p-8 text-center" style={{ borderColor: 'var(--green)', borderWidth: 2 }}>
+            <p className="text-xs font-bold tracking-widest uppercase mb-3" style={{ color: 'var(--green)' }}>
+              ✓ Week {week.week_number} Pick Locked In
+            </p>
+            <p className="font-display text-5xl" style={{ color: 'var(--dark)' }}>
+              {NFL_TEAM_NAMES[currentPick.team] || currentPick.team}
+            </p>
+            <p className="font-mono text-sm mt-1" style={{ color: 'var(--muted)' }}>{currentPick.team}</p>
+            {currentPick.auto_assigned && (
+              <p className="text-xs mt-3" style={{ color: 'var(--red)' }}>Auto-assigned (missed deadline)</p>
+            )}
+          </div>
+          <p className="text-xs text-center" style={{ color: 'var(--muted)' }}>
+            Teams used: {[...usedTeams, currentPick.team].join(', ')}
+          </p>
+        </div>
+      ) : (
+        <PickForm
+          weekId={week.id}
+          weekNumber={week.week_number}
+          availableTeams={availableTeams}
+          usedTeams={usedTeams}
+          teamRecords={teamRecords}
+          teamOdds={teamOdds}
+          currentPick={currentPick ? { team: currentPick.team, deadline: currentPickDeadline?.toISOString() || null } : null}
+        />
+      )}
+    </Shell>
+  )
 }
 
 function Shell({ children, session, weekNumber }: { children: React.ReactNode; session: { full_name: string }; weekNumber?: number }) {

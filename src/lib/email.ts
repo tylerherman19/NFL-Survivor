@@ -58,6 +58,21 @@ export async function sendPickConfirmationEmail(
 ): Promise<void> {
   if (!isDeliverable(email)) return
   const teamName = NFL_TEAM_NAMES[teamAbbr] || teamAbbr
+  // Auto-assigned picks are already locked — only real deadlines are worth showing
+  const lockNote =
+    deadlineStr && deadlineStr !== 'auto-assigned'
+      ? `<p style="color: #666; font-size: 14px;">You can still change this pick until it locks: <strong>${esc(
+          new Date(deadlineStr).toLocaleString('en-US', {
+            timeZone: 'America/Chicago',
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            timeZoneName: 'short',
+          })
+        )}</strong></p>`
+      : ''
   await getResend().emails.send({
     from: FROM_EMAIL,
     to: email,
@@ -71,6 +86,7 @@ export async function sendPickConfirmationEmail(
           <div style="font-size: 32px; font-weight: bold; color: #15803d;">${esc(teamName)}</div>
           <div style="color: #666; font-size: 14px; margin-top: 4px;">${esc(teamAbbr)}</div>
         </div>
+        ${lockNote}
         <p>Good luck! Results are posted on the app after games conclude.</p>
         <a href="${APP_URL}" style="display: inline-block; background: #16a34a; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">View Standings</a>
       </div>

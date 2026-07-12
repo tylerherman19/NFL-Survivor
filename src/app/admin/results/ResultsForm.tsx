@@ -80,19 +80,29 @@ export default function ResultsForm({ week, games }: Props) {
     { value: 'tie', label: 'Tie' },
   ]
 
+  function optionStyle(gameId: string, value: GameResult): React.CSSProperties {
+    const active = results[gameId] === value
+    if (!active) {
+      return { background: 'var(--surface-sunken)', color: 'var(--dark)' }
+    }
+    if (value === 'pending') return { background: 'var(--muted)', color: '#fff' }
+    if (value === 'tie') return { background: 'var(--red)', color: '#fff' }
+    return { background: 'var(--green)', color: '#fff' }
+  }
+
   return (
     <div className="space-y-6">
       <div className="space-y-3">
         {games.map((g) => (
           <div
             key={g.id}
-            className="rounded-xl border border-slate-700 bg-slate-800 p-4 flex items-center justify-between gap-4 flex-wrap"
+            className="card p-4 flex items-center justify-between gap-4 flex-wrap"
           >
             <div>
-              <p className="text-white font-medium font-mono">
+              <p className="font-medium font-mono" style={{ color: 'var(--dark)' }}>
                 {g.away_team} @ {g.home_team}
               </p>
-              <p className="text-slate-400 text-xs mt-0.5 capitalize">
+              <p className="text-xs mt-0.5 capitalize" style={{ color: 'var(--muted)' }}>
                 {g.game_day}
                 {g.is_snf && ' · SNF'}
                 {g.is_mnf && ' · MNF'}
@@ -103,15 +113,8 @@ export default function ResultsForm({ week, games }: Props) {
                 <button
                   key={opt.value}
                   onClick={() => saveResult(g.id, opt.value)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    results[g.id] === opt.value
-                      ? opt.value === 'pending'
-                        ? 'bg-slate-600 text-white'
-                        : opt.value === 'tie'
-                        ? 'bg-yellow-600 text-white'
-                        : 'bg-green-600 text-white'
-                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                  }`}
+                  className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                  style={optionStyle(g.id, opt.value)}
                 >
                   {opt.label}
                 </button>
@@ -125,35 +128,35 @@ export default function ResultsForm({ week, games }: Props) {
         <button
           onClick={gradeAllPending}
           disabled={submitting}
-          className="rounded-lg bg-green-600 px-6 py-2.5 font-semibold text-white hover:bg-green-500 disabled:opacity-50 transition-colors"
+          className="btn-primary px-6 py-2.5 font-semibold"
         >
           {submitting ? 'Grading…' : 'Grade All Picks & Eliminate Losers'}
         </button>
       </div>
 
       {message && (
-        <p className={`text-sm ${message.startsWith('✅') ? 'text-green-400' : 'text-red-400'}`}>
+        <p className="text-sm" style={{ color: message.startsWith('✅') ? 'var(--green)' : 'var(--red)' }}>
           {message}
         </p>
       )}
 
       {gradingResult && (
-        <div className="rounded-xl border border-slate-700 bg-slate-800 p-4 space-y-3">
-          <p className="font-semibold text-white">Grading Result:</p>
+        <div className="card p-4 space-y-3">
+          <p className="font-bold" style={{ color: 'var(--dark)' }}>Grading Result:</p>
           {gradingResult.eliminated.length > 0 && (
             <div>
-              <p className="text-red-400 text-sm font-medium">Eliminated ({gradingResult.eliminated.length}):</p>
-              <p className="text-slate-300 text-sm">{gradingResult.eliminated.join(', ')}</p>
+              <p className="text-sm font-semibold" style={{ color: 'var(--red)' }}>Eliminated ({gradingResult.eliminated.length}):</p>
+              <p className="text-sm" style={{ color: 'var(--dark)' }}>{gradingResult.eliminated.join(', ')}</p>
             </div>
           )}
           {gradingResult.advanced.length > 0 && (
             <div>
-              <p className="text-green-400 text-sm font-medium">Advanced ({gradingResult.advanced.length}):</p>
-              <p className="text-slate-300 text-sm">{gradingResult.advanced.join(', ')}</p>
+              <p className="text-sm font-semibold" style={{ color: 'var(--green)' }}>Advanced ({gradingResult.advanced.length}):</p>
+              <p className="text-sm" style={{ color: 'var(--dark)' }}>{gradingResult.advanced.join(', ')}</p>
             </div>
           )}
           {gradingResult.eliminated.length === 0 && gradingResult.advanced.length === 0 && (
-            <p className="text-slate-400 text-sm">No picks found for this week yet.</p>
+            <p className="text-sm" style={{ color: 'var(--muted)' }}>No picks found for this week yet.</p>
           )}
         </div>
       )}

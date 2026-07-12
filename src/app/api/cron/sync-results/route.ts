@@ -29,6 +29,15 @@ export async function GET(req: NextRequest) {
     if (!espnRes.ok) return NextResponse.json({ error: 'ESPN unavailable' }, { status: 502 })
 
     const espnData = await espnRes.json()
+
+    // ESPN silently falls back to the most recent completed season when the
+    // requested one has no data. Grading this season's games with last
+    // season's scores would wrongly eliminate players — bail out instead.
+    const espnSeasonYear: number | null = espnData.season?.year ?? null
+    if (espnSeasonYear !== null && espnSeasonYear !== week.season_year) {
+      return NextResponse.json({ ok: true, message: `ESPN returned season ${espnSeasonYear}, expected ${week.season_year} — skipping sync` })
+    }
+
     const events = espnData.events ?? []
 
     // Get our DB games for this week

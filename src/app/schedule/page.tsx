@@ -28,6 +28,10 @@ async function fetchWeekGames(season: number, week: number, kalshiEvents: Kalshi
     const res = await fetch(url, { next: { revalidate: 3600 } })
     if (!res.ok) return []
     const data = await res.json()
+    // ESPN silently serves the previous season when the requested one has no
+    // data yet — showing last year's matchups here would be misleading.
+    const espnSeasonYear: number | null = data.season?.year ?? null
+    if (espnSeasonYear !== null && espnSeasonYear !== season) return []
     const events: Array<{
       date: string
       competitions?: Array<{ competitors?: Array<{ homeAway: string; team: { abbreviation: string } }> }>
@@ -60,20 +64,29 @@ async function fetchWeekGames(season: number, week: number, kalshiEvents: Kalshi
 async function getScheduleData(): Promise<{ weeks: ScheduleWeek[]; season: number; activeWeek: number | null }> {
   let activeWeek: number | null = null
   let season = 2026
+  let currentWeekOver = false
   try {
     const supabase = await getDb()
     const { data: week } = await supabase
       .from('weeks')
-      .select('week_number, season_year')
+      .select('id, week_number, season_year')
       .eq('is_active', true)
       .single()
     if (week) {
       activeWeek = week.week_number
       season = week.season_year
+      // The current week stays on the schedule until it's over: every game
+      // played and graded. Only then does it drop off the list.
+      const { data: games } = await supabase
+        .from('games')
+        .select('result')
+        .eq('week_id', week.id)
+      currentWeekOver =
+        (games?.length ?? 0) > 0 && (games ?? []).every((g: { result: string }) => g.result !== 'pending')
     }
   } catch { /* pool not started yet */ }
 
-  const startWeek = activeWeek ? Math.min(activeWeek + 1, TOTAL_WEEKS) : 1
+  const startWeek = activeWeek ? Math.min(currentWeekOver ? activeWeek + 1 : activeWeek, TOTAL_WEEKS) : 1
   const endWeek = Math.min(startWeek + WEEKS_AHEAD - 1, TOTAL_WEEKS)
 
   const kalshiEvents = await getNflOdds()
@@ -147,7 +160,10 @@ export default async function SchedulePage() {
           weeks.map(({ weekNumber, games }) =>
             games.length === 0 ? null : (
               <section key={weekNumber} className="pt-9">
-                <p className="eyebrow mb-3">Week {weekNumber}</p>
+                <p className="eyebrow mb-3">
+                  Week {weekNumber}
+                  {weekNumber === activeWeek && <span style={{ color: 'var(--green)' }}> · Current Week</span>}
+                </p>
                 <div className="card overflow-hidden">
                   <table className="w-full text-sm">
                     <thead>

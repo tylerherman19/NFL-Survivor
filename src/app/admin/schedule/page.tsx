@@ -32,7 +32,7 @@ export default async function SchedulePage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 space-y-6">
-      <h1 className="text-2xl font-bold text-white">📅 Weekly Schedule</h1>
+      <h1 className="font-display text-5xl leading-none" style={{ color: 'var(--dark)' }}>📅 WEEKLY SCHEDULE</h1>
       <ScheduleForm
         weeks={(weeks || []) as Week[]}
         activeWeek={activeWeek as Week | null}

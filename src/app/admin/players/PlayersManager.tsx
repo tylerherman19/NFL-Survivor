@@ -13,6 +13,8 @@ interface Props {
   weeksSurvived: Record<string, number>
 }
 
+const chipButton = 'rounded-md border px-2 py-1 text-xs font-medium transition-colors'
+
 export default function PlayersManager({ players, activeWeekId, activeWeekNumber, currentPicks, weeksSurvived }: Props) {
   const router = useRouter()
   const [message, setMessage] = useState('')
@@ -31,7 +33,8 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
   function toggleSelect(id: string) {
     setSelected((prev) => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
       return next
     })
   }
@@ -161,41 +164,85 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
     }
   }
 
+  function ActionButtons({ p }: { p: Player }) {
+    const pick = currentPicks[p.id]
+    return (
+      <>
+        <button
+          onClick={() => regenPin(p.id, p.full_name)}
+          className={chipButton}
+          style={{ borderColor: 'var(--border)', color: 'var(--dark)' }}
+        >
+          Regen PIN
+        </button>
+        <button
+          onClick={() => toggleElimination(p)}
+          className={chipButton}
+          style={
+            p.status === 'alive'
+              ? { borderColor: 'var(--red)', color: 'var(--red)' }
+              : { borderColor: 'var(--green)', color: 'var(--green)' }
+          }
+        >
+          {p.status === 'alive' ? 'Eliminate' : 'Restore'}
+        </button>
+        {activeWeekId && p.status === 'alive' && (
+          <button
+            onClick={() => setPickModal({ player: p, team: pick || '' })}
+            className={chipButton}
+            style={{ borderColor: 'var(--border-strong)', color: 'var(--dark)' }}
+          >
+            {pick ? 'Change Pick' : 'Submit Pick'}
+          </button>
+        )}
+        <button
+          onClick={() => deletePlayer(p)}
+          className={chipButton}
+          style={{ borderColor: 'var(--red)', color: 'var(--red)', opacity: 0.8 }}
+        >
+          Delete
+        </button>
+      </>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Import section */}
       <div>
         <button
           onClick={() => setShowImport(!showImport)}
-          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 transition-colors"
+          className="btn-primary px-4 py-2 text-sm font-semibold"
         >
           📥 Import Players from CSV
         </button>
 
         {showImport && (
-          <div className="mt-4 rounded-xl border border-slate-700 bg-slate-800 p-4 space-y-3">
-            <p className="text-sm text-slate-400">
+          <div className="card mt-4 p-4 space-y-3">
+            <p className="text-sm" style={{ color: 'var(--muted)' }}>
               Paste CSV with headers:{' '}
-              <code className="text-blue-300">Full Name, Phone, Email, Venmo, Paid</code>
+              <code className="font-mono" style={{ color: 'var(--dark)' }}>Full Name, Phone, Email, Venmo, Paid</code>
             </p>
             <textarea
               value={csvText}
               onChange={(e) => setCsvText(e.target.value)}
               placeholder="Full Name,Phone,Email,Venmo,Paid&#10;John Smith,555-1234,john@example.com,@johnsmith,yes"
               rows={8}
-              className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white text-sm font-mono placeholder-slate-600 focus:border-blue-500 focus:outline-none"
+              className="field w-full px-3 py-2 text-sm font-mono"
+              style={{ color: 'var(--dark)' }}
             />
             <div className="flex gap-3">
               <button
                 onClick={handleImport}
                 disabled={importing || !csvText.trim()}
-                className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-500 disabled:opacity-50 transition-colors"
+                className="btn-primary px-4 py-2 text-sm font-semibold"
               >
                 {importing ? 'Importing…' : 'Import & Send Welcome Emails'}
               </button>
               <button
                 onClick={() => setShowImport(false)}
-                className="rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-300 hover:border-slate-400"
+                className="card px-4 py-2 text-sm transition-colors hover:border-[var(--border-strong)]"
+                style={{ color: 'var(--dark)' }}
               >
                 Cancel
               </button>
@@ -205,32 +252,35 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
       </div>
 
       {message && (
-        <p className={`text-sm ${message.startsWith('✅') ? 'text-green-400' : 'text-amber-400'}`}>
+        <p className="text-sm" style={{ color: message.startsWith('✅') ? 'var(--green)' : 'var(--red)' }}>
           {message}
         </p>
       )}
 
       {/* Bulk actions */}
       {someSelected && (
-        <div className="flex items-center gap-3 rounded-lg border border-slate-600 bg-slate-800 px-4 py-2">
-          <span className="text-sm text-slate-300">{selected.size} selected</span>
+        <div className="card flex items-center gap-3 px-4 py-2">
+          <span className="text-sm" style={{ color: 'var(--dark)' }}>{selected.size} selected</span>
           <button
             onClick={() => bulkSetPaid(true)}
             disabled={bulkWorking}
-            className="rounded bg-green-600 px-3 py-1 text-xs font-semibold text-white hover:bg-green-500 disabled:opacity-50"
+            className="rounded-md px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
+            style={{ background: 'var(--green)' }}
           >
             Mark Paid
           </button>
           <button
             onClick={() => bulkSetPaid(false)}
             disabled={bulkWorking}
-            className="rounded bg-red-700 px-3 py-1 text-xs font-semibold text-white hover:bg-red-600 disabled:opacity-50"
+            className="rounded-md px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
+            style={{ background: 'var(--red)' }}
           >
             Mark Unpaid
           </button>
           <button
             onClick={() => setSelected(new Set())}
-            className="ml-auto text-xs text-slate-500 hover:text-slate-300"
+            className="ml-auto text-xs underline"
+            style={{ color: 'var(--muted)' }}
           >
             Clear
           </button>
@@ -245,8 +295,8 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
           return (
             <div
               key={p.id}
-              className="rounded-xl border border-slate-700 bg-slate-800 p-4 space-y-3"
-              style={selected.has(p.id) ? { borderColor: '#6366f1' } : {}}
+              className="card p-4 space-y-3"
+              style={selected.has(p.id) ? { borderColor: 'var(--dark)' } : {}}
             >
               {/* Top row: checkbox + name + status */}
               <div className="flex items-center gap-3">
@@ -254,11 +304,13 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
                   type="checkbox"
                   checked={selected.has(p.id)}
                   onChange={() => toggleSelect(p.id)}
-                  className="accent-green-500 shrink-0"
+                  className="shrink-0"
+                  style={{ accentColor: 'var(--green)' }}
                 />
-                <span className="font-medium text-white flex-1">{p.full_name}</span>
-                <span className={`text-xs font-bold ${p.status === 'alive' ? 'text-green-400' : 'text-red-400'}`}>
-                  {p.status === 'alive' ? '✅ Alive' : '❌ Out'}
+                <span className="font-bold flex-1" style={{ color: 'var(--dark)' }}>{p.full_name}</span>
+                <span className={`pill ${p.status === 'alive' ? 'pill-alive' : 'pill-out'}`}>
+                  <span className="pill-dot" />
+                  {p.status === 'alive' ? 'Alive' : 'Out'}
                 </span>
               </div>
 
@@ -266,56 +318,23 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => togglePaid(p.id, p.paid)}
-                  className={`rounded px-2 py-0.5 text-xs font-medium ${
-                    p.paid
-                      ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
-                      : 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                  }`}
+                  className={`pill ${p.paid ? 'pill-alive' : 'pill-out'}`}
                 >
                   {p.paid ? '✓ Paid' : '✗ Unpaid'}
                 </button>
                 {pick ? (
-                  <span className="rounded bg-slate-700 px-2 py-0.5 text-xs font-mono font-bold text-white">{pick}</span>
+                  <span className="rounded px-2 py-0.5 text-xs font-mono font-bold" style={{ background: 'var(--surface-sunken)', color: 'var(--dark)' }}>{pick}</span>
                 ) : p.status === 'alive' ? (
-                  <span className="text-amber-400 text-xs">pending pick</span>
+                  <span className="text-xs italic" style={{ color: 'var(--red)' }}>pending pick</span>
                 ) : null}
               </div>
 
               {/* Third row: weeks survived */}
-              <p className="text-xs text-slate-500">{weeks > 0 ? `${weeks} week${weeks !== 1 ? 's' : ''} survived` : 'No weeks survived'}</p>
+              <p className="text-xs" style={{ color: 'var(--muted)' }}>{weeks > 0 ? `${weeks} week${weeks !== 1 ? 's' : ''} survived` : 'No weeks survived'}</p>
 
               {/* Bottom row: actions */}
               <div className="flex gap-2 flex-wrap">
-                <button
-                  onClick={() => regenPin(p.id, p.full_name)}
-                  className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-300 hover:border-slate-400 hover:text-white"
-                >
-                  Regen PIN
-                </button>
-                <button
-                  onClick={() => toggleElimination(p)}
-                  className={`rounded border px-2 py-1 text-xs ${
-                    p.status === 'alive'
-                      ? 'border-red-700 text-red-400 hover:border-red-500'
-                      : 'border-green-700 text-green-400 hover:border-green-500'
-                  }`}
-                >
-                  {p.status === 'alive' ? 'Eliminate' : 'Restore'}
-                </button>
-                {activeWeekId && p.status === 'alive' && (
-                  <button
-                    onClick={() => setPickModal({ player: p, team: pick || '' })}
-                    className="rounded border border-blue-700 px-2 py-1 text-xs text-blue-400 hover:border-blue-500"
-                  >
-                    {pick ? 'Change Pick' : 'Submit Pick'}
-                  </button>
-                )}
-                <button
-                  onClick={() => deletePlayer(p)}
-                  className="rounded border border-red-900 px-2 py-1 text-xs text-red-500 hover:border-red-600 hover:text-red-400"
-                >
-                  Delete
-                </button>
+                <ActionButtons p={p} />
               </div>
             </div>
           )
@@ -323,25 +342,25 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
       </div>
 
       {/* Players table */}
-      <div className="hidden sm:block overflow-x-auto rounded-xl border border-slate-700">
+      <div className="hidden sm:block card overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-700 bg-slate-800 text-slate-400 text-left">
+            <tr className="text-left" style={{ background: 'var(--surface-sunken)' }}>
               <th className="px-4 py-3">
                 <input
                   type="checkbox"
                   checked={allSelected}
                   onChange={toggleSelectAll}
-                  className="accent-green-500"
+                  style={{ accentColor: 'var(--green)' }}
                 />
               </th>
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Wks</th>
-              <th className="px-4 py-3">This Week</th>
-              <th className="px-4 py-3">Paid</th>
-              <th className="px-4 py-3">Email</th>
-              <th className="px-4 py-3">Actions</th>
+              <th className="px-4 py-3 eyebrow">Name</th>
+              <th className="px-4 py-3 eyebrow">Status</th>
+              <th className="px-4 py-3 eyebrow">Wks</th>
+              <th className="px-4 py-3 eyebrow">This Week</th>
+              <th className="px-4 py-3 eyebrow">Paid</th>
+              <th className="px-4 py-3 eyebrow">Email</th>
+              <th className="px-4 py-3 eyebrow">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -349,76 +368,52 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
               const pick = currentPicks[p.id]
               const weeks = weeksSurvived[p.id] || 0
               return (
-                <tr key={p.id} className={`border-b border-slate-700/50 ${selected.has(p.id) ? 'bg-slate-700/40' : p.status === 'alive' ? 'bg-slate-800/30' : 'bg-slate-900/40 opacity-70'}`}>
+                <tr
+                  key={p.id}
+                  className="border-t"
+                  style={{
+                    borderColor: 'var(--border)',
+                    background: selected.has(p.id) ? 'var(--surface-sunken)' : undefined,
+                    opacity: p.status === 'eliminated' ? 0.65 : 1,
+                  }}
+                >
                   <td className="px-4 py-3">
                     <input
                       type="checkbox"
                       checked={selected.has(p.id)}
                       onChange={() => toggleSelect(p.id)}
-                      className="accent-green-500"
+                      style={{ accentColor: 'var(--green)' }}
                     />
                   </td>
-                  <td className="px-4 py-3 font-medium text-white">{p.full_name}</td>
+                  <td className="px-4 py-3 font-bold" style={{ color: 'var(--dark)' }}>{p.full_name}</td>
                   <td className="px-4 py-3">
-                    <span className={p.status === 'alive' ? 'text-green-400' : 'text-red-400'}>
-                      {p.status === 'alive' ? '✅ Alive' : '❌ Out'}
+                    <span className={`pill ${p.status === 'alive' ? 'pill-alive' : 'pill-out'}`}>
+                      <span className="pill-dot" />
+                      {p.status === 'alive' ? 'Alive' : 'Out'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-slate-300">{weeks}</td>
+                  <td className="px-4 py-3 tnum" style={{ color: 'var(--dark)' }}>{weeks}</td>
                   <td className="px-4 py-3">
                     {pick ? (
-                      <span className="rounded bg-slate-700 px-2 py-0.5 text-xs font-mono font-bold text-white">{pick}</span>
+                      <span className="rounded px-2 py-0.5 text-xs font-mono font-bold" style={{ background: 'var(--surface-sunken)', color: 'var(--dark)' }}>{pick}</span>
                     ) : p.status === 'alive' ? (
-                      <span className="text-amber-400 text-xs">pending</span>
+                      <span className="text-xs italic" style={{ color: 'var(--red)' }}>pending</span>
                     ) : (
-                      <span className="text-slate-600 text-xs">—</span>
+                      <span className="text-xs" style={{ color: 'var(--muted)' }}>—</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
                     <button
                       onClick={() => togglePaid(p.id, p.paid)}
-                      className={`rounded px-2 py-0.5 text-xs font-medium ${
-                        p.paid
-                          ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
-                          : 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                      }`}
+                      className={`pill ${p.paid ? 'pill-alive' : 'pill-out'}`}
                     >
                       {p.paid ? '✓ Paid' : '✗ Unpaid'}
                     </button>
                   </td>
-                  <td className="px-4 py-3 text-slate-400 text-xs">{p.email}</td>
+                  <td className="px-4 py-3 text-xs" style={{ color: 'var(--muted)' }}>{p.email}</td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2 flex-wrap">
-                      <button
-                        onClick={() => regenPin(p.id, p.full_name)}
-                        className="rounded border border-slate-600 px-2 py-0.5 text-xs text-slate-300 hover:border-slate-400 hover:text-white"
-                      >
-                        Regen PIN
-                      </button>
-                      <button
-                        onClick={() => toggleElimination(p)}
-                        className={`rounded border px-2 py-0.5 text-xs ${
-                          p.status === 'alive'
-                            ? 'border-red-700 text-red-400 hover:border-red-500'
-                            : 'border-green-700 text-green-400 hover:border-green-500'
-                        }`}
-                      >
-                        {p.status === 'alive' ? 'Eliminate' : 'Restore'}
-                      </button>
-                      {activeWeekId && p.status === 'alive' && (
-                        <button
-                          onClick={() => setPickModal({ player: p, team: currentPicks[p.id] || '' })}
-                          className="rounded border border-blue-700 px-2 py-0.5 text-xs text-blue-400 hover:border-blue-500"
-                        >
-                          {currentPicks[p.id] ? 'Change Pick' : 'Submit Pick'}
-                        </button>
-                      )}
-                      <button
-                        onClick={() => deletePlayer(p)}
-                        className="rounded border border-red-900 px-2 py-0.5 text-xs text-red-500 hover:border-red-600 hover:text-red-400"
-                      >
-                        Delete
-                      </button>
+                      <ActionButtons p={p} />
                     </div>
                   </td>
                 </tr>
@@ -430,22 +425,23 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
 
       {/* Admin pick modal */}
       {pickModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
-          <div className="rounded-xl border border-slate-700 bg-slate-800 p-6 w-full max-w-sm space-y-4">
-            <h3 className="text-lg font-bold text-white">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+          <div className="card p-6 w-full max-w-sm space-y-4" style={{ boxShadow: 'var(--shadow-md)' }}>
+            <h3 className="text-lg font-bold" style={{ color: 'var(--dark)' }}>
               {currentPicks[pickModal.player.id] ? 'Change Pick' : 'Submit Pick'} — {pickModal.player.full_name}
             </h3>
             {currentPicks[pickModal.player.id] && (
-              <p className="text-xs text-slate-400">
-                Current pick: <span className="font-mono font-bold text-white">{currentPicks[pickModal.player.id]}</span>
+              <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                Current pick: <span className="font-mono font-bold" style={{ color: 'var(--dark)' }}>{currentPicks[pickModal.player.id]}</span>
               </p>
             )}
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Team</label>
+              <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Team</label>
               <select
                 value={pickModal.team}
                 onChange={(e) => setPickModal({ ...pickModal, team: e.target.value })}
-                className="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                className="field w-full px-3 py-2 text-sm"
+                style={{ color: 'var(--dark)' }}
               >
                 <option value="">Select team…</option>
                 {NFL_TEAMS.map((t) => (
@@ -459,13 +455,14 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
               <button
                 onClick={submitAdminPick}
                 disabled={!pickModal.team || submittingPick}
-                className="flex-1 rounded-lg bg-blue-600 py-2 font-semibold text-white hover:bg-blue-500 disabled:opacity-50"
+                className="btn-primary flex-1 py-2 font-semibold"
               >
                 {submittingPick ? 'Submitting…' : currentPicks[pickModal.player.id] ? 'Change Pick' : 'Submit Pick'}
               </button>
               <button
                 onClick={() => setPickModal(null)}
-                className="flex-1 rounded-lg border border-slate-600 py-2 text-slate-300 hover:border-slate-400"
+                className="card flex-1 py-2 transition-colors hover:border-[var(--border-strong)]"
+                style={{ color: 'var(--dark)' }}
               >
                 Cancel
               </button>

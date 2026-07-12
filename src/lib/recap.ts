@@ -1,5 +1,4 @@
 import type { Week, Game, Pick, Player } from '@/types'
-import { NFL_TEAM_NAMES } from '@/types'
 import { formatCentralTime } from './deadline'
 
 interface RecapInput {
