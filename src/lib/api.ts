@@ -8,10 +8,13 @@ export function isUuid(value: unknown): value is string {
   return typeof value === 'string' && UUID_RE.test(value)
 }
 
-// Escape LIKE wildcards so user input used in .ilike() matches literally —
-// otherwise a name like "T%" would match any player starting with T.
+// Escape LIKE/ILIKE wildcards so user input used in .ilike() matches
+// literally — otherwise a name like "T%" would match any player starting
+// with T. PostgREST also treats `*` as an alias for `%` in like/ilike
+// patterns, so it has to be escaped too; without it a value of "*" still
+// matches every row.
 export function escapeIlike(value: string): string {
-  return value.replace(/[\\%_]/g, '\\$&')
+  return value.replace(/[\\%_*]/g, '\\$&')
 }
 
 // Returns a 401 response for non-admins, null when authorized.
