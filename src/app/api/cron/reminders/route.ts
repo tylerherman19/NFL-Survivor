@@ -1,17 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/testMode'
-import { getAdminSession } from '@/lib/session'
+import { requireCronOrAdmin } from '@/lib/api'
 import { formatCentralTime, getWeekSundayDeadline } from '@/lib/deadline'
 import { sendReminderEmail } from '@/lib/email'
 import type { Game } from '@/types'
 
 export async function GET(req: NextRequest) {
-  // Vercel Cron (always runs against production — no cookies) or a logged-in
-  // admin, which lets the Testing panel exercise this flow against the sandbox.
-  const authHeader = req.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}` && !(await getAdminSession())) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const unauthorized = await requireCronOrAdmin(req)
+  if (unauthorized) return unauthorized
 
   try {
     const supabase = await getDb()

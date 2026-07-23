@@ -3,6 +3,7 @@ import { getDb } from '@/lib/testMode'
 import { generateResetToken } from '@/lib/pin'
 import { sendPinResetEmail } from '@/lib/email'
 import { checkRateLimit, getIP } from '@/lib/rateLimit'
+import { escapeIlike } from '@/lib/api'
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,13 +15,13 @@ export async function POST(req: NextRequest) {
     }
 
     const { email } = await req.json()
-    if (!email) return NextResponse.json({ ok: true }) // silent fail
+    if (!email || typeof email !== 'string') return NextResponse.json({ ok: true }) // silent fail
 
     const supabase = await getDb()
     const { data: player } = await supabase
       .from('players')
       .select('id, full_name, email')
-      .ilike('email', email)
+      .ilike('email', escapeIlike(email.trim()))
       .single()
 
     if (player) {

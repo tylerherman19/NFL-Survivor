@@ -26,20 +26,24 @@ The admin can rehearse the entire game — test users, a custom test schedule, p
 deadlines, grading, eliminations, auto-assign — against a fully separate sandbox that
 never touches production data.
 
-**One-time setup**
+**One-time setup** — run two SQL files in the Supabase SQL editor, nothing else:
 
-1. Run `supabase/migrations/004_testing_sandbox.sql` in the Supabase SQL editor. It
-   creates a `sandbox` schema mirroring the production tables.
-2. In the Supabase Dashboard: **Settings → API → Exposed schemas** — add `sandbox`.
+1. `supabase/migrations/004_testing_sandbox.sql` — creates a `sandbox` schema
+   mirroring the production tables.
+2. `supabase/migrations/007_sandbox_expose.sql` — exposes the `sandbox` schema to
+   the API. This replaces the old manual **Settings → API → Exposed schemas** step;
+   both files are idempotent, so re-running them is safe.
 
 **Using it**
 
-- Go to **Admin → Testing** and hit *Enter Testing Mode*. From then on, that browser
-  (and only that browser) sees the whole site running against the sandbox schema —
-  a striped 🧪 banner marks every page. Other visitors keep seeing production,
-  including the CDN-cached pages.
-- *Seed Test Week + Users* creates test players (PIN `1234`) and a one-week slate;
-  or build any schedule you like in Admin → Schedule while testing mode is on.
+- Go to **Admin → Testing** and hit *Enter + Seed (quick start)*. In one click that
+  browser enters the sandbox and gets seeded test players plus a one-week slate.
+  From then on, that browser (and only that browser) sees the whole site running
+  against the sandbox schema — a striped 🧪 banner marks every page. Other visitors
+  keep seeing production, including the CDN-cached pages.
+- Prefer to set things up by hand? *Enter Testing Mode* toggles the sandbox without
+  seeding; *Seed Test Week + Users* creates test players (PIN `1234`) and a one-week
+  slate, or build any schedule you like in Admin → Schedule while testing mode is on.
 - The invite link drops another device into the sandbox without admin access.
 - *Reset Sandbox* wipes all sandbox data. *Exit Testing Mode* (or closing the
   browser) returns to production.

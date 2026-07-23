@@ -1,21 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/testMode'
-import { getAdminSession } from '@/lib/session'
+import { requireAdmin } from '@/lib/api'
 import { fromZonedTime } from 'date-fns-tz'
 
 const CHICAGO_TZ = 'America/Chicago'
 
 export async function POST(req: NextRequest) {
-  const isAdmin = await getAdminSession()
-  if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
 
   try {
     const { week_number, season_year, games } = await req.json()
+    if (!Number.isInteger(week_number) || !Number.isInteger(season_year) || !Array.isArray(games)) {
+      return NextResponse.json({ error: 'Missing week_number, season_year, or games' }, { status: 400 })
+    }
+
     const supabase = await getDb()
 
-    // Upsert the week — create it if it doesn't exist, set it as active
-    let weekId: string
-
+    // Find or create the week
     const { data: existingWeek } = await supabase
       .from('weeks')
       .select('id')
@@ -23,15 +25,13 @@ export async function POST(req: NextRequest) {
       .eq('season_year', season_year)
       .single()
 
+    let weekId: string
     if (existingWeek) {
       weekId = existingWeek.id
     } else {
-      // Deactivate all other weeks first
-      await supabase.from('weeks').update({ is_active: false }).gt('week_number', 0)
-
       const { data: newWeek, error } = await supabase
         .from('weeks')
-        .insert({ week_number, season_year, is_active: true })
+        .insert({ week_number, season_year, is_active: false })
         .select('id')
         .single()
 
@@ -41,25 +41,36 @@ export async function POST(req: NextRequest) {
       weekId = newWeek.id
     }
 
-    // Activate this week
+    // Make this the only active week
     await supabase.from('weeks').update({ is_active: false }).neq('id', weekId)
     await supabase.from('weeks').update({ is_active: true }).eq('id', weekId)
 
-    // Insert games
-    for (const g of games) {
-      // Convert Central time to UTC for storage
-      const kickoffUtc = fromZonedTime(new Date(g.kickoff_central), CHICAGO_TZ)
+    // The form sends naive wall-clock strings ("2026-09-13T12:00:00") meaning
+    // Central time — passing the string straight to fromZonedTime converts it
+    // without depending on the server's own time zone.
+    const rows = games.map((g: {
+      home_team: string
+      away_team: string
+      game_day: string
+      kickoff_central: string
+      is_snf?: boolean
+      is_mnf?: boolean
+    }) => ({
+      week_id: weekId,
+      home_team: g.home_team,
+      away_team: g.away_team,
+      game_day: g.game_day,
+      kickoff_central: fromZonedTime(g.kickoff_central, CHICAGO_TZ).toISOString(),
+      is_snf: g.is_snf || false,
+      is_mnf: g.is_mnf || false,
+      result: 'pending',
+    }))
 
-      await supabase.from('games').insert({
-        week_id: weekId,
-        home_team: g.home_team,
-        away_team: g.away_team,
-        game_day: g.game_day,
-        kickoff_central: kickoffUtc.toISOString(),
-        is_snf: g.is_snf || false,
-        is_mnf: g.is_mnf || false,
-        result: 'pending',
-      })
+    if (rows.length > 0) {
+      const { error: insertError } = await supabase.from('games').insert(rows)
+      if (insertError) {
+        return NextResponse.json({ error: `Failed to save games: ${insertError.message}` }, { status: 500 })
+      }
     }
 
     return NextResponse.json({ ok: true, week_id: weekId })
@@ -70,14 +81,15 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const isAdmin = await getAdminSession()
-  if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
 
   const { searchParams } = new URL(req.url)
   const id = searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
 
   const supabase = await getDb()
-  await supabase.from('games').delete().eq('id', id)
+  const { error } = await supabase.from('games').delete().eq('id', id)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
 }

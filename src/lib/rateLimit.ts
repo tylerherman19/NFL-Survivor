@@ -16,7 +16,29 @@ export async function getIP(): Promise<string> {
   return 'unknown'
 }
 
+// Rate limits always live in production (public schema) — a sandbox browser
+// must not get a fresh budget for login/signup attempts.
 export async function checkRateLimit(
+  key: string,
+  maxRequests: number,
+  windowSeconds: number
+): Promise<{ allowed: boolean }> {
+  try {
+    // One atomic round trip (migration 006). Falls back to the legacy
+    // read-then-write path if the function hasn't been installed yet.
+    const { data, error } = await supabase.rpc('bump_rate_limit', {
+      p_key: key,
+      p_max: maxRequests,
+      p_window_seconds: windowSeconds,
+    })
+    if (!error) return { allowed: data === true }
+    return legacyCheckRateLimit(key, maxRequests, windowSeconds)
+  } catch {
+    return { allowed: true } // fail open — never lock users out over infra errors
+  }
+}
+
+async function legacyCheckRateLimit(
   key: string,
   maxRequests: number,
   windowSeconds: number

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/testMode'
-import { getAdminSession } from '@/lib/session'
+import { requireAdmin, escapeIlike } from '@/lib/api'
 import { generatePin, hashPin } from '@/lib/pin'
 import { sendWelcomeEmail } from '@/lib/email'
 
@@ -31,8 +31,8 @@ function parseCSV(csv: string): CSVRow[] {
 }
 
 export async function POST(req: NextRequest) {
-  const isAdmin = await getAdminSession()
-  if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
 
   try {
     const { csv } = await req.json()
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
         const { data: existing } = await supabase
           .from('players')
           .select('id')
-          .ilike('email', row.email)
+          .ilike('email', escapeIlike(row.email))
           .single()
 
         if (existing) {

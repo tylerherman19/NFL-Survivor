@@ -88,22 +88,46 @@ export default function TestingPanel({
             Applies only to browsers holding the testing cookie. Closing the browser exits automatically.
           </p>
         </div>
-        <button
-          onClick={async () => {
-            const data = await callTestMode(testMode ? 'disable' : 'enable')
-            if (data) router.refresh()
-          }}
-          disabled={busy !== null}
-          className={`rounded-lg px-5 py-2.5 text-sm font-bold text-white transition-colors disabled:opacity-50 ${
-            testMode ? 'bg-slate-600 hover:bg-slate-500' : 'bg-amber-600 hover:bg-amber-500'
-          }`}
-        >
-          {busy === 'enable' || busy === 'disable'
-            ? 'Working…'
-            : testMode
-            ? 'Exit Testing Mode'
-            : 'Enter Testing Mode'}
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          {!testMode && (
+            <button
+              onClick={async () => {
+                // One-click setup: enter the sandbox, then seed it. The enable
+                // response sets the testing cookie, so the follow-up seed runs
+                // against the sandbox.
+                const enabled = await callTestMode('enable')
+                if (!enabled) return
+                const seeded = await callTestMode('seed', { users: seedUsers })
+                if (seeded) {
+                  setMessage(
+                    `Sandbox ready: ${seeded.created_users} test users (PIN ${seeded.pin}), Week ${seeded.week_number} with ${seeded.games} games.`
+                  )
+                }
+                router.refresh()
+              }}
+              disabled={busy !== null}
+              className="rounded-lg bg-green-700 px-5 py-2.5 text-sm font-bold text-white hover:bg-green-600 transition-colors disabled:opacity-50"
+            >
+              {busy ? 'Working…' : 'Enter + Seed (quick start)'}
+            </button>
+          )}
+          <button
+            onClick={async () => {
+              const data = await callTestMode(testMode ? 'disable' : 'enable')
+              if (data) router.refresh()
+            }}
+            disabled={busy !== null}
+            className={`rounded-lg px-5 py-2.5 text-sm font-bold text-white transition-colors disabled:opacity-50 ${
+              testMode ? 'bg-slate-600 hover:bg-slate-500' : 'bg-amber-600 hover:bg-amber-500'
+            }`}
+          >
+            {busy === 'enable' || busy === 'disable'
+              ? 'Working…'
+              : testMode
+              ? 'Exit Testing Mode'
+              : 'Enter Testing Mode'}
+          </button>
+        </div>
       </div>
 
       {(message || error) && (
@@ -120,9 +144,12 @@ export default function TestingPanel({
         <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-5 space-y-2">
           <p className="font-semibold text-red-300">Sandbox database is not reachable</p>
           <p className="text-slate-300 text-sm">{snapshot.error}</p>
+          <p className="text-sm text-slate-300">
+            One-time setup — run both files in the Supabase SQL editor:
+          </p>
           <ol className="list-decimal pl-5 text-sm text-slate-300 space-y-1">
-            <li>Run <code className="text-amber-300">supabase/migrations/004_testing_sandbox.sql</code> in the Supabase SQL editor.</li>
-            <li>In Supabase: Settings → API → Exposed schemas → add <code className="text-amber-300">sandbox</code>.</li>
+            <li>Run <code className="text-amber-300">supabase/migrations/004_testing_sandbox.sql</code> (creates the sandbox tables).</li>
+            <li>Run <code className="text-amber-300">supabase/migrations/007_sandbox_expose.sql</code> (exposes the schema to the API — no dashboard step needed).</li>
           </ol>
         </div>
       )}
@@ -243,7 +270,7 @@ export default function TestingPanel({
             </div>
             <p className="text-slate-400 text-sm">
               These hit the same endpoints Vercel Cron does, but run against the sandbox. Auto-assign only acts once
-              the SNF kickoff has passed; result sync only matches games that exist on the real ESPN scoreboard —
+              the Sunday 12 PM CT deadline has passed; result sync only matches games that exist on the real ESPN scoreboard —
               for made-up matchups enter results by hand in{' '}
               <Link href="/admin/results" className="text-blue-400 underline">Results</Link>.
             </p>

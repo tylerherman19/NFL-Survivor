@@ -1,24 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getDb, isTestMode } from '@/lib/testMode'
-
-interface ESPNCompetitor {
-  homeAway: 'home' | 'away'
-  score: string
-  team: { abbreviation: string }
-}
-
-interface ESPNEvent {
-  id: string
-  date: string
-  competitions: Array<{
-    status: {
-      type: { state: string; shortDetail: string; completed: boolean }
-      displayClock: string
-      period: number
-    }
-    competitors: ESPNCompetitor[]
-  }>
-}
+import { isDeliverable } from '@/lib/email'
+import { fetchEspnScoreboard, eventCompetitors } from '@/lib/espn'
 
 export interface LiveGame {
   id: string
@@ -46,6 +29,12 @@ export async function GET() {
     const supabase = await getDb()
     const testMode = await isTestMode()
 
+    // Sandbox responses must never land in the shared CDN cache
+    const cacheHeader = (maxAge: number, swr = 0) =>
+      testMode
+        ? 'private, no-store'
+        : `public, max-age=${maxAge}${swr > 0 ? `, stale-while-revalidate=${swr}` : ''}`
+
     // Get active week from our DB
     const { data: week } = await supabase
       .from('weeks')
@@ -56,52 +45,36 @@ export async function GET() {
     if (!week) {
       return NextResponse.json({
         weekNumber: null, games: [], picksVisible: false, hasLiveGames: false, season: null,
-      }, { headers: { 'Cache-Control': testMode ? 'private, no-store' : 'public, max-age=60' } })
+      }, { headers: { 'Cache-Control': cacheHeader(60) } })
     }
 
-    // Fetch ESPN scoreboard for active week
-    const espnUrl = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?seasontype=2&dates=${week.season_year}&week=${week.week_number}`
-    const espnRes = await fetch(espnUrl, { next: { revalidate: 30 } })
-
-    if (!espnRes.ok) {
-      return NextResponse.json({
-        weekNumber: week.week_number, games: [], picksVisible: false, hasLiveGames: false, season: week.season_year,
-      })
-    }
-
-    const espnData = await espnRes.json()
-
-    // ESPN silently falls back to the most recent completed season when the
-    // requested season has no data yet (e.g. querying 2026 in June 2026 returns
-    // 2025 data). Validate the season matches before using any game data.
-    const espnSeasonYear: number | null = espnData.season?.year ?? null
-    if (espnSeasonYear !== null && espnSeasonYear !== week.season_year) {
+    // Null when ESPN is down or served last season's data (its silent
+    // fallback when the requested season hasn't started yet).
+    const events = await fetchEspnScoreboard(week.season_year, week.week_number, 30)
+    if (events === null) {
       return NextResponse.json({
         weekNumber: week.week_number, season: week.season_year,
         games: [], picksVisible: false, hasLiveGames: false,
-      }, { headers: { 'Cache-Control': testMode ? 'private, no-store' : 'public, max-age=300' } })
+      }, { headers: { 'Cache-Control': cacheHeader(300) } })
     }
 
-    const events: ESPNEvent[] = espnData.events || []
-
     // Build game list from ESPN
-    const games: LiveGame[] = events.map((event) => {
-      const comp = event.competitions[0]
-      const home = comp.competitors.find((c) => c.homeAway === 'home')!
-      const away = comp.competitors.find((c) => c.homeAway === 'away')!
-      const status = comp.status
-
-      return {
+    const games: LiveGame[] = []
+    for (const event of events) {
+      const teams = eventCompetitors(event)
+      if (!teams) continue
+      const status = event.competitions[0].status
+      games.push({
         id: event.id,
-        homeTeam: home.team.abbreviation,
-        awayTeam: away.team.abbreviation,
-        homeScore: parseInt(home.score) || 0,
-        awayScore: parseInt(away.score) || 0,
+        homeTeam: teams.home.team.abbreviation,
+        awayTeam: teams.away.team.abbreviation,
+        homeScore: parseInt(teams.home.score) || 0,
+        awayScore: parseInt(teams.away.score) || 0,
         state: status.type.state as 'pre' | 'in' | 'post',
         statusText: status.type.shortDetail,
         kickoff: event.date,
-      }
-    })
+      })
+    }
 
     // Determine if picks are visible:
     // Show pick counts only after a team's game has started (state !== 'pre')
@@ -109,12 +82,7 @@ export async function GET() {
     const hasAnyStarted = games.some((g) => g.state !== 'pre')
     const hasLiveGames = games.some((g) => g.state === 'in')
 
-    let picksVisible = false
-    let pickCounts: Record<string, number> = {}
-
     if (hasAnyStarted) {
-      picksVisible = true
-
       // Fetch pick counts from DB, excluding test accounts
       const { data: allPlayers } = await supabase
         .from('players')
@@ -122,7 +90,7 @@ export async function GET() {
 
       const realPlayerIds = new Set(
         (allPlayers || [])
-          .filter((p: { email: string }) => !p.email?.endsWith('@nflsurvivor.internal'))
+          .filter((p: { email: string }) => p.email && isDeliverable(p.email))
           .map((p: { id: string }) => p.id)
       )
 
@@ -131,15 +99,15 @@ export async function GET() {
         .select('player_id, team')
         .eq('week_id', week.id)
 
+      const pickCounts: Record<string, number> = {}
       for (const pick of picks || []) {
         if (realPlayerIds.has(pick.player_id)) {
           pickCounts[pick.team] = (pickCounts[pick.team] || 0) + 1
         }
       }
 
-      // Attach pick counts to games
+      // Attach pick counts to games that have started
       for (const game of games) {
-        // Only show counts for games that have started
         if (game.state !== 'pre') {
           game.homePicks = pickCounts[game.homeTeam] ?? 0
           game.awayPicks = pickCounts[game.awayTeam] ?? 0
@@ -151,16 +119,12 @@ export async function GET() {
       weekNumber: week.week_number,
       season: week.season_year,
       games,
-      picksVisible,
+      picksVisible: hasAnyStarted,
       hasLiveGames,
     }, {
       headers: {
-        // Cache 30s during live games, 5min otherwise; never CDN-cache sandbox data
-        'Cache-Control': testMode
-          ? 'private, no-store'
-          : hasLiveGames
-          ? 'public, max-age=30, stale-while-revalidate=10'
-          : 'public, max-age=300, stale-while-revalidate=60',
+        // Cache 30s during live games, 5min otherwise
+        'Cache-Control': hasLiveGames ? cacheHeader(30, 10) : cacheHeader(300, 60),
       },
     })
   } catch (err) {

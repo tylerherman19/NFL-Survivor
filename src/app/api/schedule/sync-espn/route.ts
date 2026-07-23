@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/testMode'
-import { getAdminSession } from '@/lib/session'
+import { requireAdmin } from '@/lib/api'
+import { fetchEspnScoreboard, eventCompetitors } from '@/lib/espn'
 
 type GameDay = 'thursday' | 'friday' | 'saturday' | 'sunday' | 'monday' | 'tuesday'
 
@@ -28,8 +29,8 @@ function getCentralInfo(utcStr: string): { day: GameDay; hour: number } {
 }
 
 export async function POST(req: NextRequest) {
-  const isAdmin = await getAdminSession()
-  if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
 
   try {
     const { week_number, season_year } = await req.json()
@@ -37,14 +38,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing week_number or season_year' }, { status: 400 })
     }
 
-    // Fetch from ESPN
-    const url = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?seasontype=2&dates=${season_year}&week=${week_number}`
-    const espnRes = await fetch(url)
-    if (!espnRes.ok) {
-      return NextResponse.json({ error: 'ESPN API unavailable' }, { status: 502 })
+    // Null when ESPN is down or fell back to a different season — importing
+    // that would silently build the schedule from last year's games.
+    const events = await fetchEspnScoreboard(season_year, week_number)
+    if (events === null) {
+      return NextResponse.json({ error: 'ESPN unavailable, or it has no data for that season yet' }, { status: 502 })
     }
-    const espnData = await espnRes.json()
-    const events = espnData.events ?? []
 
     if (events.length === 0) {
       return NextResponse.json({ error: `No games found for Week ${week_number} ${season_year}. Season may not be scheduled yet.` }, { status: 404 })
@@ -80,39 +79,43 @@ export async function POST(req: NextRequest) {
     // Delete existing games for this week (clean slate)
     await supabase.from('games').delete().eq('week_id', weekId)
 
-    // Insert games from ESPN
-    let count = 0
+    // Build games from ESPN
+    const rows = []
     for (const event of events) {
-      const comp = event.competitions?.[0]
-      if (!comp) continue
-
-      const home = comp.competitors?.find((c: { homeAway: string }) => c.homeAway === 'home')
-      const away = comp.competitors?.find((c: { homeAway: string }) => c.homeAway === 'away')
-      if (!home || !away) continue
+      const teams = eventCompetitors(event)
+      if (!teams) continue
 
       const kickoffUtc = event.date // already UTC
       const { day, hour } = getCentralInfo(kickoffUtc)
 
       // SNF: Sunday night (NBC, typically 8:20pm ET = 7:20pm CT)
       // MNF: Monday night (ESPN/ABC, typically 8:15pm ET = 7:15pm CT)
-      const broadcasts: string[] = (comp.broadcasts ?? []).flatMap((b: { names?: string[] }) => b.names ?? [])
+      const broadcasts: string[] = (event.competitions[0].broadcasts ?? []).flatMap(
+        (b: { names?: string[] }) => b.names ?? []
+      )
       const isSnf = day === 'sunday' && (broadcasts.includes('NBC') || hour >= 19)
       const isMnf = day === 'monday' && (broadcasts.includes('ABC') || broadcasts.includes('ESPN') || hour >= 19)
 
-      await supabase.from('games').insert({
+      rows.push({
         week_id: weekId,
-        home_team: home.team.abbreviation,
-        away_team: away.team.abbreviation,
+        home_team: teams.home.team.abbreviation,
+        away_team: teams.away.team.abbreviation,
         game_day: day,
         kickoff_central: kickoffUtc,
         is_snf: isSnf,
         is_mnf: isMnf,
         result: 'pending',
       })
-      count++
     }
 
-    return NextResponse.json({ ok: true, week_id: weekId, games_synced: count })
+    if (rows.length > 0) {
+      const { error: insertError } = await supabase.from('games').insert(rows)
+      if (insertError) {
+        return NextResponse.json({ error: `Failed to save games: ${insertError.message}` }, { status: 500 })
+      }
+    }
+
+    return NextResponse.json({ ok: true, week_id: weekId, games_synced: rows.length })
   } catch (err) {
     console.error('sync-espn error', err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })

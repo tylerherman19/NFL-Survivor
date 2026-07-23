@@ -2,21 +2,21 @@ import { Resend } from 'resend'
 import { NFL_TEAM_NAMES } from '@/types'
 
 let _resend: Resend | null = null
-function getResend() {
+export function getResend() {
   if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY)
   return _resend
 }
 
-const FROM_EMAIL = 'NFL Survivor Pool <onboarding@resend.dev>'
+export const FROM_EMAIL = 'NFL Survivor Pool <onboarding@resend.dev>'
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://nfl-survivor.vercel.app'
 
-function esc(s: string): string {
+export function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
 // Internal/test accounts (including sandbox test users) carry fake addresses
 // that would bounce — never hand them to Resend.
-function isDeliverable(email: string): boolean {
+export function isDeliverable(email: string): boolean {
   return !email.endsWith('@nflsurvivor.internal')
 }
 
@@ -53,8 +53,7 @@ export async function sendPickConfirmationEmail(
   email: string,
   fullName: string,
   teamAbbr: string,
-  weekNumber: number,
-  deadlineStr: string
+  weekNumber: number
 ): Promise<void> {
   if (!isDeliverable(email)) return
   const teamName = NFL_TEAM_NAMES[teamAbbr] || teamAbbr
