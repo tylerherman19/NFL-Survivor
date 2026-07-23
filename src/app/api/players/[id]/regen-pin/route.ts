@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/testMode'
-import { getAdminSession } from '@/lib/session'
+import { requireAdmin, isUuid } from '@/lib/api'
 import { generatePin, hashPin } from '@/lib/pin'
 import { sendWelcomeEmail } from '@/lib/email'
 
@@ -8,10 +8,13 @@ export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const isAdmin = await getAdminSession()
-  if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
 
   const { id } = await params
+  if (!isUuid(id)) {
+    return NextResponse.json({ error: 'Invalid id' }, { status: 400 })
+  }
   const supabase = await getDb()
 
   const { data: player } = await supabase
@@ -25,7 +28,9 @@ export async function POST(
   const pin = generatePin()
   const pin_hash = await hashPin(pin)
 
-  await supabase.from('players').update({ pin_hash }).eq('id', id)
+  // Only email the new PIN once it's actually saved
+  const { error } = await supabase.from('players').update({ pin_hash }).eq('id', id)
+  if (error) return NextResponse.json({ error: 'Failed to update PIN' }, { status: 500 })
 
   // Reuse welcome email template (it shows the PIN)
   await sendWelcomeEmail(player.email, player.full_name, pin)

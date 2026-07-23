@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/testMode'
-import { getAdminSession } from '@/lib/session'
+import { requireAdmin } from '@/lib/api'
 
 function csvField(value: unknown): string {
   let s = value === null || value === undefined ? '' : String(value)
@@ -19,8 +19,8 @@ function toCsv(header: string[], rows: unknown[][]): string {
 }
 
 export async function GET(req: NextRequest) {
-  const isAdmin = await getAdminSession()
-  if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
 
   const type = req.nextUrl.searchParams.get('type')
   if (type !== 'players' && type !== 'picks') {

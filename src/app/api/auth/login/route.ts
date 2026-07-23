@@ -3,6 +3,7 @@ import { getDb } from '@/lib/testMode'
 import { verifyPin } from '@/lib/pin'
 import { createSession } from '@/lib/session'
 import { checkRateLimit, getIP } from '@/lib/rateLimit'
+import { escapeIlike } from '@/lib/api'
 
 export async function POST(req: NextRequest) {
   try {
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest) {
     const { data: players, error } = await supabase
       .from('players')
       .select('id, full_name, pin_hash, status')
-      .ilike('full_name', full_name.trim())
+      .ilike('full_name', escapeIlike(full_name.trim()))
 
     if (error || !players || players.length === 0) {
       return NextResponse.json(

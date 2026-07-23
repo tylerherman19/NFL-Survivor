@@ -1,17 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/testMode'
-import { getAdminSession } from '@/lib/session'
-import { sendEliminationEmail } from '@/lib/email'
+import { requireCronOrAdmin } from '@/lib/api'
+import { fetchEspnScoreboard, eventCompetitors } from '@/lib/espn'
+import { gradeWeekPicks } from '@/lib/grading'
+import type { Game } from '@/types'
 
 // Vercel Cron — auto-syncs ESPN game results + grades picks, no admin needed.
 // Runs daily at 6am UTC (midnight CST / 1am CDT) to catch TNF, Sunday, and MNF completions.
 export async function GET(req: NextRequest) {
-  // Vercel Cron (always runs against production — no cookies) or a logged-in
-  // admin, which lets the Testing panel exercise this flow against the sandbox.
-  const authHeader = req.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}` && !(await getAdminSession())) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const unauthorized = await requireCronOrAdmin(req)
+  if (unauthorized) return unauthorized
 
   try {
     const supabase = await getDb()
@@ -23,13 +21,12 @@ export async function GET(req: NextRequest) {
 
     if (!week) return NextResponse.json({ ok: true, message: 'No active week' })
 
-    // Fetch ESPN scoreboard for active week
-    const url = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?seasontype=2&dates=${week.season_year}&week=${week.week_number}`
-    const espnRes = await fetch(url)
-    if (!espnRes.ok) return NextResponse.json({ error: 'ESPN unavailable' }, { status: 502 })
-
-    const espnData = await espnRes.json()
-    const events = espnData.events ?? []
+    // Null when ESPN is down or served a different season (its silent
+    // fallback to last season must never grade this season's picks).
+    const events = await fetchEspnScoreboard(week.season_year, week.week_number)
+    if (events === null) {
+      return NextResponse.json({ error: 'ESPN unavailable or wrong season' }, { status: 502 })
+    }
 
     // Get our DB games for this week
     const { data: dbGames } = await supabase
@@ -42,117 +39,46 @@ export async function GET(req: NextRequest) {
     }
 
     const updatedGames: string[] = []
-    const newlyCompleted: string[] = [] // game IDs that just went from pending -> result
 
-    // Match ESPN events to our DB games by team abbreviation
+    // Match completed ESPN events to our DB games by team abbreviation
     for (const event of events) {
       const comp = event.competitions?.[0]
       if (!comp) continue
+      if (comp.status?.type?.state !== 'post' || !comp.status?.type?.completed) continue
 
-      const state: string = comp.status?.type?.state ?? 'pre'
-      const completed: boolean = comp.status?.type?.completed ?? false
-      if (state !== 'post' || !completed) continue // skip in-progress / pre-game
+      const teams = eventCompetitors(event)
+      if (!teams) continue
 
-      const espnHome = comp.competitors?.find((c: { homeAway: string }) => c.homeAway === 'home')
-      const espnAway = comp.competitors?.find((c: { homeAway: string }) => c.homeAway === 'away')
-      if (!espnHome || !espnAway) continue
+      const homeAbbr = teams.home.team.abbreviation
+      const awayAbbr = teams.away.team.abbreviation
+      const homeScore = parseInt(teams.home.score ?? '0', 10)
+      const awayScore = parseInt(teams.away.score ?? '0', 10)
 
-      const homeAbbr: string = espnHome.team.abbreviation
-      const awayAbbr: string = espnAway.team.abbreviation
-      const homeScore = parseInt(espnHome.score ?? '0', 10)
-      const awayScore = parseInt(espnAway.score ?? '0', 10)
-
-      let result: 'home_win' | 'away_win' | 'tie'
+      let result: Game['result']
       if (homeScore > awayScore) result = 'home_win'
       else if (awayScore > homeScore) result = 'away_win'
       else result = 'tie'
 
-      // Find matching game in DB
       const dbGame = dbGames.find(
         (g) => g.home_team === homeAbbr && g.away_team === awayAbbr
       )
-      if (!dbGame) continue
+      if (!dbGame || dbGame.result === result) continue
 
-      // Only update if result changed (avoid redundant writes)
-      if (dbGame.result !== result) {
-        await supabase.from('games').update({ result }).eq('id', dbGame.id)
-        updatedGames.push(`${awayAbbr}@${homeAbbr}: ${result}`)
-        newlyCompleted.push(dbGame.id)
-      } else if (dbGame.result !== 'pending') {
-        // Already graded previously — still add to list for grading idempotency
-        newlyCompleted.push(dbGame.id)
-      }
+      await supabase.from('games').update({ result }).eq('id', dbGame.id)
+      dbGame.result = result
+      updatedGames.push(`${awayAbbr}@${homeAbbr}: ${result}`)
     }
 
-    if (newlyCompleted.length === 0) {
-      return NextResponse.json({ ok: true, message: 'No newly completed games', updated: [] })
+    // Grade everything completed so far — gradeWeekPicks is idempotent, so
+    // re-grading games finished on an earlier run is a no-op.
+    const completedGames = (dbGames as Game[]).filter((g) => g.result !== 'pending')
+    if (completedGames.length === 0) {
+      return NextResponse.json({ ok: true, message: 'No completed games to grade', updated_results: [] })
     }
 
-    // --- Grade picks for all completed games ---
+    const grading = await gradeWeekPicks(supabase, week.id, week.week_number, completedGames)
 
-    // Fetch completed games to build winner/loser sets
-    const { data: completedGames } = await supabase
-      .from('games')
-      .select('*')
-      .eq('week_id', week.id)
-      .neq('result', 'pending')
-
-    if (!completedGames || completedGames.length === 0) {
-      return NextResponse.json({ ok: true, message: 'No completed games to grade' })
-    }
-
-    const winners = new Set<string>()
-    const losers = new Set<string>()
-    for (const g of completedGames) {
-      if (g.result === 'home_win') { winners.add(g.home_team); losers.add(g.away_team) }
-      else if (g.result === 'away_win') { winners.add(g.away_team); losers.add(g.home_team) }
-      else if (g.result === 'tie') { losers.add(g.home_team); losers.add(g.away_team) }
-    }
-
-    // Get all picks for this week joined with player data
-    const { data: picks } = await supabase
-      .from('picks')
-      .select('id, player_id, team, players(id, full_name, email, status)')
-      .eq('week_id', week.id)
-
-    const eliminated: string[] = []
-    const advanced: string[] = []
-
-    for (const pick of picks ?? []) {
-      const player = pick.players as unknown as {
-        id: string; full_name: string; email: string; status: string
-      } | null
-      if (!player || player.status !== 'alive') continue
-
-      const pickedTeam: string = pick.team
-      const gameForTeam = completedGames.find(
-        (g) => g.home_team === pickedTeam || g.away_team === pickedTeam
-      )
-      if (!gameForTeam) continue // game not done yet — skip, will grade next run
-
-      if (losers.has(pickedTeam)) {
-        const reason = `Week ${week.week_number}: picked ${pickedTeam} — ${
-          gameForTeam.result === 'tie' ? 'game ended in a tie' : 'lost'
-        }`
-        await supabase
-          .from('players')
-          .update({ status: 'eliminated', elimination_week: week.week_number, elimination_reason: reason })
-          .eq('id', player.id)
-
-        eliminated.push(player.full_name)
-        if (player.email) {
-          sendEliminationEmail(player.email, player.full_name, reason, week.week_number).catch(console.error)
-        }
-      } else if (winners.has(pickedTeam)) {
-        advanced.push(player.full_name)
-      }
-    }
-
-    return NextResponse.json({
-      ok: true,
-      updated_results: updatedGames,
-      grading: { eliminated, advanced },
-    })
+    return NextResponse.json({ ok: true, updated_results: updatedGames, grading })
   } catch (err) {
     console.error('sync-results error', err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })

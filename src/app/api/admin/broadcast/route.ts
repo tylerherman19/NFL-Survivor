@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { Resend } from 'resend'
 import { getDb } from '@/lib/testMode'
-import { getAdminSession } from '@/lib/session'
+import { requireAdmin } from '@/lib/api'
+import { getResend, esc, isDeliverable, FROM_EMAIL } from '@/lib/email'
 
 // Sends are paced at ~1.6/sec for Resend rate limits, so allow up to 4 min of runtime
 export const maxDuration = 300
 
-const FROM_EMAIL = 'NFL Survivor Pool <onboarding@resend.dev>'
 const MAX_RECIPIENTS = 300
 // Resend free tier allows ~2 requests/sec — pace sends to stay under it
 const SEND_DELAY_MS = 600
@@ -14,17 +13,13 @@ const SEND_DELAY_MS = 600
 const VALID_AUDIENCES = ['all', 'alive', 'unpicked'] as const
 type Audience = (typeof VALID_AUDIENCES)[number]
 
-function esc(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-}
-
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 export async function POST(req: NextRequest) {
-  const isAdmin = await getAdminSession()
-  if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
 
   try {
     const { subject, message, audience } = await req.json()
@@ -46,7 +41,7 @@ export async function POST(req: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
     // Internal test accounts have fake emails that would bounce
-    let recipients = (allPlayers || []).filter((p) => !p.email?.endsWith('@nflsurvivor.internal'))
+    let recipients = (allPlayers || []).filter((p) => p.email && isDeliverable(p.email))
 
     if (audience === 'alive') {
       recipients = recipients.filter((p) => p.status === 'alive')
@@ -65,7 +60,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Audience too large (${recipients.length} > ${MAX_RECIPIENTS})` }, { status: 400 })
     }
 
-    const resend = new Resend(process.env.RESEND_API_KEY)
+    const resend = getResend()
     const htmlBody = esc(message.trim()).replace(/\r?\n/g, '<br />')
 
     let sent = 0

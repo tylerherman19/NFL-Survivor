@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { draftMode } from 'next/headers'
 import { fromZonedTime, toZonedTime } from 'date-fns-tz'
-import { getAdminSession } from '@/lib/session'
+import { requireAdmin } from '@/lib/api'
 import { isTestMode, setTestModeCookie, clearTestModeCookie } from '@/lib/testMode'
 import { sandboxSupabase } from '@/lib/supabase'
 import { hashPin } from '@/lib/pin'
@@ -25,8 +25,8 @@ const TEST_SLATE = [
 ] as const
 
 export async function POST(req: NextRequest) {
-  const isAdmin = await getAdminSession()
-  if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
 
   try {
     const body = await req.json()
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
         .select('email')
       if (playersErr) {
         return NextResponse.json(
-          { error: `Sandbox unreachable: ${playersErr.message}. Run migration 004 and add "sandbox" to the exposed schemas in Supabase API settings.` },
+          { error: `Sandbox unreachable: ${playersErr.message}. Run supabase/migrations/004_testing_sandbox.sql and 007_sandbox_expose.sql in the Supabase SQL editor.` },
           { status: 500 }
         )
       }

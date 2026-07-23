@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { getDb } from '@/lib/testMode'
 import { getSession, getAdminSession } from '@/lib/session'
+import { isUuid } from '@/lib/api'
 import { getTeamDeadline } from '@/lib/deadline'
 import { sendPickConfirmationEmail } from '@/lib/email'
 import { NFL_TEAMS } from '@/types'
@@ -17,6 +18,9 @@ export async function POST(req: NextRequest) {
     let playerId: string
 
     if (isAdmin && player_id_override) {
+      if (!isUuid(player_id_override)) {
+        return NextResponse.json({ error: 'Invalid player_id_override' }, { status: 400 })
+      }
       playerId = player_id_override
     } else {
       const session = await getSession()
@@ -33,8 +37,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid team' }, { status: 400 })
     }
 
-    // Basic UUID format check
-    if (!/^[0-9a-f-]{36}$/i.test(week_id)) {
+    if (!isUuid(week_id)) {
       return NextResponse.json({ error: 'Invalid week_id' }, { status: 400 })
     }
 
@@ -137,12 +140,14 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Failed to update pick' }, { status: 500 })
       }
     } else {
+      // submitted_by_admin records the verified admin session, never the
+      // client-supplied flag — players can't stamp their own picks as admin's.
       const { error: insertError } = await supabase.from('picks').insert({
         player_id: playerId,
         week_id,
         team,
         auto_assigned: false,
-        submitted_by_admin: submitted_by_admin || false,
+        submitted_by_admin: isAdmin,
       })
       if (insertError) {
         console.error('insert error', insertError)
@@ -155,13 +160,9 @@ export async function POST(req: NextRequest) {
 
     // Send confirmation email (non-blocking)
     if (player.email) {
-      sendPickConfirmationEmail(
-        player.email,
-        player.full_name,
-        team,
-        week.week_number,
-        teamDeadline?.toISOString() || ''
-      ).catch(console.error)
+      sendPickConfirmationEmail(player.email, player.full_name, team, week.week_number).catch(
+        console.error
+      )
     }
 
     revalidatePath('/')

@@ -3,7 +3,7 @@ import { jwtVerify } from 'jose'
 
 const ADMIN_COOKIE = 'survivor_admin'
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl
 
   if (pathname === '/admin/login') return NextResponse.next()

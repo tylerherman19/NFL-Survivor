@@ -1,26 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getDb, isTestMode } from '@/lib/testMode'
 import { getWeekSundayDeadline } from '@/lib/deadline'
+import { isDeliverable } from '@/lib/email'
+import { fetchEspnScoreboard, eventCompetitors } from '@/lib/espn'
 import type { Game } from '@/types'
-
-interface ESPNCompetitor {
-  homeAway: 'home' | 'away'
-  score: string
-  team: { abbreviation: string }
-}
-
-interface ESPNEvent {
-  id: string
-  date: string
-  competitions: Array<{
-    status: {
-      type: { state: string; shortDetail: string; completed: boolean }
-      displayClock: string
-      period: number
-    }
-    competitors: ESPNCompetitor[]
-  }>
-}
 
 export type SweatStatus =
   | 'won' // final, team won
@@ -95,23 +78,22 @@ export async function GET() {
       return NextResponse.json(EMPTY, { headers: { 'Cache-Control': testMode ? 'private, no-store' : 'public, max-age=300' } })
     }
 
-    const [playersRes, picksRes, dbGamesRes, espnRes] = await Promise.all([
+    const [playersRes, picksRes, dbGamesRes, events] = await Promise.all([
       supabase
         .from('players')
         .select('id, full_name, email, status, elimination_week')
         .order('full_name'),
       supabase.from('picks').select('player_id, team').eq('week_id', week.id),
       supabase.from('games').select('*').eq('week_id', week.id),
-      fetch(
-        `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?seasontype=2&dates=${week.season_year}&week=${week.week_number}`,
-        { next: { revalidate: 30 } }
-      ),
+      // Null when ESPN is down or served last season's data — treated below
+      // as "no ESPN games", so every revealed pick just shows as not started.
+      fetchEspnScoreboard(week.season_year, week.week_number, 30).catch(() => null),
     ])
 
     // Alive players sweat; players eliminated this week stay on the board as OUT.
     const players = (playersRes.data ?? []).filter(
       (p: { email: string; status: string; elimination_week: number | null }) =>
-        !p.email?.endsWith('@nflsurvivor.internal') &&
+        p.email && isDeliverable(p.email) &&
         (p.status === 'alive' || p.elimination_week === week.week_number)
     )
     const pickByPlayer: Record<string, string> = {}
@@ -121,32 +103,23 @@ export async function GET() {
     const sundayDeadline = getWeekSundayDeadline(dbGames)
     const deadlinePassed = sundayDeadline ? sundayDeadline <= new Date() : false
 
-    // ESPN falls back to the previous season when the requested one has no
-    // data yet — validate before trusting any game data.
-    let espnGames: SweatGame[] = []
-    if (espnRes.ok) {
-      const espnData = await espnRes.json()
-      const espnSeasonYear: number | null = espnData.season?.year ?? null
-      if (espnSeasonYear === null || espnSeasonYear === week.season_year) {
-        const events: ESPNEvent[] = espnData.events || []
-        espnGames = events.map((event) => {
-          const comp = event.competitions[0]
-          const home = comp.competitors.find((c) => c.homeAway === 'home')!
-          const away = comp.competitors.find((c) => c.homeAway === 'away')!
-          return {
-            id: event.id,
-            homeTeam: home.team.abbreviation,
-            awayTeam: away.team.abbreviation,
-            homeScore: parseInt(home.score) || 0,
-            awayScore: parseInt(away.score) || 0,
-            state: comp.status.type.state as 'pre' | 'in' | 'post',
-            statusText: comp.status.type.shortDetail,
-            kickoff: event.date,
-            homePlayers: [],
-            awayPlayers: [],
-          }
-        })
-      }
+    const espnGames: SweatGame[] = []
+    for (const event of events ?? []) {
+      const teams = eventCompetitors(event)
+      if (!teams) continue
+      const status = event.competitions[0].status
+      espnGames.push({
+        id: event.id,
+        homeTeam: teams.home.team.abbreviation,
+        awayTeam: teams.away.team.abbreviation,
+        homeScore: parseInt(teams.home.score) || 0,
+        awayScore: parseInt(teams.away.score) || 0,
+        state: status.type.state as 'pre' | 'in' | 'post',
+        statusText: status.type.shortDetail,
+        kickoff: event.date,
+        homePlayers: [],
+        awayPlayers: [],
+      })
     }
 
     const gameByTeam: Record<string, SweatGame> = {}

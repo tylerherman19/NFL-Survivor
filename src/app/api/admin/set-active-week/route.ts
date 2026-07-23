@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { getDb } from '@/lib/testMode'
-import { getAdminSession } from '@/lib/session'
+import { requireAdmin, isUuid } from '@/lib/api'
 
 export async function POST(req: NextRequest) {
-  const isAdmin = await getAdminSession()
-  if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
 
   try {
     const { week_id } = await req.json()
-    if (!week_id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(week_id)) {
+    if (!isUuid(week_id)) {
       return NextResponse.json({ error: 'Invalid week_id' }, { status: 400 })
     }
 

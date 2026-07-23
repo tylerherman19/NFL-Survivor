@@ -84,13 +84,3 @@ export function getWeekSundayDeadline(games: Game[]): Date | null {
   sunday.setHours(12, 0, 0, 0)
   return fromZonedTime(sunday, CHICAGO_TZ)
 }
-
-// Next overall deadline across all non-picked games
-export function getNextDeadline(games: Game[], usedTeams: string[]): Date | null {
-  const available = games.filter(
-    g => !usedTeams.includes(g.home_team) || !usedTeams.includes(g.away_team)
-  )
-  const deadlines = available.map(g => getPickDeadline(g))
-  if (deadlines.length === 0) return null
-  return new Date(Math.min(...deadlines.map(d => d.getTime())))
-}

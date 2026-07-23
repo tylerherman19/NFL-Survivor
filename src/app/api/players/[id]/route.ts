@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { getDb } from '@/lib/testMode'
-import { getAdminSession } from '@/lib/session'
+import { requireAdmin, isUuid } from '@/lib/api'
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const isAdmin = await getAdminSession()
-  if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
 
   const { id } = await params
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+  if (!isUuid(id)) {
     return NextResponse.json({ error: 'Invalid id' }, { status: 400 })
   }
   const body = await req.json()
@@ -21,6 +21,12 @@ export async function PATCH(
   const updates: Record<string, unknown> = {}
   for (const key of allowed) {
     if (key in body) updates[key] = body[key]
+  }
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: 'No updatable fields provided' }, { status: 400 })
+  }
+  if ('status' in updates && updates.status !== 'alive' && updates.status !== 'eliminated') {
+    return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
   }
 
   const { error } = await supabase.from('players').update(updates).eq('id', id)
@@ -34,11 +40,11 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const isAdmin = await getAdminSession()
-  if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
 
   const { id } = await params
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+  if (!isUuid(id)) {
     return NextResponse.json({ error: 'Invalid id' }, { status: 400 })
   }
   const supabase = await getDb()
