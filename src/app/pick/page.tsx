@@ -153,8 +153,9 @@ function Shell({ children, session, weekNumber }: { children: React.ReactNode; s
             {weekNumber && <p className="text-xs tracking-widest uppercase mt-0.5" style={{ color: '#666' }}>Week {weekNumber}</p>}
           </div>
           <div className="flex items-center gap-4">
+            <Link href="/planner" className="text-xs tracking-widest uppercase" style={{ color: '#888' }}>Planner</Link>
             <Link href="/history" className="text-xs tracking-widest uppercase" style={{ color: '#888' }}>My Picks</Link>
-            <span className="text-xs tracking-widest uppercase" style={{ color: '#888' }}>{session.full_name}</span>
+            <span className="text-xs tracking-widest uppercase hidden sm:inline" style={{ color: '#888' }}>{session.full_name}</span>
             <LogoutButton />
           </div>
         </div>

@@ -87,8 +87,9 @@ export default async function HistoryPage() {
             <Link href="/" className="font-display text-white text-lg tracking-wider">NFL SURVIVOR POOL</Link>
           </div>
           <div className="flex items-center gap-4">
+            <Link href="/planner" className="text-xs tracking-widest uppercase" style={{ color: '#888' }}>Planner</Link>
             <Link href="/pick" className="text-xs tracking-widest uppercase" style={{ color: '#888' }}>Make Pick</Link>
-            <span className="text-xs tracking-widest uppercase" style={{ color: '#888' }}>{session.full_name}</span>
+            <span className="text-xs tracking-widest uppercase hidden sm:inline" style={{ color: '#888' }}>{session.full_name}</span>
             <LogoutButton />
           </div>
         </div>
@@ -166,9 +167,14 @@ export default async function HistoryPage() {
 
         {/* Teams remaining */}
         <div className="mt-10">
-          <p className="text-xs font-bold tracking-widest uppercase mb-3" style={{ color: 'var(--muted)' }}>
-            Teams Remaining ({teamsRemaining.length} of 32)
-          </p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-bold tracking-widest uppercase" style={{ color: 'var(--muted)' }}>
+              Teams Remaining ({teamsRemaining.length} of 32)
+            </p>
+            <Link href="/planner" className="text-xs tracking-widest uppercase underline" style={{ color: 'var(--dark)' }}>
+              Plan ahead →
+            </Link>
+          </div>
           {teamsRemaining.length === 0 ? (
             <p className="text-sm" style={{ color: 'var(--muted)' }}>You&apos;ve used every team.</p>
           ) : (
