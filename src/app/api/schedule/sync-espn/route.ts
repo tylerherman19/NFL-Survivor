@@ -51,7 +51,6 @@ export async function POST(req: NextRequest) {
 
     // Create/activate week in DB
     const supabase = await getDb()
-    await supabase.from('weeks').update({ is_active: false }).gt('week_number', 0)
 
     const { data: existingWeek } = await supabase
       .from('weeks')
@@ -60,20 +59,33 @@ export async function POST(req: NextRequest) {
       .eq('season_year', season_year)
       .single()
 
+    const { data: currentActive } = await supabase
+      .from('weeks')
+      .select('id')
+      .eq('is_active', true)
+      .maybeSingle()
+
     let weekId: string
     if (existingWeek) {
       weekId = existingWeek.id
-      await supabase.from('weeks').update({ is_active: true }).eq('id', weekId)
     } else {
+      // Only activate on creation if nothing else is active yet — syncing
+      // next week's slate in advance must not switch the active week out
+      // from under the current one. Explicit switches go through
+      // /api/admin/set-active-week.
       const { data: newWeek, error } = await supabase
         .from('weeks')
-        .insert({ week_number, season_year, is_active: true })
+        .insert({ week_number, season_year, is_active: !currentActive })
         .select('id')
         .single()
       if (error || !newWeek) {
         return NextResponse.json({ error: 'Failed to create week' }, { status: 500 })
       }
       weekId = newWeek.id
+    }
+
+    if (!currentActive || currentActive.id === weekId) {
+      await supabase.from('weeks').update({ is_active: true }).eq('id', weekId)
     }
 
     // Delete existing games for this week (clean slate)

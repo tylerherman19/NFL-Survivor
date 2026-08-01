@@ -25,13 +25,23 @@ export async function POST(req: NextRequest) {
       .eq('season_year', season_year)
       .single()
 
+    const { data: currentActive } = await supabase
+      .from('weeks')
+      .select('id')
+      .eq('is_active', true)
+      .maybeSingle()
+
     let weekId: string
     if (existingWeek) {
       weekId = existingWeek.id
     } else {
+      // Only activate on creation if nothing else is active yet (first-time
+      // setup). Otherwise the new week starts inactive — building next week's
+      // slate in advance must not switch the active week out from under the
+      // current one. Explicit switches go through /api/admin/set-active-week.
       const { data: newWeek, error } = await supabase
         .from('weeks')
-        .insert({ week_number, season_year, is_active: false })
+        .insert({ week_number, season_year, is_active: !currentActive })
         .select('id')
         .single()
 
@@ -41,9 +51,9 @@ export async function POST(req: NextRequest) {
       weekId = newWeek.id
     }
 
-    // Make this the only active week
-    await supabase.from('weeks').update({ is_active: false }).neq('id', weekId)
-    await supabase.from('weeks').update({ is_active: true }).eq('id', weekId)
+    if (!currentActive || currentActive.id === weekId) {
+      await supabase.from('weeks').update({ is_active: true }).eq('id', weekId)
+    }
 
     // The form sends naive wall-clock strings ("2026-09-13T12:00:00") meaning
     // Central time — passing the string straight to fromZonedTime converts it
@@ -63,11 +73,16 @@ export async function POST(req: NextRequest) {
       kickoff_central: fromZonedTime(g.kickoff_central, CHICAGO_TZ).toISOString(),
       is_snf: g.is_snf || false,
       is_mnf: g.is_mnf || false,
-      result: 'pending',
     }))
 
     if (rows.length > 0) {
-      const { error: insertError } = await supabase.from('games').insert(rows)
+      // Upsert on (week_id, home_team, away_team) so resubmitting the form
+      // updates the existing matchup instead of duplicating it. `result` is
+      // intentionally omitted: it takes the table default on insert, and is
+      // left untouched on conflict so this can't clobber an already-graded score.
+      const { error: insertError } = await supabase
+        .from('games')
+        .upsert(rows, { onConflict: 'week_id,home_team,away_team' })
       if (insertError) {
         return NextResponse.json({ error: `Failed to save games: ${insertError.message}` }, { status: 500 })
       }

@@ -43,10 +43,18 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const player = players[0]
+    // Names aren't guaranteed unique (the CSV importer only dedupes on email),
+    // so try every candidate's PIN rather than assuming players[0] is the right
+    // one — otherwise a same-named player can be locked out at random.
+    let player: (typeof players)[number] | null = null
+    for (const candidate of players) {
+      if (await verifyPin(pin, candidate.pin_hash)) {
+        player = candidate
+        break
+      }
+    }
 
-    const valid = await verifyPin(pin, player.pin_hash)
-    if (!valid) {
+    if (!player) {
       return NextResponse.json({ error: 'Invalid name or PIN. Check spelling and try again.' }, { status: 401 })
     }
 

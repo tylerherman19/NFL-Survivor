@@ -68,17 +68,19 @@ export function getMNFGame(games: Game[]): Game | undefined {
   return games.find(g => g.is_mnf)
 }
 
-// Get the Sunday 12:00 PM Central deadline for a given week (from any game in that week)
+// Get the Sunday 12:00 PM Central deadline for a given week (from any game in that week).
+// Uses the same early-deadline-day rule as getPickDeadline so the result is the same
+// regardless of which game in the week is passed in (queries here aren't ordered).
 export function getWeekSundayDeadline(games: Game[]): Date | null {
   const anyGame = games[0]
   if (!anyGame) return null
-  // Use a Sunday game or any game to find the Sunday
   const kickoff = new Date(anyGame.kickoff_central)
   const chicagoKickoff = toZonedTime(kickoff, CHICAGO_TZ)
-  const dow = chicagoKickoff.getDay()
-  // Mon (-1) goes back to the Sunday deadline that already passed for MNF.
-  // Thu/Fri/Sat/Tue/Wed (7-dow) go forward to the upcoming Sunday.
-  const daysToSunday = dow === 0 ? 0 : dow === 1 ? -1 : 7 - dow
+  const dow = chicagoKickoff.getDay() // 0=Sun, 1=Mon, ..., 6=Sat
+  // Thu/Fri/Sat (4/5/6): their own deadline is before this week's Sunday, so walk forward to it.
+  // Sun/Mon/Tue/Wed (0/1/2/3): the Sunday deadline already passed, so walk back to it.
+  const isEarlyDay = dow === 4 || dow === 5 || dow === 6
+  const daysToSunday = isEarlyDay ? 7 - dow : dow === 0 ? 0 : -dow
   const sunday = new Date(chicagoKickoff)
   sunday.setDate(chicagoKickoff.getDate() + daysToSunday)
   sunday.setHours(12, 0, 0, 0)

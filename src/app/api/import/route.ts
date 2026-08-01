@@ -4,6 +4,12 @@ import { requireAdmin, escapeIlike } from '@/lib/api'
 import { generatePin, hashPin } from '@/lib/pin'
 import { sendWelcomeEmail } from '@/lib/email'
 
+// bcrypt cost-12 hash (~250ms) plus a Resend call, serially, per row — allow
+// enough runtime that a full-size batch can't be killed mid-row by a platform
+// timeout (which would leave a player created with a PIN nobody ever received).
+export const maxDuration = 300
+const MAX_ROWS = 100
+
 interface CSVRow {
   full_name: string
   phone: string
@@ -41,6 +47,12 @@ export async function POST(req: NextRequest) {
     const rows = parseCSV(csv)
     if (rows.length === 0) {
       return NextResponse.json({ error: 'No valid rows found. Check CSV format.' }, { status: 400 })
+    }
+    if (rows.length > MAX_ROWS) {
+      return NextResponse.json(
+        { error: `Too many rows (${rows.length} > ${MAX_ROWS}). Split the CSV into smaller batches.` },
+        { status: 400 }
+      )
     }
 
     const supabase = await getDb()
