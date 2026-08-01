@@ -42,6 +42,7 @@ export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
   const [newGames, setNewGames] = useState<NewGame[]>([{ ...BLANK_GAME }])
   const [submitting, setSubmitting] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  const [syncingAll, setSyncingAll] = useState(false)
   const [message, setMessage] = useState('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
@@ -103,6 +104,33 @@ export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
       setMessage('Server error. Try again.')
     } finally {
       setSyncing(false)
+    }
+  }
+
+  async function syncAllFromESPN() {
+    if (!confirm(`Sync every week of the ${seasonYear} season from ESPN? This can take a minute.`)) return
+    setSyncingAll(true)
+    setMessage('')
+    try {
+      const res = await fetch('/api/schedule/sync-espn-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ season_year: seasonYear }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setMessage(`Error: ${data.error}`)
+      } else {
+        const weeks = data.weeks_synced as number[]
+        const range = weeks.length > 0 ? `Weeks ${weeks[0]}–${weeks[weeks.length - 1]}` : 'No weeks'
+        const failedNote = data.failures ? ` (${data.failures.length} failed)` : ''
+        setMessage(`✅ ${range} synced, ${data.total_games} games total${failedNote}`)
+        router.refresh()
+      }
+    } catch {
+      setMessage('Server error. Try again.')
+    } finally {
+      setSyncingAll(false)
     }
   }
 
@@ -182,10 +210,17 @@ export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
           </div>
           <button
             onClick={syncFromESPN}
-            disabled={syncing}
+            disabled={syncing || syncingAll}
             className="rounded-lg bg-green-700 hover:bg-green-600 disabled:opacity-50 px-6 py-2 text-sm font-bold text-white transition-colors"
           >
             {syncing ? 'Syncing…' : 'SYNC FROM ESPN →'}
+          </button>
+          <button
+            onClick={syncAllFromESPN}
+            disabled={syncing || syncingAll}
+            className="rounded-lg border border-green-700 hover:bg-green-950 disabled:opacity-50 px-6 py-2 text-sm font-bold text-green-400 transition-colors"
+          >
+            {syncingAll ? 'Syncing all…' : 'SYNC ALL WEEKS →'}
           </button>
         </div>
         {message && (
