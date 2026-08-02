@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { NFL_TEAM_NAMES } from '@/types'
 import { teamColor } from '@/lib/teamColors'
-import type { SweatResponse, SweatGame, SweatPlayer } from '@/app/api/sweat/route'
+import type { SweatResponse, SweatGame } from '@/app/api/sweat/route'
 
 function scoreColor(myScore: number, theirScore: number, state: string): string {
   if (state === 'pre') return 'var(--dark)'
@@ -46,11 +46,6 @@ function TeamRow({ game, side, totalPlayers }: { game: SweatGame; side: 'home' |
       {pickers.length > 0 && (
         <p className="mt-0.5 text-xs font-semibold" style={{ color: 'var(--muted)' }}>
           {pickers.length} {pickers.length === 1 ? 'pick' : 'picks'} · {pct}% of pool
-        </p>
-      )}
-      {pickers.length > 0 && (
-        <p className="mt-1 text-xs leading-relaxed" style={{ color }}>
-          {pickers.join(' · ')}
         </p>
       )}
     </div>
@@ -98,17 +93,14 @@ function StatTile({ value, label, color }: { value: number; label: string; color
   )
 }
 
-function NameList({ title, players, color, note }: { title: string; players: SweatPlayer[]; color: string; note?: string }) {
-  if (players.length === 0) return null
+function CountLine({ title, count, color, note }: { title: string; count: number; color: string; note?: string }) {
+  if (count === 0) return null
   return (
-    <div className="py-4 border-t" style={{ borderColor: 'var(--border)' }}>
-      <p className="eyebrow mb-2" style={{ color }}>
-        {title} ({players.length})
+    <div className="py-3 border-t flex items-baseline gap-2" style={{ borderColor: 'var(--border)' }}>
+      <p className="eyebrow" style={{ color }}>
+        {title} ({count})
       </p>
-      <p className="text-sm leading-relaxed" style={{ color: 'var(--dark)' }}>
-        {players.map((p) => p.name).join(' · ')}
-      </p>
-      {note && <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>{note}</p>}
+      {note && <p className="text-xs" style={{ color: 'var(--muted)' }}>{note}</p>}
     </div>
   )
 }
@@ -230,20 +222,15 @@ export default function SweatBoard() {
 
       {/* Off-board groups */}
       <div className="mt-8">
-        <NameList
-          title="Pick revealed, game not started"
-          players={byStatus(['pre'])}
-          color="var(--muted)"
-        />
-        <NameList
+        <CountLine
           title="No pick submitted"
-          players={byStatus(['pending'])}
+          count={byStatus(['pending']).length}
           color="var(--muted)"
           note="Deadline hasn't passed yet."
         />
-        <NameList
+        <CountLine
           title="Missed the deadline"
-          players={byStatus(['no_pick'])}
+          count={byStatus(['no_pick']).length}
           color="var(--red)"
           note="Will be auto-assigned the SNF away team, then MNF. Miss both and it's elimination."
         />
