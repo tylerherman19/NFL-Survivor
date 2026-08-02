@@ -13,10 +13,10 @@ export function getPickDeadline(game: Game): Date {
   const kickoff = new Date(game.kickoff_central)
   const chicagoKickoff = toZonedTime(kickoff, CHICAGO_TZ)
 
-  // Sunday of the week this game falls in: Thu/Fri/Sat (4/5/6) belong to the
-  // upcoming Sunday, Sun/Mon/Tue/Wed (0/1/2/3) belong to the Sunday already passed.
+  // Sunday of the week this game falls in: Wed/Thu/Fri/Sat (3/4/5/6) belong to
+  // the upcoming Sunday, Sun/Mon/Tue (0/1/2) belong to the Sunday already passed.
   const dow = chicagoKickoff.getDay() // 0=Sun, 1=Mon, ..., 6=Sat
-  const daysToSunday = dow >= 4 ? 7 - dow : -dow
+  const daysToSunday = dow >= 3 ? 7 - dow : -dow
   const sunday = new Date(chicagoKickoff)
   sunday.setDate(chicagoKickoff.getDate() + daysToSunday)
   sunday.setHours(12, 0, 0, 0) // 12:00 PM
@@ -73,9 +73,9 @@ export function getWeekSundayDeadline(games: Game[]): Date | null {
   const kickoff = new Date(anyGame.kickoff_central)
   const chicagoKickoff = toZonedTime(kickoff, CHICAGO_TZ)
   const dow = chicagoKickoff.getDay() // 0=Sun, 1=Mon, ..., 6=Sat
-  // Thu/Fri/Sat (4/5/6): their own deadline is before this week's Sunday, so walk forward to it.
-  // Sun/Mon/Tue/Wed (0/1/2/3): the Sunday deadline already passed, so walk back to it.
-  const isEarlyDay = dow === 4 || dow === 5 || dow === 6
+  // Wed/Thu/Fri/Sat (3/4/5/6): their own deadline is before this week's Sunday, so walk forward to it.
+  // Sun/Mon/Tue (0/1/2): the Sunday deadline already passed, so walk back to it.
+  const isEarlyDay = dow >= 3
   const daysToSunday = isEarlyDay ? 7 - dow : dow === 0 ? 0 : -dow
   const sunday = new Date(chicagoKickoff)
   sunday.setDate(chicagoKickoff.getDate() + daysToSunday)
