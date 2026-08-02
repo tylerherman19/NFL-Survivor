@@ -69,7 +69,7 @@ export default function AdminLoginPage() {
           className="mt-6 inline-block eyebrow transition-colors hover:text-white"
           style={{ color: '#777' }}
         >
-          ← Standings
+          Standings
         </Link>
       </div>
     </div>

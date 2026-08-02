@@ -74,7 +74,7 @@ export default function ForgotPinPage() {
           )}
 
           <div className="mt-6 text-center">
-            <Link href="/login" className="text-xs tracking-widest uppercase underline" style={{ color: 'var(--muted)' }}>← Back to Login</Link>
+            <Link href="/login" className="text-xs tracking-widest uppercase underline" style={{ color: 'var(--muted)' }}>Back to Login</Link>
           </div>
         </div>
       </main>

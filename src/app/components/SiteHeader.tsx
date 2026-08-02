@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 
-const NAV_LINKS = [
+const BASE_NAV_LINKS = [
   { label: 'Standings', href: '/#standings' },
   { label: 'Rules', href: '/#rules' },
   { label: 'Pick Grid', href: '/grid' },
@@ -12,8 +12,13 @@ const NAV_LINKS = [
   { label: 'Log In', href: '/login' },
 ]
 
-export default function SiteHeader() {
+export default function SiteHeader({ seasonStarted = false }: { seasonStarted?: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  // Sign Up only makes sense before the season's first game — signups close
+  // for good once it kicks off (enforced server-side too, this just matches).
+  const NAV_LINKS = seasonStarted
+    ? BASE_NAV_LINKS
+    : [...BASE_NAV_LINKS, { label: 'Sign Up', href: '/signup' }]
 
   return (
     <header style={{ background: 'var(--dark)' }}>

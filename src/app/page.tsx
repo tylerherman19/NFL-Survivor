@@ -212,7 +212,8 @@ async function getDashboardData() {
 }
 
 export default async function DashboardPage() {
-  const data = await getDashboardData()
+  const { hasSeasonStarted } = await import('@/lib/season')
+  const [data, seasonStarted] = await Promise.all([getDashboardData(), hasSeasonStarted()])
 
   const aliveRows = data?.standings.filter((r) => r.status === 'alive') ?? []
   const elimRows = data?.standings.filter((r) => r.status === 'eliminated') ?? []
@@ -220,7 +221,7 @@ export default async function DashboardPage() {
   return (
     <div style={{ background: 'var(--cream)', minHeight: '100vh' }}>
       {/* Header */}
-      <SiteHeader />
+      <SiteHeader seasonStarted={seasonStarted} />
 
       {/* Live scores ticker — client component, polls independently of cached server render */}
       <LiveTicker weekNumber={data?.week?.week_number} season={data?.week?.season_year} />
@@ -484,7 +485,9 @@ export default async function DashboardPage() {
         <div className="mx-auto max-w-5xl px-4 py-6 flex items-center justify-between">
           <span className="text-xs tracking-widest uppercase text-gray-500">$25 Entry · Venmo @griffinsell</span>
           <div className="flex items-center gap-6">
-            <Link href="/signup" className="text-xs tracking-widest uppercase text-gray-500 hover:text-white transition-colors">Sign Up</Link>
+            {!seasonStarted && (
+              <Link href="/signup" className="text-xs tracking-widest uppercase text-gray-500 hover:text-white transition-colors">Sign Up</Link>
+            )}
             <Link href="/admin/login" className="text-xs tracking-widest uppercase text-gray-500 hover:text-white transition-colors">Admin</Link>
           </div>
         </div>

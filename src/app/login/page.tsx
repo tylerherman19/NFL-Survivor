@@ -98,7 +98,7 @@ export default function LoginPage() {
               New to the pool?{' '}
               <Link href="/signup" className="underline" style={{ color: 'var(--dark)' }}>Sign up here</Link>
             </p>
-            <Link href="/" className="block eyebrow" style={{ color: 'var(--muted)' }}>← Standings</Link>
+            <Link href="/" className="block eyebrow" style={{ color: 'var(--muted)' }}>Standings</Link>
           </div>
         </div>
       </main>
