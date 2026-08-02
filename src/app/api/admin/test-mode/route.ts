@@ -5,6 +5,8 @@ import { requireAdmin } from '@/lib/api'
 import { isTestMode, setTestModeCookie, clearTestModeCookie } from '@/lib/testMode'
 import { sandboxSupabase } from '@/lib/supabase'
 import { hashPin } from '@/lib/pin'
+import { gradeWeekPicks } from '@/lib/grading'
+import type { Game } from '@/types'
 
 const CHICAGO_TZ = 'America/Chicago'
 
@@ -56,6 +58,94 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    if (action === 'reset_clock') {
+      const { error } = await sandboxSupabase.from('clock').update({ simulated_now: null }).eq('id', true)
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ ok: true, simulated_now: null })
+    }
+
+    if (action === 'set_clock') {
+      const parsed = body?.iso ? new Date(body.iso) : null
+      if (!parsed || isNaN(parsed.getTime())) {
+        return NextResponse.json({ error: 'Invalid date' }, { status: 400 })
+      }
+      const { error } = await sandboxSupabase.from('clock').update({ simulated_now: parsed.toISOString() }).eq('id', true)
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ ok: true, simulated_now: parsed.toISOString() })
+    }
+
+    if (action === 'advance_clock') {
+      const hours = Number(body?.hours)
+      if (!Number.isFinite(hours)) return NextResponse.json({ error: 'Missing hours' }, { status: 400 })
+      const { data: clockRow } = await sandboxSupabase.from('clock').select('simulated_now').eq('id', true).single()
+      const base = clockRow?.simulated_now ? new Date(clockRow.simulated_now) : new Date()
+      const next = new Date(base.getTime() + hours * 60 * 60 * 1000)
+      const { error } = await sandboxSupabase.from('clock').update({ simulated_now: next.toISOString() }).eq('id', true)
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ ok: true, simulated_now: next.toISOString() })
+    }
+
+    if (action === 'jump_to_next_kickoff') {
+      const { data: activeWeek } = await sandboxSupabase.from('weeks').select('id').eq('is_active', true).single()
+      if (!activeWeek) return NextResponse.json({ error: 'No active sandbox week' }, { status: 400 })
+      const { data: clockRow } = await sandboxSupabase.from('clock').select('simulated_now').eq('id', true).single()
+      const currentNow = clockRow?.simulated_now ? new Date(clockRow.simulated_now) : new Date()
+      const { data: games } = await sandboxSupabase.from('games').select('kickoff_central').eq('week_id', activeWeek.id)
+      const upcoming = (games || [])
+        .map((g: { kickoff_central: string }) => new Date(g.kickoff_central))
+        .filter((d: Date) => d > currentNow)
+        .sort((a: Date, b: Date) => a.getTime() - b.getTime())
+      if (upcoming.length === 0) {
+        return NextResponse.json({ error: 'No upcoming kickoffs to jump to' }, { status: 400 })
+      }
+      const next = upcoming[0]
+      const { error } = await sandboxSupabase.from('clock').update({ simulated_now: next.toISOString() }).eq('id', true)
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ ok: true, simulated_now: next.toISOString() })
+    }
+
+    if (action === 'set_score') {
+      const gameId = body?.game_id
+      const homeScore = Number(body?.home_score)
+      const awayScore = Number(body?.away_score)
+      if (!gameId || !Number.isFinite(homeScore) || !Number.isFinite(awayScore) || homeScore < 0 || awayScore < 0) {
+        return NextResponse.json({ error: 'Invalid score' }, { status: 400 })
+      }
+      const { error } = await sandboxSupabase
+        .from('games')
+        .update({ home_score: Math.trunc(homeScore), away_score: Math.trunc(awayScore) })
+        .eq('id', gameId)
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ ok: true })
+    }
+
+    if (action === 'finalize_game') {
+      const gameId = body?.game_id
+      if (!gameId) return NextResponse.json({ error: 'Missing game_id' }, { status: 400 })
+
+      const { data: game } = await sandboxSupabase.from('games').select('*').eq('id', gameId).single()
+      if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
+      if (game.home_score == null || game.away_score == null) {
+        return NextResponse.json({ error: 'Set both scores before finalizing' }, { status: 400 })
+      }
+
+      const result: Game['result'] =
+        game.home_score > game.away_score ? 'home_win' : game.away_score > game.home_score ? 'away_win' : 'tie'
+      const { error: updateErr } = await sandboxSupabase.from('games').update({ result }).eq('id', gameId)
+      if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 })
+
+      // Re-grade the whole week (idempotent) so elimination/standings pick up
+      // this and any previously-finalized sandbox games together.
+      const { data: week } = await sandboxSupabase.from('weeks').select('week_number').eq('id', game.week_id).single()
+      const { data: weekGames } = await sandboxSupabase.from('games').select('*').eq('week_id', game.week_id)
+      const completedGames = ((weekGames || []) as Game[]).filter((g) => g.result !== 'pending')
+      const grading = week
+        ? await gradeWeekPicks(sandboxSupabase, game.week_id, week.week_number, completedGames)
+        : null
+
+      return NextResponse.json({ ok: true, result, grading })
+    }
+
     if (action === 'reset') {
       // Order matters only for clarity — FKs cascade from weeks/players.
       const tables = ['picks', 'games', 'weeks', 'players'] as const
@@ -63,6 +153,8 @@ export async function POST(req: NextRequest) {
         const { error } = await sandboxSupabase.from(table).delete().not('id', 'is', null)
         if (error) return NextResponse.json({ error: `Failed to clear ${table}: ${error.message}` }, { status: 500 })
       }
+      // Back to real time for the next test run.
+      await sandboxSupabase.from('clock').update({ simulated_now: null }).eq('id', true)
       return NextResponse.json({ ok: true })
     }
 

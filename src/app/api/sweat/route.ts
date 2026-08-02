@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getDb, isTestMode } from '@/lib/testMode'
+import { getDb, isTestMode, getEffectiveNow } from '@/lib/testMode'
 import { getWeekSundayDeadline } from '@/lib/deadline'
 import { isDeliverable } from '@/lib/email'
 import { fetchEspnScoreboard, eventCompetitors } from '@/lib/espn'
@@ -85,9 +85,14 @@ export async function GET() {
         .order('full_name'),
       supabase.from('picks').select('player_id, team').eq('week_id', week.id),
       supabase.from('games').select('*').eq('week_id', week.id),
-      // Null when ESPN is down or served last season's data — treated below
-      // as "no ESPN games", so every revealed pick just shows as not started.
-      fetchEspnScoreboard(week.season_year, week.week_number, 30).catch(() => null),
+      // Sandbox matchups are fabricated, so there's nothing to look up on the
+      // real scoreboard — skip the network call and read sandbox.games (with
+      // its admin-entered scores) instead, below.
+      testMode
+        ? Promise.resolve(null)
+        // Null when ESPN is down or served last season's data — treated below
+        // as "no ESPN games", so every revealed pick just shows as not started.
+        : fetchEspnScoreboard(week.season_year, week.week_number, 30).catch(() => null),
     ])
 
     // Alive players sweat; players eliminated this week stay on the board as OUT.
@@ -100,26 +105,49 @@ export async function GET() {
     for (const p of picksRes.data ?? []) pickByPlayer[p.player_id] = p.team
 
     const dbGames = (dbGamesRes.data ?? []) as Game[]
+    const now = await getEffectiveNow()
     const sundayDeadline = getWeekSundayDeadline(dbGames)
-    const deadlinePassed = sundayDeadline ? sundayDeadline <= new Date() : false
+    const deadlinePassed = sundayDeadline ? sundayDeadline <= now : false
 
     const espnGames: SweatGame[] = []
-    for (const event of events ?? []) {
-      const teams = eventCompetitors(event)
-      if (!teams) continue
-      const status = event.competitions[0].status
-      espnGames.push({
-        id: event.id,
-        homeTeam: teams.home.team.abbreviation,
-        awayTeam: teams.away.team.abbreviation,
-        homeScore: parseInt(teams.home.score) || 0,
-        awayScore: parseInt(teams.away.score) || 0,
-        state: status.type.state as 'pre' | 'in' | 'post',
-        statusText: status.type.shortDetail,
-        kickoff: event.date,
-        homePlayers: [],
-        awayPlayers: [],
-      })
+    if (testMode) {
+      // Sandbox: derive game state from the simulated clock vs. each game's
+      // kickoff, plus whatever scores/result an admin has entered by hand on
+      // /admin/testing — a game only becomes "post" once explicitly finalized.
+      for (const g of dbGames) {
+        const state: 'pre' | 'in' | 'post' =
+          g.result !== 'pending' ? 'post' : now >= new Date(g.kickoff_central) ? 'in' : 'pre'
+        espnGames.push({
+          id: g.id,
+          homeTeam: g.home_team,
+          awayTeam: g.away_team,
+          homeScore: g.home_score ?? 0,
+          awayScore: g.away_score ?? 0,
+          state,
+          statusText: state === 'post' ? 'Final (sandbox)' : state === 'in' ? 'In progress (sandbox)' : 'Not started',
+          kickoff: g.kickoff_central,
+          homePlayers: [],
+          awayPlayers: [],
+        })
+      }
+    } else {
+      for (const event of events ?? []) {
+        const teams = eventCompetitors(event)
+        if (!teams) continue
+        const status = event.competitions[0].status
+        espnGames.push({
+          id: event.id,
+          homeTeam: teams.home.team.abbreviation,
+          awayTeam: teams.away.team.abbreviation,
+          homeScore: parseInt(teams.home.score) || 0,
+          awayScore: parseInt(teams.away.score) || 0,
+          state: status.type.state as 'pre' | 'in' | 'post',
+          statusText: status.type.shortDetail,
+          kickoff: event.date,
+          homePlayers: [],
+          awayPlayers: [],
+        })
+      }
     }
 
     const gameByTeam: Record<string, SweatGame> = {}

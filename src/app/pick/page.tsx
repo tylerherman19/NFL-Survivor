@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
-import { getDb } from '@/lib/testMode'
+import { getDb, getEffectiveNow } from '@/lib/testMode'
 import { NFL_TEAM_NAMES } from '@/types'
 import type { Game } from '@/types'
 import PickForm, { type GameRow } from './PickForm'
@@ -40,11 +40,12 @@ export default async function PickPage() {
     const { data: games } = await supabase.from('games').select('*').eq('week_id', week.id).order('kickoff_central')
     const gamesData: Game[] = games || []
 
+    const now = await getEffectiveNow()
+
     // A pick stays changeable until the picked team's own deadline passes
     const currentPickDeadline = currentPick ? getTeamDeadline(currentPick.team, gamesData) : null
-    const pickLocked = currentPick ? !currentPickDeadline || new Date() >= currentPickDeadline : false
+    const pickLocked = currentPick ? !currentPickDeadline || now >= currentPickDeadline : false
 
-    const now = new Date()
     const gameRows: GameRow[] = gamesData.map((g) => {
       const deadline = getPickDeadline(g)
       return {

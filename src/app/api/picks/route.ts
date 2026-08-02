@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
-import { getDb } from '@/lib/testMode'
+import { getDb, getEffectiveNow } from '@/lib/testMode'
 import { getSession, getAdminSession } from '@/lib/session'
 import { isUuid } from '@/lib/api'
 import { getTeamDeadline } from '@/lib/deadline'
@@ -102,18 +102,19 @@ export async function POST(req: NextRequest) {
     // Admins can bypass deadline for manual submissions
     const teamDeadline = getTeamDeadline(team, gamesData)
     if (!isAdmin) {
+      const now = await getEffectiveNow()
       // Changing an existing pick requires the current team to still be unlocked —
       // once your picked team's deadline passes, the pick is final
       if (existingPick) {
         const currentDeadline = getTeamDeadline(existingPick.team, gamesData)
-        if (!currentDeadline || new Date() >= currentDeadline) {
+        if (!currentDeadline || now >= currentDeadline) {
           return NextResponse.json(
             { error: 'Your pick is locked and can no longer be changed' },
             { status: 400 }
           )
         }
       }
-      if (teamDeadline && new Date() >= teamDeadline) {
+      if (teamDeadline && now >= teamDeadline) {
         return NextResponse.json(
           { error: `The deadline for picking ${team} has passed` },
           { status: 400 }

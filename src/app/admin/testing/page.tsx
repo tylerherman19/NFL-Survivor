@@ -4,17 +4,30 @@ import { isTestMode, createTestInviteToken } from '@/lib/testMode'
 import { sandboxSupabase } from '@/lib/supabase'
 import TestingPanel from './TestingPanel'
 
+export interface SandboxGame {
+  id: string
+  home_team: string
+  away_team: string
+  kickoff_central: string
+  home_score: number | null
+  away_score: number | null
+  result: string
+}
+
 export interface SandboxSnapshot {
   ok: boolean
   error: string | null
   players: { id: string; full_name: string; email: string; status: string }[]
-  activeWeek: { week_number: number; season_year: number } | null
+  activeWeek: { id: string; week_number: number; season_year: number } | null
   gameCount: number
   pickCount: number
+  games: SandboxGame[]
+  simulatedNow: string | null
+  effectiveNow: string
 }
 
 async function getSandboxSnapshot(): Promise<SandboxSnapshot> {
-  const empty = { players: [], activeWeek: null, gameCount: 0, pickCount: 0 }
+  const empty = { players: [], activeWeek: null, gameCount: 0, pickCount: 0, games: [], simulatedNow: null }
   try {
     const { data: players, error } = await sandboxSupabase
       .from('players')
@@ -22,13 +35,22 @@ async function getSandboxSnapshot(): Promise<SandboxSnapshot> {
       .order('full_name')
     // Surface schema-setup problems (missing migration / unexposed schema)
     // right in the panel instead of failing silently everywhere.
-    if (error) return { ok: false, error: error.message, ...empty }
+    if (error) return { ok: false, error: error.message, effectiveNow: new Date().toISOString(), ...empty }
 
-    const [{ data: week }, { count: gameCount }, { count: pickCount }] = await Promise.all([
-      sandboxSupabase.from('weeks').select('week_number, season_year').eq('is_active', true).single(),
+    const [{ data: week }, { count: gameCount }, { count: pickCount }, { data: clockRow }] = await Promise.all([
+      sandboxSupabase.from('weeks').select('id, week_number, season_year').eq('is_active', true).single(),
       sandboxSupabase.from('games').select('id', { count: 'exact', head: true }),
       sandboxSupabase.from('picks').select('id', { count: 'exact', head: true }),
+      sandboxSupabase.from('clock').select('simulated_now').eq('id', true).single(),
     ])
+
+    const { data: games } = week
+      ? await sandboxSupabase
+          .from('games')
+          .select('id, home_team, away_team, kickoff_central, home_score, away_score, result')
+          .eq('week_id', week.id)
+          .order('kickoff_central')
+      : { data: [] }
 
     return {
       ok: true,
@@ -37,9 +59,12 @@ async function getSandboxSnapshot(): Promise<SandboxSnapshot> {
       activeWeek: week ?? null,
       gameCount: gameCount ?? 0,
       pickCount: pickCount ?? 0,
+      games: games ?? [],
+      simulatedNow: clockRow?.simulated_now ?? null,
+      effectiveNow: clockRow?.simulated_now ?? new Date().toISOString(),
     }
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : 'Sandbox unreachable', ...empty }
+    return { ok: false, error: err instanceof Error ? err.message : 'Sandbox unreachable', effectiveNow: new Date().toISOString(), ...empty }
   }
 }
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getDb } from '@/lib/testMode'
+import { getDb, getEffectiveNow } from '@/lib/testMode'
 import { requireCronOrAdmin } from '@/lib/api'
 import { getSNFGame, getMNFGame, getWeekSundayDeadline } from '@/lib/deadline'
 import { sendEliminationEmail, sendPickConfirmationEmail } from '@/lib/email'
@@ -35,9 +35,11 @@ export async function GET(req: NextRequest) {
     const snfGame = getSNFGame(gamesData)
     const mnfGame = getMNFGame(gamesData)
 
-    // Only act once the week's Sunday 12:00 PM Central deadline has passed.
+    // Only act once the week's Sunday 12:00 PM Central deadline has passed
+    // (in test mode, against the sandbox's simulated clock).
     const sundayDeadline = getWeekSundayDeadline(gamesData)
-    if (!sundayDeadline || new Date() < sundayDeadline) {
+    const now = await getEffectiveNow()
+    if (!sundayDeadline || now < sundayDeadline) {
       return NextResponse.json({ ok: true, message: 'Not past deadline yet' })
     }
 

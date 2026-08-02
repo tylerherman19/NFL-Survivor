@@ -34,6 +34,10 @@ export interface Game {
   is_mnf: boolean
   result: GameResult
   created_at: string
+  // Sandbox-only columns (supabase/migrations/010) — always undefined on
+  // real (public schema) games, which get their scores from ESPN instead.
+  home_score?: number | null
+  away_score?: number | null
 }
 
 export interface Pick {

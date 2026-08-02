@@ -63,8 +63,10 @@ async function getDashboardData() {
       // Filter games for current week from allGames
       const gamesData = (allGames || []).filter((g: { week_id: string }) => g.week_id === week.id)
       if (gamesData) {
+        const { getEffectiveNow } = await import('@/lib/testMode')
+        const now = await getEffectiveNow()
         const sundayDeadline = getWeekSundayDeadline(gamesData)
-        if (sundayDeadline && sundayDeadline > new Date()) {
+        if (sundayDeadline && sundayDeadline > now) {
           nextDeadline = sundayDeadline.toISOString()
           nextDeadlineFormatted = sundayDeadline.toLocaleString('en-US', {
             timeZone: 'America/Chicago',
@@ -76,7 +78,7 @@ async function getDashboardData() {
             timeZoneName: 'short',
           })
         }
-        picksRevealed = sundayDeadline ? sundayDeadline <= new Date() : false
+        picksRevealed = sundayDeadline ? sundayDeadline <= now : false
       }
     }
 

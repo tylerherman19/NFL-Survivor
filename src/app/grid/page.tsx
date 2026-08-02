@@ -1,4 +1,4 @@
-import { getDb } from '@/lib/testMode'
+import { getDb, getEffectiveNow } from '@/lib/testMode'
 import { getWeekSundayDeadline } from '@/lib/deadline'
 import type { Game } from '@/types'
 import Link from 'next/link'
@@ -41,10 +41,12 @@ export default async function GridPage() {
     gamesByWeek[g.week_id].push(g as Game)
   }
 
+  const now = await getEffectiveNow()
+
   // Check if active week picks are revealed (deadline passed)
   const activeWeekGames = activeWeekId ? (gamesByWeek[activeWeekId] ?? []) : []
   const activeDeadline = getWeekSundayDeadline(activeWeekGames)
-  const activePicksRevealed = activeDeadline ? activeDeadline <= new Date() : false
+  const activePicksRevealed = activeDeadline ? activeDeadline <= now : false
 
   // Build pick map: playerId -> weekId -> team
   const pickMap: Record<string, Record<string, string>> = {}
@@ -55,7 +57,6 @@ export default async function GridPage() {
 
   // Most-picked team per week, only for weeks whose Sunday deadline has passed
   const realPlayerIds = new Set(players.map((p) => p.id))
-  const now = new Date()
   const topPickByWeek: Record<string, { team: string; count: number } | null> = {}
   for (const w of weeks) {
     const weekGames = gamesByWeek[w.id] ?? []

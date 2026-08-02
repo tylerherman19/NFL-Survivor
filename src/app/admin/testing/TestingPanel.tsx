@@ -3,7 +3,31 @@
 import { useState, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import type { SandboxSnapshot } from './page'
+import type { SandboxSnapshot, SandboxGame } from './page'
+
+function formatCt(iso: string): string {
+  return new Date(iso).toLocaleString('en-US', {
+    timeZone: 'America/Chicago',
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  })
+}
+
+// Local-timezone value a <input type="datetime-local"> can round-trip.
+function toDatetimeLocal(iso: string): string {
+  const d = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function gameState(g: SandboxGame, effectiveNow: string): 'pre' | 'in' | 'final' {
+  if (g.result !== 'pending') return 'final'
+  return new Date(effectiveNow) >= new Date(g.kickoff_central) ? 'in' : 'pre'
+}
 
 export default function TestingPanel({
   testMode,
@@ -19,6 +43,12 @@ export default function TestingPanel({
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [seedUsers, setSeedUsers] = useState(8)
+  const [clockInput, setClockInput] = useState(() => toDatetimeLocal(snapshot.effectiveNow))
+  const [scoreInputs, setScoreInputs] = useState<Record<string, { home: string; away: string }>>(() =>
+    Object.fromEntries(
+      snapshot.games.map((g) => [g.id, { home: g.home_score?.toString() ?? '', away: g.away_score?.toString() ?? '' }])
+    )
+  )
 
   async function callTestMode(action: string, extra: Record<string, unknown> = {}) {
     setBusy(action)
@@ -221,6 +251,161 @@ export default function TestingPanel({
             </p>
           </div>
 
+          {/* Sandbox clock */}
+          <div className="rounded-xl border border-slate-700 bg-slate-800 p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-slate-400 text-xs font-medium uppercase tracking-wide">Sandbox Clock</p>
+              <p className="text-sm">
+                {snapshot.simulatedNow ? (
+                  <span className="text-amber-400 font-semibold">{formatCt(snapshot.effectiveNow)} (simulated)</span>
+                ) : (
+                  <span className="text-slate-400">{formatCt(snapshot.effectiveNow)} (real time)</span>
+                )}
+              </p>
+            </div>
+            <p className="text-slate-400 text-sm">
+              Every deadline/lock check in the sandbox — pick locking, auto-assign, the sweat board — reads this
+              clock instead of the real time, so you can progress through a week at your own pace.
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                type="datetime-local"
+                value={clockInput}
+                onChange={(e) => setClockInput(e.target.value)}
+                className="rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-white"
+              />
+              <button
+                onClick={async () => {
+                  const data = await callTestMode('set_clock', { iso: new Date(clockInput).toISOString() })
+                  if (data) { setMessage(`Sandbox clock set to ${formatCt(data.simulated_now)}.`); router.refresh() }
+                }}
+                disabled={busy !== null}
+                className="rounded-lg border border-slate-600 bg-slate-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-600 transition-colors disabled:opacity-50"
+              >
+                {busy === 'set_clock' ? 'Setting…' : 'Set'}
+              </button>
+              {[
+                ['+1h', 1],
+                ['+6h', 6],
+                ['+1d', 24],
+              ].map(([label, hours]) => (
+                <button
+                  key={label}
+                  onClick={async () => {
+                    const data = await callTestMode('advance_clock', { hours })
+                    if (data) { setMessage(`Sandbox clock advanced to ${formatCt(data.simulated_now)}.`); setClockInput(toDatetimeLocal(data.simulated_now)); router.refresh() }
+                  }}
+                  disabled={busy !== null}
+                  className="rounded-lg border border-slate-600 bg-slate-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-600 transition-colors disabled:opacity-50"
+                >
+                  {label}
+                </button>
+              ))}
+              <button
+                onClick={async () => {
+                  const data = await callTestMode('jump_to_next_kickoff')
+                  if (data) { setMessage(`Sandbox clock jumped to next kickoff: ${formatCt(data.simulated_now)}.`); setClockInput(toDatetimeLocal(data.simulated_now)); router.refresh() }
+                }}
+                disabled={busy !== null || !snapshot.activeWeek}
+                className="rounded-lg border border-slate-600 bg-slate-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-600 transition-colors disabled:opacity-50"
+              >
+                Jump to next kickoff
+              </button>
+              <button
+                onClick={async () => {
+                  const data = await callTestMode('reset_clock')
+                  if (data) { setMessage('Sandbox clock reset to real time.'); setClockInput(toDatetimeLocal(new Date().toISOString())); router.refresh() }
+                }}
+                disabled={busy !== null}
+                className="rounded-lg border border-red-500/50 bg-red-500/10 px-3 py-1.5 text-sm font-semibold text-red-300 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+              >
+                Reset to real time
+              </button>
+            </div>
+          </div>
+
+          {/* Game scores */}
+          {snapshot.activeWeek && snapshot.games.length > 0 && (
+            <div className="rounded-xl border border-slate-700 bg-slate-800 p-5 space-y-3">
+              <p className="text-slate-400 text-xs font-medium uppercase tracking-wide">
+                Week {snapshot.activeWeek.week_number} Scores
+              </p>
+              <p className="text-slate-400 text-sm">
+                A game is <span className="text-slate-300 font-medium">not started</span> before its kickoff,{' '}
+                <span className="text-amber-400 font-medium">in progress</span> once the sandbox clock passes
+                kickoff, and only becomes <span className="text-green-400 font-medium">final</span> when you mark it
+                — which grades every pick on that team and updates standings.
+              </p>
+              <div className="space-y-2">
+                {snapshot.games.map((g) => {
+                  const state = gameState(g, snapshot.effectiveNow)
+                  const scores = scoreInputs[g.id] ?? { home: '', away: '' }
+                  return (
+                    <div key={g.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-700 bg-slate-900 p-3">
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs font-bold uppercase ${
+                          state === 'final'
+                            ? 'bg-green-500/20 text-green-300'
+                            : state === 'in'
+                            ? 'bg-amber-500/20 text-amber-300'
+                            : 'bg-slate-700 text-slate-400'
+                        }`}
+                      >
+                        {state === 'final' ? 'Final' : state === 'in' ? 'In Progress' : 'Not Started'}
+                      </span>
+                      <span className="text-sm font-semibold text-white min-w-[110px]">{g.away_team} @ {g.home_team}</span>
+                      <span className="text-xs text-slate-500 min-w-[130px]">{formatCt(g.kickoff_central)}</span>
+                      <input
+                        type="number"
+                        min={0}
+                        placeholder={g.away_team}
+                        value={scores.away}
+                        onChange={(e) => setScoreInputs((s) => ({ ...s, [g.id]: { ...scores, away: e.target.value } }))}
+                        disabled={state === 'final'}
+                        className="w-16 rounded border border-slate-600 bg-slate-800 px-2 py-1 text-sm text-white disabled:opacity-50"
+                      />
+                      <span className="text-slate-500">–</span>
+                      <input
+                        type="number"
+                        min={0}
+                        placeholder={g.home_team}
+                        value={scores.home}
+                        onChange={(e) => setScoreInputs((s) => ({ ...s, [g.id]: { ...scores, home: e.target.value } }))}
+                        disabled={state === 'final'}
+                        className="w-16 rounded border border-slate-600 bg-slate-800 px-2 py-1 text-sm text-white disabled:opacity-50"
+                      />
+                      <button
+                        onClick={async () => {
+                          const data = await callTestMode('set_score', {
+                            game_id: g.id,
+                            home_score: Number(scores.home) || 0,
+                            away_score: Number(scores.away) || 0,
+                          })
+                          if (data) { setMessage(`${g.away_team} @ ${g.home_team} updated.`); router.refresh() }
+                        }}
+                        disabled={busy !== null || state === 'final'}
+                        className="rounded-lg border border-slate-600 bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-600 transition-colors disabled:opacity-50"
+                      >
+                        {busy === 'set_score' ? 'Saving…' : 'Save Score'}
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (!confirm(`Mark ${g.away_team} @ ${g.home_team} final and grade picks?`)) return
+                          const data = await callTestMode('finalize_game', { game_id: g.id })
+                          if (data) { setMessage(`Finalized ${g.away_team} @ ${g.home_team}: ${data.result}.`); router.refresh() }
+                        }}
+                        disabled={busy !== null || state === 'final' || scores.home === '' || scores.away === ''}
+                        className="rounded-lg border border-green-500/50 bg-green-500/10 px-3 py-1.5 text-xs font-semibold text-green-300 hover:bg-green-500/20 transition-colors disabled:opacity-50"
+                      >
+                        {busy === 'finalize_game' ? 'Finalizing…' : state === 'final' ? 'Final' : 'Mark Final'}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Test users */}
           {snapshot.players.length > 0 && (
             <div className="rounded-xl border border-slate-700 bg-slate-800 p-5">
@@ -270,9 +455,9 @@ export default function TestingPanel({
             </div>
             <p className="text-slate-400 text-sm">
               These hit the same endpoints Vercel Cron does, but run against the sandbox. Auto-assign only acts once
-              the Sunday 12 PM CT deadline has passed; result sync only matches games that exist on the real ESPN scoreboard —
-              for made-up matchups enter results by hand in{' '}
-              <Link href="/admin/results" className="text-blue-400 underline">Results</Link>.
+              the Sunday 12 PM CT deadline has passed on the <span className="text-amber-300">sandbox clock above</span>;
+              result sync still only matches games that exist on the real ESPN scoreboard — for made-up matchups, use{' '}
+              <span className="text-amber-300">Mark Final</span> in Week Scores above instead of running it here.
             </p>
           </div>
 
