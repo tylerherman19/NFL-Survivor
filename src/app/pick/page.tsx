@@ -3,7 +3,7 @@ import { getSession } from '@/lib/session'
 import { getDb } from '@/lib/testMode'
 import { NFL_TEAM_NAMES } from '@/types'
 import type { Game } from '@/types'
-import PickForm from './PickForm'
+import PickForm, { type GameRow } from './PickForm'
 import LogoutButton from '../components/LogoutButton'
 import { getPickDeadline, getTeamDeadline } from '@/lib/deadline'
 import { getNflOdds, matchGameOdds } from '@/lib/kalshi'
@@ -44,24 +44,18 @@ export default async function PickPage() {
     const currentPickDeadline = currentPick ? getTeamDeadline(currentPick.team, gamesData) : null
     const pickLocked = currentPick ? !currentPickDeadline || new Date() >= currentPickDeadline : false
 
-    const allTeamsThisWeek = new Set<string>()
-    const gameByTeam: Record<string, Game> = {}
-    for (const g of gamesData) {
-      allTeamsThisWeek.add(g.home_team)
-      allTeamsThisWeek.add(g.away_team)
-      gameByTeam[g.home_team] = g
-      gameByTeam[g.away_team] = g
-    }
-
     const now = new Date()
-    const availableTeams = Array.from(allTeamsThisWeek)
-      .filter((t) => !usedTeams.includes(t))
-      .map((team) => {
-        const game = gameByTeam[team]
-        const deadline = game ? getPickDeadline(game) : null
-        return { team, deadline: deadline?.toISOString() || null, locked: deadline ? now >= deadline : false }
-      })
-      .sort((a, b) => a.team.localeCompare(b.team))
+    const gameRows: GameRow[] = gamesData.map((g) => {
+      const deadline = getPickDeadline(g)
+      return {
+        gameId: g.id,
+        kickoff: g.kickoff_central,
+        away: { team: g.away_team, used: usedTeams.includes(g.away_team) },
+        home: { team: g.home_team, used: usedTeams.includes(g.home_team) },
+        deadline: deadline.toISOString(),
+        locked: now >= deadline,
+      }
+    })
 
     const teamOdds: Record<string, number> = {}
     try {
@@ -125,7 +119,7 @@ export default async function PickPage() {
             weekId={week.id}
             weekNumber={week.week_number}
             playerId={session.player_id}
-            availableTeams={availableTeams}
+            gameRows={gameRows}
             usedTeams={usedTeams}
             teamRecords={teamRecords}
             teamOdds={teamOdds}

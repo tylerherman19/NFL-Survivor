@@ -1,33 +1,28 @@
 import { toZonedTime, fromZonedTime } from 'date-fns-tz'
-import type { Game, GameDay } from '@/types'
+import type { Game } from '@/types'
 
 const CHICAGO_TZ = 'America/Chicago'
 
-// Returns true if this game day means the pick deadline is the game's kickoff
-function isEarlyDeadlineDay(day: GameDay): boolean {
-  return day === 'thursday' || day === 'friday' || day === 'saturday'
-}
-
-// Given a game, return the UTC timestamp of when picks for that game lock
+// Given a game, return the UTC timestamp of when picks for that game lock.
+// Deadline is whichever comes first: the game's own kickoff, or that week's
+// Sunday 12:00 PM Central cutoff. This locks Thu/Fri/Sat games — and any
+// Sunday game that kicks off before noon Central (e.g. an early international
+// window) — at their own kickoff, while normal Sunday afternoon/SNF/MNF games
+// all share the Sunday-noon cutoff.
 export function getPickDeadline(game: Game): Date {
-  if (isEarlyDeadlineDay(game.game_day)) {
-    // Deadline is the game's kickoff time
-    return new Date(game.kickoff_central)
-  }
-  // For all other days (Sun, Mon, Tue), deadline is Sunday 12:00 PM Central
-  // Find the Sunday of the week this game is in
   const kickoff = new Date(game.kickoff_central)
   const chicagoKickoff = toZonedTime(kickoff, CHICAGO_TZ)
 
-  // Walk back to Sunday
+  // Sunday of the week this game falls in: Thu/Fri/Sat (4/5/6) belong to the
+  // upcoming Sunday, Sun/Mon/Tue/Wed (0/1/2/3) belong to the Sunday already passed.
   const dow = chicagoKickoff.getDay() // 0=Sun, 1=Mon, ..., 6=Sat
-  const daysToSunday = dow === 0 ? 0 : -dow // days backward to reach Sunday
+  const daysToSunday = dow >= 4 ? 7 - dow : -dow
   const sunday = new Date(chicagoKickoff)
   sunday.setDate(chicagoKickoff.getDate() + daysToSunday)
   sunday.setHours(12, 0, 0, 0) // 12:00 PM
+  const sundayNoon = fromZonedTime(sunday, CHICAGO_TZ)
 
-  // Convert back to UTC
-  return fromZonedTime(sunday, CHICAGO_TZ)
+  return kickoff < sundayNoon ? kickoff : sundayNoon
 }
 
 // Given a week's games, find the deadline for a specific team's pick
@@ -69,8 +64,9 @@ export function getMNFGame(games: Game[]): Game | undefined {
 }
 
 // Get the Sunday 12:00 PM Central deadline for a given week (from any game in that week).
-// Uses the same early-deadline-day rule as getPickDeadline so the result is the same
-// regardless of which game in the week is passed in (queries here aren't ordered).
+// This is the shared week-level cutoff used for reminders/auto-assign timing — unlike
+// getPickDeadline, it doesn't account for early-kickoff exceptions, so the result is the
+// same regardless of which game in the week is passed in (queries here aren't ordered).
 export function getWeekSundayDeadline(games: Game[]): Date | null {
   const anyGame = games[0]
   if (!anyGame) return null

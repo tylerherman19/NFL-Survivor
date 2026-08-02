@@ -5,9 +5,25 @@ import { useRouter } from 'next/navigation'
 import { NFL_TEAM_NAMES } from '@/types'
 import { teamColor } from '@/lib/teamColors'
 
-interface AvailableTeam { team: string; deadline: string | null; locked: boolean }
+export interface GameRow {
+  gameId: string
+  kickoff: string // ISO UTC
+  away: { team: string; used: boolean }
+  home: { team: string; used: boolean }
+  deadline: string // ISO UTC
+  locked: boolean
+}
 interface CurrentPick { team: string; deadline: string | null }
-interface Props { weekId: string; weekNumber: number; playerId: string; availableTeams: AvailableTeam[]; usedTeams: string[]; teamRecords?: Record<string, string>; teamOdds?: Record<string, number>; currentPick?: CurrentPick | null }
+interface Props {
+  weekId: string
+  weekNumber: number
+  playerId: string
+  gameRows: GameRow[]
+  usedTeams: string[]
+  teamRecords?: Record<string, string>
+  teamOdds?: Record<string, number>
+  currentPick?: CurrentPick | null
+}
 
 function formatLockTime(iso: string): string {
   return new Date(iso).toLocaleString('en-US', { timeZone: 'America/Chicago', weekday: 'short', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })
@@ -19,24 +35,77 @@ function oddsColor(prob: number): string {
   return 'var(--red)'
 }
 
-export default function PickForm({ weekId, weekNumber, availableTeams, usedTeams, teamRecords, teamOdds, currentPick }: Props) {
+function TeamHalf({
+  team,
+  used,
+  disabled,
+  selected,
+  isCurrentPick,
+  record,
+  odds,
+  onClick,
+}: {
+  team: string
+  used: boolean
+  disabled: boolean
+  selected: boolean
+  isCurrentPick: boolean
+  record?: string
+  odds?: number
+  onClick: () => void
+}) {
+  const c = teamColor(team).primary
+  const clickable = !disabled && !used
+  return (
+    <button
+      type="button"
+      onClick={clickable ? onClick : undefined}
+      disabled={!clickable}
+      className="flex-1 text-left transition-all relative"
+      style={{
+        padding: '12px 14px',
+        cursor: clickable ? 'pointer' : 'not-allowed',
+        opacity: used || disabled ? 0.45 : 1,
+        background: selected ? 'var(--surface-sunken)' : undefined,
+      }}
+    >
+      <div className="flex items-center gap-2">
+        <span className="team-chip-swatch" style={{ background: used || disabled ? 'var(--muted)' : c }}>{team.slice(0, 3)}</span>
+        <div>
+          <span className="font-bold text-sm block" style={{ color: used || disabled ? 'var(--muted)' : 'var(--dark)' }}>{team}</span>
+          <span className="text-xs" style={{ color: 'var(--muted)' }}>{NFL_TEAM_NAMES[team]}</span>
+        </div>
+        {selected && <span className="ml-auto text-sm" style={{ color: c }}>✓</span>}
+        {isCurrentPick && !selected && <span className="ml-auto text-xs font-bold" style={{ color: 'var(--green)' }}>PICKED</span>}
+      </div>
+      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+        {record && <span className="text-xs tnum" style={{ color: 'var(--muted)' }}>{record}</span>}
+        {odds !== undefined && (
+          <span className="text-xs font-semibold tnum" style={{ color: oddsColor(odds) }}>{Math.round(odds * 100)}% win</span>
+        )}
+        {used && <span className="text-xs font-semibold" style={{ color: 'var(--red)' }}>Already used</span>}
+      </div>
+    </button>
+  )
+}
+
+export default function PickForm({ weekId, weekNumber, gameRows, usedTeams, teamRecords, teamOdds, currentPick }: Props) {
   const router = useRouter()
   const [selected, setSelected] = useState<string | null>(null)
   const [confirmed, setConfirmed] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
-  const [sortBy, setSortBy] = useState<'alpha' | 'odds'>('alpha')
+  const [sortBy, setSortBy] = useState<'kickoff' | 'odds'>('kickoff')
 
   const hasOdds = Object.keys(teamOdds ?? {}).length > 0
-  const sortTeams = (list: AvailableTeam[]) =>
-    sortBy === 'odds' && hasOdds
-      ? [...list].sort((a, b) => (teamOdds?.[b.team] ?? -1) - (teamOdds?.[a.team] ?? -1))
-      : list
+  const rowBestOdds = (row: GameRow) => Math.max(teamOdds?.[row.away.team] ?? -1, teamOdds?.[row.home.team] ?? -1)
+  const sortedRows = sortBy === 'odds' && hasOdds
+    ? [...gameRows].sort((a, b) => rowBestOdds(b) - rowBestOdds(a))
+    : [...gameRows].sort((a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime())
 
   const isChange = !!currentPick
-  const unlocked = sortTeams(availableTeams.filter((t) => !t.locked && t.team !== currentPick?.team))
-  const locked = availableTeams.filter((t) => t.locked && t.team !== currentPick?.team)
+  const anySelectable = gameRows.some((r) => (!r.locked && !r.away.used) || (!r.locked && !r.home.used))
 
   async function handleSubmit() {
     if (!selected || !confirmed) return
@@ -68,7 +137,7 @@ export default function PickForm({ weekId, weekNumber, availableTeams, usedTeams
     </div>
   )
 
-  if (!isChange && unlocked.length === 0 && locked.length === 0) return (
+  if (!isChange && !anySelectable) return (
     <div className="text-center py-16">
       <p className="font-display text-4xl" style={{ color: 'var(--dark)' }}>ALL TEAMS LOCKED</p>
       <p className="text-sm mt-3" style={{ color: 'var(--muted)' }}>All deadlines passed or you&apos;ve used every team playing this week.</p>
@@ -101,94 +170,73 @@ export default function PickForm({ weekId, weekNumber, availableTeams, usedTeams
         </div>
       )}
 
-      {isChange && unlocked.length === 0 && (
+      {isChange && !anySelectable && (
         <p className="text-sm" style={{ color: 'var(--muted)' }}>No other teams are available to switch to.</p>
       )}
 
-      {unlocked.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <p className="eyebrow">{isChange ? 'Switch to a different team' : 'Select a team'}</p>
-            {hasOdds && (
-              <div className="flex items-center gap-2">
-                <span className="eyebrow">Sort:</span>
-                {(['alpha', 'odds'] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    onClick={() => setSortBy(mode)}
-                    className="text-xs tracking-widest uppercase px-2.5 py-1 rounded-full transition-colors"
-                    style={{
-                      background: sortBy === mode ? 'var(--dark)' : 'transparent',
-                      border: `1px solid ${sortBy === mode ? 'var(--dark)' : 'var(--border)'}`,
-                      color: sortBy === mode ? '#fff' : 'var(--muted)',
-                      fontWeight: sortBy === mode ? 700 : 400,
-                    }}
-                  >
-                    {mode === 'alpha' ? 'A–Z' : 'Win %'}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-            {unlocked.map(({ team, deadline }) => {
-              const c = teamColor(team).primary
-              const isSel = selected === team
-              return (
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <p className="eyebrow">{isChange ? 'Switch to a different team' : 'Select a team'}</p>
+          {hasOdds && (
+            <div className="flex items-center gap-2">
+              <span className="eyebrow">Sort:</span>
+              {(['kickoff', 'odds'] as const).map((mode) => (
                 <button
-                  key={team}
-                  onClick={() => { setSelected(team); setConfirmed(false) }}
-                  className="card text-left transition-all relative overflow-hidden"
+                  key={mode}
+                  onClick={() => setSortBy(mode)}
+                  className="text-xs tracking-widest uppercase px-2.5 py-1 rounded-full transition-colors"
                   style={{
-                    padding: '12px 12px 12px 16px',
-                    borderColor: isSel ? c : 'var(--border)',
-                    boxShadow: isSel ? `0 0 0 2px ${c}` : undefined,
+                    background: sortBy === mode ? 'var(--dark)' : 'transparent',
+                    border: `1px solid ${sortBy === mode ? 'var(--dark)' : 'var(--border)'}`,
+                    color: sortBy === mode ? '#fff' : 'var(--muted)',
+                    fontWeight: sortBy === mode ? 700 : 400,
                   }}
                 >
-                  <span className="absolute left-0 top-0 h-full" style={{ width: 4, background: c }} />
-                  <div className="flex items-center gap-2">
-                    <span className="team-chip-swatch" style={{ background: c }}>{team.slice(0, 3)}</span>
-                    <span className="font-bold text-sm" style={{ color: 'var(--dark)' }}>{team}</span>
-                    {isSel && <span className="ml-auto text-sm" style={{ color: c }}>✓</span>}
-                  </div>
-                  <p className="text-xs mt-1.5" style={{ color: 'var(--muted)' }}>{NFL_TEAM_NAMES[team]}</p>
-                  {teamRecords?.[team] && (
-                    <p className="text-xs mt-0.5 tnum" style={{ color: 'var(--muted)' }}>{teamRecords[team]}</p>
-                  )}
-                  {teamOdds?.[team] !== undefined && (
-                    <p className="text-xs mt-0.5 font-semibold tnum" style={{ color: oddsColor(teamOdds[team]) }}>
-                      {Math.round(teamOdds[team] * 100)}% win odds · Kalshi
-                    </p>
-                  )}
-                  {deadline && (
-                    <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>
-                      Locks {formatLockTime(deadline)}
-                    </p>
-                  )}
+                  {mode === 'kickoff' ? 'Kickoff' : 'Win %'}
                 </button>
-              )
-            })}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
-      )}
-
-      {locked.length > 0 && (
-        <div>
-          <p className="eyebrow mb-3">Deadline passed</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-            {locked.map(({ team }) => (
-              <div key={team} className="card p-3 opacity-50 cursor-not-allowed">
-                <div className="flex items-center gap-2">
-                  <span className="team-chip-swatch" style={{ background: 'var(--muted)' }}>{team.slice(0, 3)}</span>
-                  <span className="font-bold text-sm" style={{ color: 'var(--muted)' }}>{team}</span>
+        <div className="space-y-2">
+          {sortedRows.map((row) => {
+            const disabled = row.locked
+            return (
+              <div key={row.gameId} className="card overflow-hidden" style={{ padding: 0, opacity: disabled ? 0.6 : 1 }}>
+                <div className="flex" style={{ borderBottom: '1px solid var(--border)' }}>
+                  <TeamHalf
+                    team={row.away.team}
+                    used={row.away.used}
+                    disabled={disabled}
+                    selected={selected === row.away.team}
+                    isCurrentPick={currentPick?.team === row.away.team}
+                    record={teamRecords?.[row.away.team]}
+                    odds={teamOdds?.[row.away.team]}
+                    onClick={() => { setSelected(row.away.team); setConfirmed(false) }}
+                  />
+                  <div style={{ width: 1, background: 'var(--border)' }} />
+                  <TeamHalf
+                    team={row.home.team}
+                    used={row.home.used}
+                    disabled={disabled}
+                    selected={selected === row.home.team}
+                    isCurrentPick={currentPick?.team === row.home.team}
+                    record={teamRecords?.[row.home.team]}
+                    odds={teamOdds?.[row.home.team]}
+                    onClick={() => { setSelected(row.home.team); setConfirmed(false) }}
+                  />
                 </div>
-                <p className="text-xs mt-1.5" style={{ color: 'var(--muted)' }}>{NFL_TEAM_NAMES[team]}</p>
-                <p className="text-xs mt-1 font-semibold" style={{ color: 'var(--red)' }}>🔒 Locked</p>
+                <div className="px-3 py-1.5 text-xs flex items-center justify-between" style={{ background: 'var(--surface-sunken)', color: 'var(--muted)' }}>
+                  <span>{row.away.team} @ {row.home.team} · {formatLockTime(row.kickoff)}</span>
+                  <span style={{ color: disabled ? 'var(--red)' : 'var(--muted)' }}>
+                    {disabled ? '🔒 Locked' : `Locks ${formatLockTime(row.deadline)}`}
+                  </span>
+                </div>
               </div>
-            ))}
-          </div>
+            )
+          })}
         </div>
-      )}
+      </div>
 
       {selected && (
         <div className="card p-5 space-y-4" style={{ borderColor: teamColor(selected).primary, boxShadow: `0 0 0 2px ${teamColor(selected).primary}` }}>
