@@ -187,7 +187,7 @@ export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
           <h2 className="text-base font-bold text-green-400 tracking-wide">⚡ Auto-Sync from ESPN</h2>
           <p className="text-xs text-slate-400 mt-1">Pulls schedule directly from ESPN — no manual entry. Also auto-detects SNF/MNF.</p>
         </div>
-        <div className="flex gap-3 items-end">
+        <div className="flex flex-wrap gap-3 items-end">
           <div>
             <label className="block text-xs text-slate-400 mb-1">Season</label>
             <input
@@ -243,16 +243,16 @@ export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
               {games.map((g) => (
                 <div
                   key={g.id}
-                  className="flex items-center justify-between rounded-lg border border-slate-700 bg-slate-800 px-4 py-3"
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-700 bg-slate-800 px-4 py-3"
                 >
-                  <div>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                     <span className="text-white font-medium font-mono">
                       {g.away_team} @ {g.home_team}
                     </span>
-                    <span className="ml-3 text-slate-400 text-sm capitalize">{g.game_day}</span>
-                    {g.is_snf && <span className="ml-2 text-xs bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded">SNF</span>}
-                    {g.is_mnf && <span className="ml-2 text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">MNF</span>}
-                    <span className="ml-3 text-slate-500 text-xs">
+                    <span className="text-slate-400 text-sm capitalize">{g.game_day}</span>
+                    {g.is_snf && <span className="text-xs bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded">SNF</span>}
+                    {g.is_mnf && <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">MNF</span>}
+                    <span className="text-slate-500 text-xs">
                       {new Date(g.kickoff_central).toLocaleString('en-US', {
                         timeZone: 'America/Chicago',
                         weekday: 'short',
@@ -282,7 +282,7 @@ export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
       <form onSubmit={handleSubmit} className="space-y-6">
         <h2 className="text-lg font-semibold text-white">Add Games</h2>
 
-        <div className="flex gap-4">
+        <div className="flex flex-wrap gap-4">
           <div>
             <label className="block text-xs text-slate-400 mb-1">Season Year</label>
             <input
@@ -356,7 +356,7 @@ export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Date (Central)</label>
                   <input

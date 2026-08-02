@@ -1,7 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { LiveGame, LiveScoresResponse } from '@/app/api/live-scores/route'
+
+const TICKER_PX_PER_SECOND = 40
 
 function scoreColor(myScore: number, theirScore: number, state: string): string {
   if (state === 'pre') return 'var(--dark)'
@@ -35,7 +37,9 @@ function GameCard({ game }: { game: LiveGame }) {
           </span>
         </div>
       )}
-      {!isLive && (
+      {/* Pre-game kickoff time is rendered below in Central — avoid showing
+          ESPN's raw statusText here too, which bakes in Eastern time. */}
+      {!isLive && !isPre && (
         <div className="mb-1 tracking-wider uppercase" style={{ fontSize: 9, color: 'var(--muted)' }}>
           {game.statusText}
         </div>
@@ -94,6 +98,8 @@ function GameCard({ game }: { game: LiveGame }) {
 export default function LiveTicker({ weekNumber, season }: { weekNumber?: number | null; season?: number | null }) {
   const [data, setData] = useState<LiveScoresResponse | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const trackRef = useRef<HTMLDivElement>(null)
+  const [duration, setDuration] = useState(30)
 
   const hasLive = data?.hasLiveGames ?? false
 
@@ -121,6 +127,18 @@ export default function LiveTicker({ weekNumber, season }: { weekNumber?: number
       clearInterval(timer)
     }
   }, [hasLive])
+
+  // Track is rendered as two back-to-back copies of the games list so the
+  // scroll can loop seamlessly (translateX(-50%) lands exactly back at the
+  // start of the second copy). Duration is derived from the measured width
+  // of one copy so the scroll speed stays constant no matter how many games
+  // are in the ticker.
+  useEffect(() => {
+    const track = trackRef.current
+    if (!track) return
+    const singleSetWidth = track.scrollWidth / 2
+    if (singleSetWidth > 0) setDuration(singleSetWidth / TICKER_PX_PER_SECOND)
+  }, [data?.games])
 
   // Don't render if no active week or no games
   if (!data || data.games.length === 0) return null
@@ -155,11 +173,17 @@ export default function LiveTicker({ weekNumber, season }: { weekNumber?: number
           )}
         </div>
 
-        {/* Scrollable game cards */}
-        <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-          {data.games.map((game) => (
-            <GameCard key={game.id} game={game} />
-          ))}
+        {/* Auto-scrolling game card ticker */}
+        <div className="overflow-hidden">
+          <div
+            ref={trackRef}
+            className="flex gap-2 pb-1 ticker-track"
+            style={{ width: 'max-content', animationDuration: `${duration}s` }}
+          >
+            {[...data.games, ...data.games].map((game, i) => (
+              <GameCard key={`${game.id}-${i}`} game={game} />
+            ))}
+          </div>
         </div>
       </div>
     </div>

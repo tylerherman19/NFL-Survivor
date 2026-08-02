@@ -52,11 +52,11 @@ export default function SetActiveWeek({ weeks }: { weeks: WeekOption[] }) {
       <p className="text-xs text-slate-400">
         Manually switch which week is active. Use this to roll back or jump ahead — normally you should use Advance Season instead.
       </p>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <select
           value={selected}
           onChange={(e) => setSelected(e.target.value)}
-          className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-white"
+          className="w-full sm:w-auto rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-white"
         >
           <option value="">Select a week…</option>
           {inactive.map((w) => (
