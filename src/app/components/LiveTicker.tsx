@@ -149,25 +149,25 @@ export default function LiveTicker({ weekNumber, season }: { weekNumber?: number
     <div style={{ borderBottom: '1px solid var(--border)', background: 'var(--cream)' }}>
       <div className="mx-auto max-w-5xl px-4 py-2">
         {/* Header row */}
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold tracking-widest uppercase" style={{ color: 'var(--muted)' }}>
+        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 mb-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="whitespace-nowrap text-xs font-bold tracking-widest uppercase" style={{ color: 'var(--muted)' }}>
               Week {data.weekNumber} Scores
             </span>
             {liveCount > 0 && (
-              <span className="flex items-center gap-1 text-xs font-bold tracking-wider" style={{ color: 'var(--red)' }}>
-                <span className="inline-block w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--red)' }} />
-                {liveCount} LIVE
+              <span className="flex items-center gap-1 whitespace-nowrap text-xs font-bold tracking-wider" style={{ color: 'var(--red)' }}>
+                <span className="inline-block w-1.5 h-1.5 rounded-full animate-pulse shrink-0" style={{ background: 'var(--red)' }} />
+                {liveCount} {liveCount === 1 ? 'GAME' : 'GAMES'} LIVE
               </span>
             )}
             {data.picksVisible && (
-              <span className="text-xs tracking-wider" style={{ color: 'var(--muted)', fontSize: 10 }}>
+              <span className="hidden sm:inline whitespace-nowrap tracking-wider" style={{ color: 'var(--muted)', fontSize: 10 }}>
                 · pick counts shown
               </span>
             )}
           </div>
           {lastUpdated && (
-            <span style={{ fontSize: 10, color: 'var(--muted)' }}>
+            <span className="hidden sm:inline whitespace-nowrap" style={{ fontSize: 10, color: 'var(--muted)' }}>
               Updated {lastUpdated.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short', timeZone: 'America/Chicago' })}
             </span>
           )}

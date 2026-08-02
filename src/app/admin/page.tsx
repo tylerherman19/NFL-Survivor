@@ -60,9 +60,9 @@ export default async function AdminDashboard() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
+        <h1 className="text-2xl font-bold" style={{ color: 'var(--dark)' }}>Admin Dashboard</h1>
         {week && (
-          <p className="text-slate-400 mt-1">
+          <p className="mt-1" style={{ color: 'var(--muted)' }}>
             Active: Week {week.week_number} · Season {week.season_year}
           </p>
         )}
@@ -76,7 +76,7 @@ export default async function AdminDashboard() {
       </div>
 
       {!week && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+        <div className="rounded-xl border border-amber-500/40 bg-slate-800 p-4">
           <p className="text-amber-400 font-medium">No active week set.</p>
           <p className="text-slate-400 text-sm mt-1">
             Go to <Link href="/admin/schedule" className="text-blue-400 underline">Schedule</Link> to create Week 1 and add games.

@@ -47,7 +47,7 @@ export default function SetActiveWeek({ weeks }: { weeks: WeekOption[] }) {
   }
 
   return (
-    <div className="rounded-xl border border-red-900/60 bg-red-950/20 p-4 space-y-3">
+    <div className="rounded-xl border border-red-900/60 bg-slate-800 p-4 space-y-3">
       <p className="text-sm font-semibold text-red-300">Set Active Week</p>
       <p className="text-xs text-slate-400">
         Manually switch which week is active. Use this to roll back or jump ahead — normally you should use Advance Season instead.

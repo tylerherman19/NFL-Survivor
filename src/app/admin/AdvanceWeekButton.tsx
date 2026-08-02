@@ -38,7 +38,7 @@ export default function AdvanceWeekButton({ currentWeekNumber, seasonYear }: Pro
   }
 
   return (
-    <div className="rounded-xl border border-blue-700 bg-blue-950/30 p-4 space-y-3">
+    <div className="rounded-xl border border-blue-700 bg-slate-800 p-4 space-y-3">
       <p className="text-sm font-semibold text-blue-300">Advance Season</p>
       <p className="text-xs text-slate-400">Moves the pool to Week {currentWeekNumber + 1} and auto-syncs the ESPN schedule.</p>
       <button

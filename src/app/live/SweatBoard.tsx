@@ -22,13 +22,14 @@ function kickoffLabel(iso: string): string {
   })
 }
 
-function TeamRow({ game, side }: { game: SweatGame; side: 'home' | 'away' }) {
+function TeamRow({ game, side, totalPlayers }: { game: SweatGame; side: 'home' | 'away'; totalPlayers: number }) {
   const team = side === 'home' ? game.homeTeam : game.awayTeam
   const my = side === 'home' ? game.homeScore : game.awayScore
   const their = side === 'home' ? game.awayScore : game.homeScore
   const pickers = side === 'home' ? game.homePlayers : game.awayPlayers
   const isPre = game.state === 'pre'
   const color = scoreColor(my, their, game.state)
+  const pct = totalPlayers > 0 ? Math.round((pickers.length / totalPlayers) * 100) : 0
 
   return (
     <div className="py-2">
@@ -37,16 +38,16 @@ function TeamRow({ game, side }: { game: SweatGame; side: 'home' | 'away' }) {
           <span className="team-chip-swatch" style={{ background: teamColor(team).primary }}>{team.slice(0, 3)}</span>
           <span className="font-bold" style={{ color }}>{team}</span>
           <span className="text-xs hidden sm:inline truncate" style={{ color: 'var(--muted)' }}>{NFL_TEAM_NAMES[team]}</span>
-          {pickers.length > 0 && (
-            <span className="text-xs font-semibold shrink-0" style={{ color: 'var(--muted)' }}>
-              {pickers.length} {pickers.length === 1 ? 'pick' : 'picks'}
-            </span>
-          )}
         </div>
         {!isPre && (
           <span className="font-display text-2xl tnum leading-none shrink-0" style={{ color }}>{my}</span>
         )}
       </div>
+      {pickers.length > 0 && (
+        <p className="mt-0.5 text-xs font-semibold" style={{ color: 'var(--muted)' }}>
+          {pickers.length} {pickers.length === 1 ? 'pick' : 'picks'} · {pct}% of pool
+        </p>
+      )}
       {pickers.length > 0 && (
         <p className="mt-1 text-xs leading-relaxed" style={{ color }}>
           {pickers.join(' · ')}
@@ -56,7 +57,7 @@ function TeamRow({ game, side }: { game: SweatGame; side: 'home' | 'away' }) {
   )
 }
 
-function GameCard({ game }: { game: SweatGame }) {
+function GameCard({ game, totalPlayers }: { game: SweatGame; totalPlayers: number }) {
   const isLive = game.state === 'in'
   const sweatCount = game.homePlayers.length + game.awayPlayers.length
 
@@ -81,9 +82,9 @@ function GameCard({ game }: { game: SweatGame }) {
           </span>
         )}
       </div>
-      <TeamRow game={game} side="away" />
+      <TeamRow game={game} side="away" totalPlayers={totalPlayers} />
       <div style={{ borderTop: '1px solid var(--border)' }} />
-      <TeamRow game={game} side="home" />
+      <TeamRow game={game} side="home" totalPlayers={totalPlayers} />
     </div>
   )
 }
@@ -216,7 +217,7 @@ export default function SweatBoard() {
       {/* Games with pickers */}
       <div className="mt-8 grid sm:grid-cols-2 gap-3">
         {games.map((g) => (
-          <GameCard key={g.id} game={g} />
+          <GameCard key={g.id} game={g} totalPlayers={data.players.length} />
         ))}
       </div>
 
