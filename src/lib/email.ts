@@ -7,7 +7,7 @@ export function getResend() {
   return _resend
 }
 
-export const FROM_EMAIL = 'NFL Survivor Pool <onboarding@resend.dev>'
+export const FROM_EMAIL = 'Pick and Pray <pool@pickandpray.org>'
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://nfl-survivor.vercel.app'
 
 export function esc(s: string): string {
