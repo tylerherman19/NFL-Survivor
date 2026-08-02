@@ -181,7 +181,7 @@ export async function GET() {
           return { name: p.full_name, team: null, status: 'pick_in' as const }
         }
 
-        if (!game || game.state === 'pre') {
+        if (!game) {
           summary.notStarted++
           return { name: p.full_name, team, status: 'pre' as const }
         }
@@ -189,6 +189,11 @@ export async function GET() {
         const isHome = game.homeTeam === team
         if (isHome) game.homePlayers.push(p.full_name)
         else game.awayPlayers.push(p.full_name)
+
+        if (game.state === 'pre') {
+          summary.notStarted++
+          return { name: p.full_name, team, status: 'pre' as const }
+        }
 
         const my = isHome ? game.homeScore : game.awayScore
         const their = isHome ? game.awayScore : game.homeScore
