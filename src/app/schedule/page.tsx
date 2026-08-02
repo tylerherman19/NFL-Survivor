@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import { getDb } from '@/lib/testMode'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import { getDb, isTestMode } from '@/lib/testMode'
 import { teamColor } from '@/lib/teamColors'
 import { getNflOdds, matchGameOdds, type KalshiNflEvent } from '@/lib/kalshi'
 
@@ -19,6 +20,54 @@ interface ScheduleGame {
 interface ScheduleWeek {
   weekNumber: number
   games: ScheduleGame[]
+}
+
+// Read the slate straight out of our own `weeks`/`games` tables. This is the
+// only source that exists in the sandbox — its matchups are fabricated, so
+// ESPN has nothing to say about them — and it is also the fallback when ESPN
+// can't serve a week in production.
+async function fetchWeekGamesFromDb(
+  supabase: SupabaseClient,
+  season: number,
+  weekNumbers: number[],
+  kalshiEvents: KalshiNflEvent[]
+): Promise<Record<number, ScheduleGame[]>> {
+  const byWeek: Record<number, ScheduleGame[]> = {}
+  try {
+    const { data: weekRows } = await supabase
+      .from('weeks')
+      .select('id, week_number')
+      .eq('season_year', season)
+      .in('week_number', weekNumbers)
+    if (!weekRows || weekRows.length === 0) return byWeek
+
+    const weekNumberById: Record<string, number> = {}
+    for (const w of weekRows) weekNumberById[w.id] = w.week_number
+
+    const { data: games } = await supabase
+      .from('games')
+      .select('week_id, home_team, away_team, kickoff_central')
+      .in('week_id', weekRows.map((w: { id: string }) => w.id))
+
+    for (const g of games ?? []) {
+      const weekNumber = weekNumberById[g.week_id]
+      if (weekNumber === undefined) continue
+      const odds = matchGameOdds(g.home_team, g.away_team, g.kickoff_central, kalshiEvents)
+      ;(byWeek[weekNumber] ??= []).push({
+        homeAbbr: g.home_team,
+        awayAbbr: g.away_team,
+        kickoff: g.kickoff_central,
+        homeProb: odds?.homeProb ?? null,
+        awayProb: odds?.awayProb ?? null,
+      })
+    }
+    for (const weekGames of Object.values(byWeek)) {
+      weekGames.sort((a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime())
+    }
+  } catch {
+    // fall through to whatever ESPN gave us
+  }
+  return byWeek
 }
 
 async function fetchWeekGames(season: number, week: number, kalshiEvents: KalshiNflEvent[]): Promise<ScheduleGame[]> {
@@ -57,11 +106,18 @@ async function fetchWeekGames(season: number, week: number, kalshiEvents: Kalshi
   }
 }
 
-async function getScheduleData(): Promise<{ weeks: ScheduleWeek[]; season: number; activeWeek: number | null }> {
+async function getScheduleData(): Promise<{
+  weeks: ScheduleWeek[]
+  season: number
+  activeWeek: number | null
+  fromPoolSchedule: boolean
+}> {
   let activeWeek: number | null = null
   let season = 2026
+  let supabase: SupabaseClient | null = null
+  const testMode = await isTestMode()
   try {
-    const supabase = await getDb()
+    supabase = await getDb()
     const { data: week } = await supabase
       .from('weeks')
       .select('week_number, season_year')
@@ -73,16 +129,44 @@ async function getScheduleData(): Promise<{ weeks: ScheduleWeek[]; season: numbe
     }
   } catch { /* pool not started yet */ }
 
-  const startWeek = activeWeek ? Math.min(activeWeek + 1, TOTAL_WEEKS) : 1
+  // Normally this page looks strictly ahead — the current week is already on
+  // the pick page. When the slate comes from our own tables we start at the
+  // active week instead, because a sandbox is usually only a week or two deep
+  // and skipping past it would leave the page empty.
+  const dbSourced = testMode
+  const startWeek = dbSourced
+    ? (activeWeek ?? 1)
+    : activeWeek
+      ? Math.min(activeWeek + 1, TOTAL_WEEKS)
+      : 1
   const endWeek = Math.min(startWeek + WEEKS_AHEAD - 1, TOTAL_WEEKS)
 
   const kalshiEvents = await getNflOdds()
   const weekNumbers: number[] = []
   for (let w = startWeek; w <= endWeek; w++) weekNumbers.push(w)
 
-  const results = await Promise.all(weekNumbers.map((w) => fetchWeekGames(season, w, kalshiEvents)))
-  const weeks: ScheduleWeek[] = weekNumbers.map((weekNumber, i) => ({ weekNumber, games: results[i] }))
-  return { weeks, season, activeWeek }
+  // Sandbox matchups exist nowhere but our own tables, so skip ESPN entirely.
+  const results = testMode
+    ? weekNumbers.map(() => [] as ScheduleGame[])
+    : await Promise.all(weekNumbers.map((w) => fetchWeekGames(season, w, kalshiEvents)))
+
+  let weeks: ScheduleWeek[] = weekNumbers.map((weekNumber, i) => ({ weekNumber, games: results[i] }))
+
+  // Fill in from our own schedule for any week ESPN had nothing for — every
+  // week in the sandbox, and in production a week ESPN can't serve yet.
+  let usedPoolSchedule = false
+  if (supabase && weeks.some((w) => w.games.length === 0)) {
+    const missing = weeks.filter((w) => w.games.length === 0).map((w) => w.weekNumber)
+    const dbWeeks = await fetchWeekGamesFromDb(supabase, season, missing, kalshiEvents)
+    weeks = weeks.map((w) => {
+      const fallback = dbWeeks[w.weekNumber]
+      if (w.games.length > 0 || !fallback?.length) return w
+      usedPoolSchedule = true
+      return { weekNumber: w.weekNumber, games: fallback }
+    })
+  }
+
+  return { weeks, season, activeWeek, fromPoolSchedule: usedPoolSchedule }
 }
 
 function formatKickoff(iso: string): string {
@@ -104,7 +188,7 @@ function OddsCell({ prob }: { prob: number | null }) {
 }
 
 export default async function SchedulePage() {
-  const { weeks, season, activeWeek } = await getScheduleData()
+  const { weeks, season, activeWeek, fromPoolSchedule } = await getScheduleData()
   const hasAnyGames = weeks.some((w) => w.games.length > 0)
 
   return (
@@ -136,6 +220,11 @@ export default async function SchedulePage() {
           <p className="mt-3 text-sm" style={{ color: 'var(--muted)' }}>
             Odds via Kalshi markets. Plan ahead — you can only use each team once.
           </p>
+          {fromPoolSchedule && (
+            <p className="mt-1.5 text-sm" style={{ color: 'var(--muted)' }}>
+              Showing this pool&apos;s own schedule — odds only appear where a Kalshi market matches the matchup.
+            </p>
+          )}
         </div>
 
         {!hasAnyGames ? (
