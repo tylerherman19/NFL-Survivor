@@ -12,13 +12,23 @@ const BASE_NAV_LINKS = [
   { label: 'Log In', href: '/login' },
 ]
 
+function RedButton({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      className="font-display text-sm tracking-wider px-4 py-2 text-white"
+      style={{ background: 'var(--red)' }}
+    >
+      {children}
+    </Link>
+  )
+}
+
 export default function SiteHeader({ seasonStarted = false }: { seasonStarted?: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false)
   // Sign Up only makes sense before the season's first game — signups close
   // for good once it kicks off (enforced server-side too, this just matches).
-  const NAV_LINKS = seasonStarted
-    ? BASE_NAV_LINKS
-    : [...BASE_NAV_LINKS, { label: 'Sign Up', href: '/signup' }]
+  const showSignUp = !seasonStarted
 
   return (
     <header style={{ background: 'var(--dark)' }}>
@@ -27,7 +37,7 @@ export default function SiteHeader({ seasonStarted = false }: { seasonStarted?: 
 
         {/* Desktop nav */}
         <nav className="hidden sm:flex items-center gap-6">
-          {NAV_LINKS.map((link) => (
+          {BASE_NAV_LINKS.map((link) => (
             <Link
               key={link.href}
               href={link.href}
@@ -36,24 +46,13 @@ export default function SiteHeader({ seasonStarted = false }: { seasonStarted?: 
               {link.label}
             </Link>
           ))}
-          <Link
-            href="/pick"
-            className="font-display text-sm tracking-wider px-4 py-2 text-white"
-            style={{ background: 'var(--red)' }}
-          >
-            SUBMIT PICK
-          </Link>
+          {showSignUp && <RedButton href="/signup">SIGN UP</RedButton>}
+          <RedButton href="/pick">SUBMIT PICK</RedButton>
         </nav>
 
         {/* Mobile: SUBMIT PICK button + hamburger */}
-        <div className="sm:hidden flex items-center gap-4">
-          <Link
-            href="/pick"
-            className="font-display text-sm tracking-wider px-4 py-2 text-white"
-            style={{ background: 'var(--red)' }}
-          >
-            SUBMIT PICK
-          </Link>
+        <div className="sm:hidden flex items-center gap-3">
+          <RedButton href="/pick">SUBMIT PICK</RedButton>
           <button
             onClick={() => setMenuOpen(!menuOpen)}
             aria-label="Menu"
@@ -71,7 +70,7 @@ export default function SiteHeader({ seasonStarted = false }: { seasonStarted?: 
       {menuOpen && (
         <nav className="sm:hidden" style={{ background: 'var(--dark)' }}>
           <div className="mx-auto max-w-5xl px-4 py-2 flex flex-col">
-            {NAV_LINKS.map((link) => (
+            {BASE_NAV_LINKS.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
@@ -81,6 +80,16 @@ export default function SiteHeader({ seasonStarted = false }: { seasonStarted?: 
                 {link.label}
               </Link>
             ))}
+            {showSignUp && (
+              <Link
+                href="/signup"
+                className="py-3 text-xs tracking-widest uppercase font-bold transition-colors"
+                style={{ color: 'var(--red)' }}
+                onClick={() => setMenuOpen(false)}
+              >
+                Sign Up
+              </Link>
+            )}
           </div>
         </nav>
       )}
