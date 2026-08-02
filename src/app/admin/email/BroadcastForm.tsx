@@ -106,7 +106,7 @@ export default function BroadcastForm({ counts, weekNumber }: Props) {
         disabled={sending || audienceCount === 0 || !subject.trim() || !message.trim()}
         className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-500 disabled:opacity-50 transition-colors"
       >
-        {sending ? 'Sending…' : `Send to ${audienceCount} player${audienceCount === 1 ? '' : 's'} →`}
+        {sending ? 'Sending…' : `Send to ${audienceCount} player${audienceCount === 1 ? '' : 's'}`}
       </button>
 
       {status && (

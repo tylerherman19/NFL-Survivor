@@ -213,14 +213,14 @@ export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
             disabled={syncing || syncingAll}
             className="rounded-lg bg-green-700 hover:bg-green-600 disabled:opacity-50 px-6 py-2 text-sm font-bold text-white transition-colors"
           >
-            {syncing ? 'Syncing…' : 'SYNC FROM ESPN →'}
+            {syncing ? 'Syncing…' : 'SYNC FROM ESPN'}
           </button>
           <button
             onClick={syncAllFromESPN}
             disabled={syncing || syncingAll}
             className="rounded-lg border border-green-700 hover:bg-green-950 disabled:opacity-50 px-6 py-2 text-sm font-bold text-green-400 transition-colors"
           >
-            {syncingAll ? 'Syncing all…' : 'SYNC ALL WEEKS →'}
+            {syncingAll ? 'Syncing all…' : 'SYNC ALL WEEKS'}
           </button>
         </div>
         {message && (

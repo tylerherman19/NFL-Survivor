@@ -471,7 +471,7 @@ export default async function DashboardPage() {
               <Rule n="1" text="Pay $25 entry via Venmo to @griffinsell." />
               <Rule n="2" text="Each week, pick one NFL team to win their game." />
               <Rule n="3" text="You can't pick the same team twice all season." />
-              <Rule n="4" text="Your team wins → you survive. Loses or ties → you're out." />
+              <Rule n="4" text="Your team wins, you survive. Loses or ties, you're out." />
               <Rule n="5" text="Thu/Fri/Sat games lock at kickoff. All other picks lock Sunday 12 PM CT." />
               <Rule n="6" text="Miss the deadline and you'll be auto-assigned the SNF away team, then MNF. Miss both and you're eliminated." />
             </div>

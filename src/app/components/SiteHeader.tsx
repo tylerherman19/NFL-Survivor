@@ -36,7 +36,7 @@ export default function SiteHeader() {
             className="font-display text-sm tracking-wider px-4 py-2 text-white"
             style={{ background: 'var(--red)' }}
           >
-            SUBMIT PICK →
+            SUBMIT PICK
           </Link>
         </nav>
 
@@ -47,7 +47,7 @@ export default function SiteHeader() {
             className="font-display text-sm tracking-wider px-4 py-2 text-white"
             style={{ background: 'var(--red)' }}
           >
-            SUBMIT PICK →
+            SUBMIT PICK
           </Link>
           <button
             onClick={() => setMenuOpen(!menuOpen)}

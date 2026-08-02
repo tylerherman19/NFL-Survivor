@@ -46,7 +46,7 @@ export default function AdvanceWeekButton({ currentWeekNumber, seasonYear }: Pro
         disabled={loading}
         className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 disabled:opacity-50 transition-colors"
       >
-        {loading ? 'Advancing…' : `Advance to Week ${currentWeekNumber + 1} →`}
+        {loading ? 'Advancing…' : `Advance to Week ${currentWeekNumber + 1}`}
       </button>
       {message && (
         <p className={`text-xs ${message.startsWith('✅') ? 'text-green-400' : 'text-red-400'}`}>{message}</p>

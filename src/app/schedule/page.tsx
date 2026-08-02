@@ -119,7 +119,7 @@ export default async function SchedulePage() {
               href="/pick"
               className="btn-primary font-display text-sm tracking-wider px-4 py-2"
             >
-              SUBMIT PICK →
+              SUBMIT PICK
             </Link>
           </nav>
         </div>

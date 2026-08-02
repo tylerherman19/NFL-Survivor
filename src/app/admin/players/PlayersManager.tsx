@@ -32,8 +32,14 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
   const [submittingPick, setSubmittingPick] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bulkWorking, setBulkWorking] = useState(false)
+  const [search, setSearch] = useState('')
 
-  const allIds = players.map((p) => p.id)
+  const query = search.trim().toLowerCase()
+  const filtered = query
+    ? players.filter((p) => p.full_name.toLowerCase().includes(query) || p.email.toLowerCase().includes(query))
+    : players
+
+  const allIds = filtered.map((p) => p.id)
   const allSelected = allIds.length > 0 && allIds.every((id) => selected.has(id))
   const someSelected = selected.size > 0
 
@@ -252,9 +258,29 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
         </div>
       )}
 
+      {/* Search */}
+      <div className="flex items-center gap-3">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search players by name or email…"
+          className="field w-full max-w-sm px-3 py-2 text-sm"
+          style={{ color: 'var(--dark)' }}
+        />
+        {query && (
+          <span className="text-xs" style={{ color: 'var(--muted)' }}>
+            {filtered.length} of {players.length}
+          </span>
+        )}
+      </div>
+
       {/* Mobile cards */}
       <div className="sm:hidden space-y-3">
-        {players.map((p) => {
+        {filtered.length === 0 && query ? (
+          <p className="text-sm" style={{ color: 'var(--muted)' }}>No players match &ldquo;{search}&rdquo;.</p>
+        ) : null}
+        {filtered.map((p) => {
           const pick = currentPicks[p.id]
           const weeks = weeksSurvived[p.id] || 0
           return (
@@ -352,7 +378,14 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
             </tr>
           </thead>
           <tbody>
-            {players.map((p) => {
+            {filtered.length === 0 && query && (
+              <tr>
+                <td colSpan={8} className="px-4 py-6 text-center text-sm" style={{ color: 'var(--muted)' }}>
+                  No players match &ldquo;{search}&rdquo;.
+                </td>
+              </tr>
+            )}
+            {filtered.map((p) => {
               const pick = currentPicks[p.id]
               const weeks = weeksSurvived[p.id] || 0
               return (

@@ -259,7 +259,7 @@ export default function PickForm({ weekId, weekNumber, gameRows, usedTeams, team
             disabled={!confirmed || submitting}
             className="btn-primary w-full font-display tracking-wider py-3"
           >
-            {submitting ? 'LOCKING IN…' : isChange ? `SWITCH TO ${selected} →` : `LOCK IN ${selected} →`}
+            {submitting ? 'LOCKING IN…' : isChange ? `SWITCH TO ${selected}` : `LOCK IN ${selected}`}
           </button>
         </div>
       )}

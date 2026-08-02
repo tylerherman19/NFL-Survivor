@@ -505,7 +505,7 @@ export default function TestingPanel({
                   href={href}
                   className="rounded-lg border border-slate-600 bg-slate-700 px-3 py-1.5 font-semibold text-white hover:bg-slate-600 transition-colors"
                 >
-                  {label} →
+                  {label}
                 </Link>
               ))}
             </div>

@@ -123,7 +123,7 @@ export default async function AdminDashboard() {
               <>
                 <p className="text-sm text-slate-300 leading-relaxed">{notPickedYet.join(', ')}</p>
                 <Link href="/admin/email" className="inline-block mt-3 text-xs text-blue-400 underline">
-                  Email these players →
+                  Email these players
                 </Link>
               </>
             )}

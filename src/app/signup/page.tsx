@@ -52,7 +52,7 @@ export default function SignupPage() {
                 Venmo <strong>@griffinsell</strong> $25 to lock in your spot.
               </p>
               <Link href="/login" className="btn-primary inline-block font-display tracking-wider px-6 py-3 mt-1">
-                LOG IN →
+                LOG IN
               </Link>
             </div>
           ) : (

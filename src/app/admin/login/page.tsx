@@ -61,7 +61,7 @@ export default function AdminLoginPage() {
             disabled={loading}
             className="btn-primary w-full font-display tracking-wider py-3"
           >
-            {loading ? 'LOGGING IN…' : 'LOG IN →'}
+            {loading ? 'LOGGING IN…' : 'LOG IN'}
           </button>
         </form>
         <Link
