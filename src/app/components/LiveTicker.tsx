@@ -13,6 +13,9 @@ function scoreColor(myScore: number, theirScore: number, state: string): string 
 function GameCard({ game }: { game: LiveGame }) {
   const isLive = game.state === 'in'
   const isPre = game.state === 'pre'
+  // A schedule-sourced game can be decided without the numbers being known —
+  // its statusText carries the winner instead, so don't print a fake 0–0.
+  const showScores = !isPre && game.scoresKnown !== false
 
   return (
     <div
@@ -48,7 +51,7 @@ function GameCard({ game }: { game: LiveGame }) {
             <span style={{ fontSize: 9, color: 'var(--muted)' }}>({game.awayPicks})</span>
           )}
         </div>
-        {!isPre && (
+        {showScores && (
           <span className="font-bold font-mono tabular-nums" style={{ color: scoreColor(game.awayScore, game.homeScore, game.state) }}>
             {game.awayScore}
           </span>
@@ -65,7 +68,7 @@ function GameCard({ game }: { game: LiveGame }) {
             <span style={{ fontSize: 9, color: 'var(--muted)' }}>({game.homePicks})</span>
           )}
         </div>
-        {!isPre && (
+        {showScores && (
           <span className="font-bold font-mono tabular-nums" style={{ color: scoreColor(game.homeScore, game.awayScore, game.state) }}>
             {game.homeScore}
           </span>

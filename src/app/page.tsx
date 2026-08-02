@@ -17,7 +17,7 @@ async function getDashboardData() {
   try {
     const { getDb } = await import('@/lib/testMode')
     const supabase = await getDb()
-    const { getWeekSundayDeadline } = await import('@/lib/deadline')
+    const { getWeekSundayDeadline, isPickRevealed } = await import('@/lib/deadline')
 
     // Single Promise.all with 4 queries: all weeks, all players, all picks with team, all games
     const [
@@ -45,6 +45,10 @@ async function getDashboardData() {
     const week = (allWeeks || []).find((w: { is_active: boolean }) => w.is_active) || null
 
     let currentPicks: Record<string, string> = {}
+    // Subset of currentPicks whose team has already locked, so it can be shown
+    // publicly. Fills in through the week: Thursday picks first, the rest at
+    // Sunday noon.
+    const revealedPicks: Record<string, string> = {}
     let nextDeadline: string | null = null
     let nextDeadlineFormatted: string | null = null
     let picksRevealed = false
@@ -79,6 +83,14 @@ async function getDashboardData() {
           })
         }
         picksRevealed = sundayDeadline ? sundayDeadline <= now : false
+
+        const revealedTeams = new Map<string, boolean>()
+        for (const [playerId, team] of Object.entries(currentPicks)) {
+          if (!revealedTeams.has(team)) {
+            revealedTeams.set(team, isPickRevealed(team, gamesData, now))
+          }
+          if (revealedTeams.get(team)) revealedPicks[playerId] = team
+        }
       }
     }
 
@@ -98,6 +110,7 @@ async function getDashboardData() {
         weeks_survived: weeksSurvivedByPlayer[p.id] || 0,
         current_pick: currentPicks[p.id] || null,
         pick_locked: !!currentPicks[p.id],
+        pick_revealed: !!revealedPicks[p.id],
         elimination_reason: p.elimination_reason,
         elimination_week: p.elimination_week,
       })
@@ -136,9 +149,10 @@ async function getDashboardData() {
       }))
       .sort((a, b) => b.times_picked - a.times_picked)
 
-    // Current-week pick distribution (only shown publicly after the reveal)
+    // Current-week pick distribution, built from revealed picks only — before
+    // Sunday noon that's just the teams already locked by an earlier kickoff.
     const distMap: Record<string, number> = {}
-    for (const team of Object.values(currentPicks)) {
+    for (const team of Object.values(revealedPicks)) {
       distMap[team] = (distMap[team] || 0) + 1
     }
     const pickDistribution = Object.entries(distMap)
@@ -310,7 +324,7 @@ export default async function DashboardPage() {
                       </td>
                       <td className="py-3">
                         {row.current_pick ? (
-                          data.picksRevealed ? (
+                          row.pick_revealed ? (
                             <TeamChip team={row.current_pick} showName />
                           ) : (
                             <span className="pill pill-alive">✓ Pick In</span>
@@ -356,30 +370,10 @@ export default async function DashboardPage() {
           {/* This Week's Pick Distribution */}
           {data.week && (
             <Section title={`Week ${data.week.week_number} Pick Distribution`}>
-              <div className="card p-5">
-                {data.picksRevealed ? (
-                  data.pickDistribution.length === 0 ? (
-                    <p className="text-sm" style={{ color: 'var(--muted)' }}>No picks were made this week.</p>
-                  ) : (
-                    <div className="space-y-2.5">
-                      {data.pickDistribution.map((d) => {
-                        const max = data.pickDistribution[0].count
-                        const c = teamColor(d.team).primary
-                        return (
-                          <div key={d.team} className="flex items-center gap-3">
-                            <div className="w-16 shrink-0"><TeamChip team={d.team} /></div>
-                            <div className="flex-1 rounded-full overflow-hidden" style={{ background: 'var(--surface-sunken)', height: 12 }}>
-                              <div className="h-full rounded-full" style={{ width: `${Math.max((d.count / max) * 100, 5)}%`, background: c }} />
-                            </div>
-                            <span className="text-sm w-16 shrink-0 text-right tnum" style={{ color: 'var(--dark)' }}>
-                              {d.count} {d.count === 1 ? 'pick' : 'picks'}
-                            </span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )
-                ) : (
+              <div className="card p-5 space-y-4">
+                {/* Before the Sunday cutoff, the running Picks In / Pending tally
+                    stays up — the bars below it only cover already-locked teams. */}
+                {!data.picksRevealed && (
                   <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
                     <div className="flex items-baseline gap-2">
                       <span className="font-display text-4xl leading-none" style={{ color: 'var(--green)' }}>{data.picksMade}</span>
@@ -389,7 +383,35 @@ export default async function DashboardPage() {
                       <span className="font-display text-4xl leading-none" style={{ color: 'var(--red)' }}>{data.picksPending}</span>
                       <span className="eyebrow">Pending</span>
                     </div>
-                    <span className="text-xs" style={{ color: 'var(--muted)' }}>Team breakdown revealed after Sunday 12 PM CT</span>
+                    <span className="text-xs" style={{ color: 'var(--muted)' }}>
+                      {data.pickDistribution.length > 0
+                        ? 'Locked picks are shown below · full breakdown after Sunday 12 PM CT'
+                        : 'Team breakdown revealed as each pick locks · all in after Sunday 12 PM CT'}
+                    </span>
+                  </div>
+                )}
+
+                {data.pickDistribution.length === 0 ? (
+                  data.picksRevealed ? (
+                    <p className="text-sm" style={{ color: 'var(--muted)' }}>No picks were made this week.</p>
+                  ) : null
+                ) : (
+                  <div className="space-y-2.5">
+                    {data.pickDistribution.map((d) => {
+                      const max = data.pickDistribution[0].count
+                      const c = teamColor(d.team).primary
+                      return (
+                        <div key={d.team} className="flex items-center gap-3">
+                          <div className="w-16 shrink-0"><TeamChip team={d.team} /></div>
+                          <div className="flex-1 rounded-full overflow-hidden" style={{ background: 'var(--surface-sunken)', height: 12 }}>
+                            <div className="h-full rounded-full" style={{ width: `${Math.max((d.count / max) * 100, 5)}%`, background: c }} />
+                          </div>
+                          <span className="text-sm w-16 shrink-0 text-right tnum" style={{ color: 'var(--dark)' }}>
+                            {d.count} {d.count === 1 ? 'pick' : 'picks'}
+                          </span>
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
               </div>

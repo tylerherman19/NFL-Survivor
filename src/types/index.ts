@@ -76,6 +76,9 @@ export interface StandingRow {
   weeks_survived: number
   current_pick: string | null
   pick_locked: boolean
+  // True once this pick's own deadline has passed and it can be shown publicly
+  // (its game kicked off, or the week's Sunday 12 PM CT cutoff arrived).
+  pick_revealed: boolean
   elimination_reason: string | null
 }
 
