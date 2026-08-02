@@ -1,5 +1,5 @@
 import { getDb, getEffectiveNow } from '@/lib/testMode'
-import { getWeekSundayDeadline } from '@/lib/deadline'
+import { getWeekSundayDeadline, isPickRevealed } from '@/lib/deadline'
 import type { Game } from '@/types'
 import Link from 'next/link'
 
@@ -14,22 +14,21 @@ export default async function GridPage() {
   let weeks: { id: string; week_number: number; season_year: number }[] = []
   let players: { id: string; full_name: string; status: string; elimination_week: number | null }[] = []
   let allPicks: { player_id: string; week_id: string; team: string }[] = []
-  let allGames: { week_id: string; home_team: string; away_team: string; result: string }[] = []
-  let activeWeekId: string | null = null
+  let allGames: { week_id: string; home_team: string; away_team: string; result: string; kickoff_central: string }[] = []
   try {
     const supabase = await getDb()
-    const [weeksRes, playersRes, picksRes, gamesRes, activeWeekRes] = await Promise.all([
+    const [weeksRes, playersRes, picksRes, gamesRes] = await Promise.all([
       supabase.from('weeks').select('id, week_number, season_year').order('week_number'),
       supabase.from('players').select('id, full_name, status, elimination_week').not('email', 'like', '%@nflsurvivor.internal').order('full_name'),
       supabase.from('picks').select('player_id, week_id, team'),
-      supabase.from('games').select('week_id, home_team, away_team, result'),
-      supabase.from('weeks').select('id').eq('is_active', true).single(),
+      // kickoff_central is what every deadline/reveal calculation below keys
+      // off — leaving it out of this select silently pins every pick as hidden.
+      supabase.from('games').select('week_id, home_team, away_team, result, kickoff_central'),
     ])
     weeks = weeksRes.data ?? []
     players = playersRes.data ?? []
     allPicks = picksRes.data ?? []
     allGames = gamesRes.data ?? []
-    activeWeekId = activeWeekRes.data?.id ?? null
   } catch {
     // fall through to empty state
   }
@@ -43,16 +42,23 @@ export default async function GridPage() {
 
   const now = await getEffectiveNow()
 
-  // Check if active week picks are revealed (deadline passed)
-  const activeWeekGames = activeWeekId ? (gamesByWeek[activeWeekId] ?? []) : []
-  const activeDeadline = getWeekSundayDeadline(activeWeekGames)
-  const activePicksRevealed = activeDeadline ? activeDeadline <= now : false
-
   // Build pick map: playerId -> weekId -> team
   const pickMap: Record<string, Record<string, string>> = {}
   for (const pick of allPicks) {
     if (!pickMap[pick.player_id]) pickMap[pick.player_id] = {}
     pickMap[pick.player_id][pick.week_id] = pick.team
+  }
+
+  // Reveal each pick the moment it locks rather than waiting on the whole week:
+  // a Thursday-night pick goes public at that kickoff, the rest at Sunday noon.
+  // Memoised per week+team since the grid re-asks for every player row.
+  const revealCache: Record<string, boolean> = {}
+  const isRevealed = (weekId: string, team: string): boolean => {
+    const key = `${weekId}:${team}`
+    if (revealCache[key] === undefined) {
+      revealCache[key] = isPickRevealed(team, gamesByWeek[weekId] ?? [], now)
+    }
+    return revealCache[key]
   }
 
   // Most-picked team per week, only for weeks whose Sunday deadline has passed
@@ -123,7 +129,7 @@ export default async function GridPage() {
 
       <main className="mx-auto max-w-5xl px-4 py-8">
         <h1 className="font-display text-6xl leading-none" style={{ color: 'var(--dark)' }}>PICK GRID</h1>
-        <p className="mt-2 mb-6 eyebrow">Full-season pick history · green won · red lost</p>
+        <p className="mt-2 mb-6 eyebrow">Full-season pick history · green won · red lost · ? hidden until it locks</p>
 
         {weeks.length === 0 ? (
           <p className="text-sm" style={{ color: 'var(--muted)' }}>No weeks scheduled yet.</p>
@@ -180,8 +186,7 @@ export default async function GridPage() {
                     </td>
                     {weeks.map((w) => {
                       const team = pickMap[player.id]?.[w.id]
-                      const isActiveWeek = w.id === activeWeekId
-                      const hidden = isActiveWeek && !activePicksRevealed
+                      const hidden = !!team && !isRevealed(w.id, team)
 
                       if (!team) {
                         return (

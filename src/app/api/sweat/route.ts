@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getDb, isTestMode, getEffectiveNow } from '@/lib/testMode'
-import { getWeekSundayDeadline } from '@/lib/deadline'
+import { getWeekSundayDeadline, isPickRevealed } from '@/lib/deadline'
 import { isDeliverable } from '@/lib/email'
 import { fetchEspnScoreboard, eventCompetitors } from '@/lib/espn'
 import type { Game } from '@/types'
@@ -170,9 +170,12 @@ export async function GET() {
         }
 
         const game = gameByTeam[team]
-        // A pick is revealed once its game has kicked off (the team is locked
-        // for everyone at that point) or once the Sunday deadline passes.
-        const revealed = deadlinePassed || (game !== undefined && game.state !== 'pre')
+        // A pick is revealed the moment it locks — our own schedule decides
+        // that (own kickoff for Thu/Fri/Sat, Sunday noon for the rest). ESPN
+        // reporting the game as started counts too, in case a flexed kickoff
+        // moved ahead of what we have stored.
+        const revealed =
+          isPickRevealed(team, dbGames, now) || (game !== undefined && game.state !== 'pre')
         if (!revealed) {
           summary.hidden++
           return { name: p.full_name, team: null, status: 'pick_in' as const }

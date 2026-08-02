@@ -3,6 +3,15 @@ import type { Game } from '@/types'
 
 const CHICAGO_TZ = 'America/Chicago'
 
+// Parse a game's kickoff, returning null rather than an Invalid Date. Guards
+// against a caller that selected a narrower column set and left kickoff_central
+// out: an Invalid Date is truthy but compares false against every other date,
+// which silently reads as "the deadline never passes".
+function kickoffOf(game: Game): Date | null {
+  const d = new Date(game?.kickoff_central)
+  return isNaN(d.getTime()) ? null : d
+}
+
 // Given a game, return the UTC timestamp of when picks for that game lock.
 // Deadline is whichever comes first: the game's own kickoff, or that week's
 // Sunday 12:00 PM Central cutoff. This locks Thu/Fri/Sat games — and any
@@ -28,8 +37,20 @@ export function getPickDeadline(game: Game): Date {
 // Given a week's games, find the deadline for a specific team's pick
 export function getTeamDeadline(team: string, games: Game[]): Date | null {
   const game = games.find(g => g.home_team === team || g.away_team === team)
-  if (!game) return null
+  if (!game || !kickoffOf(game)) return null
   return getPickDeadline(game)
+}
+
+// A pick becomes public exactly when it locks — there is nothing left to give
+// away once the picker can no longer change it. That means a Thu/Fri/Sat pick
+// (and any Sunday game kicking off before noon) is revealed at its own kickoff,
+// while everything else is revealed at the shared Sunday 12 PM CT cutoff.
+// Falls back to the week cutoff if the picked team has no game on the slate,
+// which can happen to a stale pick after a schedule re-sync.
+export function isPickRevealed(team: string, games: Game[], now: Date): boolean {
+  const deadline = getTeamDeadline(team, games) ?? getWeekSundayDeadline(games)
+  if (!deadline) return false
+  return now >= deadline
 }
 
 // Format a UTC date as a human-readable Central time string
@@ -70,7 +91,8 @@ export function getMNFGame(games: Game[]): Game | undefined {
 export function getWeekSundayDeadline(games: Game[]): Date | null {
   const anyGame = games[0]
   if (!anyGame) return null
-  const kickoff = new Date(anyGame.kickoff_central)
+  const kickoff = kickoffOf(anyGame)
+  if (!kickoff) return null
   const chicagoKickoff = toZonedTime(kickoff, CHICAGO_TZ)
   const dow = chicagoKickoff.getDay() // 0=Sun, 1=Mon, ..., 6=Sat
   // Wed/Thu/Fri/Sat (3/4/5/6): their own deadline is before this week's Sunday, so walk forward to it.
