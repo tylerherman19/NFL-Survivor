@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react'
 import type { LiveGame, LiveScoresResponse } from '@/app/api/live-scores/route'
 
-function scoreColor(myScore: number, theirScore: number, state: string): string {
-  if (state === 'pre') return 'var(--dark)'
+// Colour by margin only when the numbers are actually on screen — a card with
+// no scores would otherwise paint both teams from a meaningless 0-0.
+function scoreColor(myScore: number, theirScore: number, scored: boolean): string {
+  if (!scored) return 'var(--dark)'
   if (myScore > theirScore) return 'var(--green)'
   if (myScore < theirScore) return 'var(--red)'
   return 'var(--dark)' // tie
@@ -13,9 +15,13 @@ function scoreColor(myScore: number, theirScore: number, state: string): string 
 function GameCard({ game }: { game: LiveGame }) {
   const isLive = game.state === 'in'
   const isPre = game.state === 'pre'
-  // A schedule-sourced game can be decided without the numbers being known —
-  // its statusText carries the winner instead, so don't print a fake 0–0.
-  const showScores = !isPre && game.scoresKnown !== false
+  // scoresKnown is only set on schedule-sourced games (the sandbox, or a week
+  // ESPN can't serve). True means real numbers exist — show them even before
+  // kickoff, because in the sandbox an entered score *is* the point. False
+  // means the outcome is known but the numbers aren't, so statusText carries
+  // the winner and printing a fake 0–0 would be worse than printing nothing.
+  // ESPN games leave it undefined and keep the original rule: scores once live.
+  const showScores = game.scoresKnown ?? !isPre
 
   return (
     <div
@@ -44,7 +50,7 @@ function GameCard({ game }: { game: LiveGame }) {
       {/* Away team row */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-1.5">
-          <span className="font-bold font-mono" style={{ color: isPre ? 'var(--dark)' : scoreColor(game.awayScore, game.homeScore, game.state) }}>
+          <span className="font-bold font-mono" style={{ color: scoreColor(game.awayScore, game.homeScore, showScores) }}>
             {game.awayTeam}
           </span>
           {game.awayPicks !== undefined && (
@@ -52,7 +58,7 @@ function GameCard({ game }: { game: LiveGame }) {
           )}
         </div>
         {showScores && (
-          <span className="font-bold font-mono tabular-nums" style={{ color: scoreColor(game.awayScore, game.homeScore, game.state) }}>
+          <span className="font-bold font-mono tabular-nums" style={{ color: scoreColor(game.awayScore, game.homeScore, showScores) }}>
             {game.awayScore}
           </span>
         )}
@@ -61,7 +67,7 @@ function GameCard({ game }: { game: LiveGame }) {
       {/* Home team row */}
       <div className="flex items-center justify-between gap-3 mt-0.5">
         <div className="flex items-center gap-1.5">
-          <span className="font-bold font-mono" style={{ color: isPre ? 'var(--dark)' : scoreColor(game.homeScore, game.awayScore, game.state) }}>
+          <span className="font-bold font-mono" style={{ color: scoreColor(game.homeScore, game.awayScore, showScores) }}>
             {game.homeTeam}
           </span>
           {game.homePicks !== undefined && (
@@ -69,7 +75,7 @@ function GameCard({ game }: { game: LiveGame }) {
           )}
         </div>
         {showScores && (
-          <span className="font-bold font-mono tabular-nums" style={{ color: scoreColor(game.homeScore, game.awayScore, game.state) }}>
+          <span className="font-bold font-mono tabular-nums" style={{ color: scoreColor(game.homeScore, game.awayScore, showScores) }}>
             {game.homeScore}
           </span>
         )}
@@ -140,6 +146,13 @@ export default function LiveTicker({ weekNumber, season }: { weekNumber?: number
               <span className="flex items-center gap-1 text-xs font-bold tracking-wider" style={{ color: 'var(--red)' }}>
                 <span className="inline-block w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--red)' }} />
                 {liveCount} LIVE
+              </span>
+            )}
+            {/* Say so when these aren't ESPN's numbers — the sandbox slate, or a
+                week ESPN can't serve. Otherwise a fallback looks like live data. */}
+            {data.source === 'schedule' && (
+              <span className="text-xs tracking-wider" style={{ color: 'var(--muted)', fontSize: 10 }}>
+                · from pool schedule
               </span>
             )}
             {data.picksVisible && (
