@@ -31,10 +31,12 @@ function gameState(g: SandboxGame, effectiveNow: string): 'pre' | 'in' | 'final'
 
 export default function TestingPanel({
   testMode,
+  staleCookie,
   snapshot,
   inviteToken,
 }: {
   testMode: boolean
+  staleCookie: boolean
   snapshot: SandboxSnapshot
   inviteToken: string | null
 }) {
@@ -103,6 +105,23 @@ export default function TestingPanel({
 
   return (
     <div className="space-y-6">
+      {/* Signed out of the sandbox by a deploy — the one failure mode that
+          otherwise looks like "the sandbox is showing the wrong data". */}
+      {staleCookie && (
+        <div className="rounded-xl border border-amber-500/50 bg-amber-500/10 p-5 space-y-2">
+          <p className="font-semibold text-amber-300">This browser was signed out of the sandbox by a deploy</p>
+          <p className="text-slate-300 text-sm">
+            Next.js regenerates its draft-mode bypass cookie on every build, so shipping to production drops
+            every testing browser back to live data — silently, with no banner. Your sandbox players, schedule,
+            picks and clock are all still there.
+          </p>
+          <p className="text-slate-300 text-sm">
+            Hit <span className="font-semibold text-white">Enter Testing Mode</span> below to pick up exactly
+            where you left off.
+          </p>
+        </div>
+      )}
+
       {/* Toggle */}
       <div className="rounded-xl border border-slate-700 bg-slate-800 p-5 flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -110,6 +129,8 @@ export default function TestingPanel({
             Status:{' '}
             {testMode ? (
               <span className="text-amber-400">ENABLED — this browser is in the sandbox</span>
+            ) : staleCookie ? (
+              <span className="text-amber-400">expired — this browser dropped to production after a deploy</span>
             ) : (
               <span className="text-slate-400">off — this browser sees production</span>
             )}

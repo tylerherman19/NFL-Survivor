@@ -48,6 +48,13 @@ never touches production data.
 - *Reset Sandbox* wipes all sandbox data. *Exit Testing Mode* (or closing the
   browser) returns to production.
 
+> **Any deploy signs testing browsers out of the sandbox.** Next.js regenerates its
+> draft-mode bypass cookie on every `next build`, and testing mode is gated on that
+> cookie — so after a production deploy the banner disappears and the site quietly
+> serves live data again. No sandbox data is lost. Admin → Testing detects this and
+> says *"expired — this browser dropped to production after a deploy"*; hit *Enter
+> Testing Mode* to resume. Worth knowing before debugging a sandbox you're no longer in.
+
 Under the hood: testing mode is a signed cookie plus Next.js draft mode. Draft mode
 bypasses ISR for the testing browser, and every server-side query resolves its
 Supabase client through `getDb()` (`src/lib/testMode.ts`), which picks the `sandbox`

@@ -21,12 +21,9 @@ function getSecret(): Uint8Array {
   return new TextEncoder().encode(s)
 }
 
-export async function isTestMode(): Promise<boolean> {
-  // Draft mode gates the cookie read: during static/ISR rendering it is
-  // simply disabled, so this returns false without forcing the page dynamic.
-  const { isEnabled } = await draftMode()
-  if (!isEnabled) return false
-
+// Verify the signed testing-mode token on this request, ignoring draft mode.
+// Reads cookies(), so only call it from somewhere already dynamic.
+async function hasValidTestToken(): Promise<boolean> {
   const cookieStore = await cookies()
   const token = cookieStore.get(TEST_MODE_COOKIE)?.value
   if (!token) return false
@@ -36,6 +33,32 @@ export async function isTestMode(): Promise<boolean> {
   } catch {
     return false
   }
+}
+
+export async function isTestMode(): Promise<boolean> {
+  // Draft mode gates the cookie read: during static/ISR rendering it is
+  // simply disabled, so this returns false without forcing the page dynamic.
+  const { isEnabled } = await draftMode()
+  if (!isEnabled) return false
+
+  return hasValidTestToken()
+}
+
+// True when this browser still holds a valid testing-mode token but Next's
+// draft-mode bypass cookie no longer matches this deployment.
+//
+// Next regenerates the bypass cookie's value on every build (see
+// DraftModeProvider: isEnabled is `cookieValue === previewProps.previewModeId`),
+// so *any deploy signs every tester out of the sandbox*. isTestMode() flips to
+// false and the whole site quietly starts serving production data — no banner,
+// no error, just different numbers. Surfacing that beats letting someone debug
+// a sandbox they are no longer in.
+//
+// Reads cookies() without the draft-mode gate, so this is for already-dynamic
+// routes only (the admin pages). Never call it from a cached page.
+export async function hasStaleTestModeCookie(): Promise<boolean> {
+  if (await isTestMode()) return false
+  return hasValidTestToken()
 }
 
 // The one place that decides which environment a request talks to.

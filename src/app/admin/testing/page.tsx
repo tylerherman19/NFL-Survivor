@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getAdminSession } from '@/lib/session'
-import { isTestMode, createTestInviteToken } from '@/lib/testMode'
+import { isTestMode, createTestInviteToken, hasStaleTestModeCookie } from '@/lib/testMode'
 import { sandboxSupabase } from '@/lib/supabase'
 import TestingPanel from './TestingPanel'
 
@@ -73,6 +73,7 @@ export default async function TestingPage() {
   if (!isAdmin) redirect('/admin/login')
 
   const testMode = await isTestMode()
+  const staleCookie = await hasStaleTestModeCookie()
   const snapshot = await getSandboxSnapshot()
   const inviteToken = testMode ? await createTestInviteToken() : null
 
@@ -86,7 +87,7 @@ export default async function TestingPage() {
           grading, auto-assign, everything — running against sandbox data. Other visitors are unaffected.
         </p>
       </div>
-      <TestingPanel testMode={testMode} snapshot={snapshot} inviteToken={inviteToken} />
+      <TestingPanel testMode={testMode} staleCookie={staleCookie} snapshot={snapshot} inviteToken={inviteToken} />
     </div>
   )
 }
