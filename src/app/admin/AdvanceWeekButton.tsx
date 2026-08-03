@@ -24,11 +24,24 @@ export default function AdvanceWeekButton({ currentWeekNumber, seasonYear }: Pro
         body: JSON.stringify({ week_number: currentWeekNumber + 1, season_year: seasonYear }),
       })
       const data = await res.json()
-      if (res.ok) {
+      if (!res.ok) {
+        setMessage(`Error: ${data.error}`)
+        return
+      }
+
+      // sync-espn deliberately won't switch the active week out from under
+      // the current one, so activate the newly-synced week explicitly.
+      const activateRes = await fetch('/api/admin/set-active-week', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ week_id: data.week_id }),
+      })
+      const activateData = await activateRes.json()
+      if (activateRes.ok) {
         setMessage(`✅ Advanced to Week ${currentWeekNumber + 1} — ${data.games_synced} games synced`)
         router.refresh()
       } else {
-        setMessage(`Error: ${data.error}`)
+        setMessage(`Synced but failed to activate: ${activateData.error}`)
       }
     } catch {
       setMessage('Server error. Try again.')

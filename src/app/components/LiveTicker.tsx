@@ -52,7 +52,7 @@ function GameCard({ game }: { game: LiveGame }) {
             {game.awayTeam}
           </span>
           {game.awayPicks !== undefined && (
-            <span style={{ fontSize: 9, color: 'var(--muted)' }}>({game.awayPicks})</span>
+            <span style={{ fontSize: 9, color: 'var(--muted)' }}>{game.awayPicks} {game.awayPicks === 1 ? 'Pick' : 'Picks'}</span>
           )}
         </div>
         {showScores && (
@@ -69,7 +69,7 @@ function GameCard({ game }: { game: LiveGame }) {
             {game.homeTeam}
           </span>
           {game.homePicks !== undefined && (
-            <span style={{ fontSize: 9, color: 'var(--muted)' }}>({game.homePicks})</span>
+            <span style={{ fontSize: 9, color: 'var(--muted)' }}>{game.homePicks} {game.homePicks === 1 ? 'Pick' : 'Picks'}</span>
           )}
         </div>
         {showScores && (
