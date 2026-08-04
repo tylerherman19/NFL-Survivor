@@ -5,9 +5,13 @@ import { getSNFGame, getMNFGame, getWeekSundayDeadline } from '@/lib/deadline'
 import { sendEliminationEmail, sendPickConfirmationEmail } from '@/lib/email'
 import type { Game } from '@/types'
 
-// Vercel Cron (vercel.json) — after the Sunday noon deadline, players without
-// a pick get the SNF away team, then the MNF away team, or are eliminated if
-// they've already used both.
+// Vercel Cron (vercel.json) — fires at 17:00 and 18:00 UTC Sunday (noon
+// Central for both CDT and CST, since the NFL season straddles the November
+// DST switch); the deadline check below makes whichever run is premature for
+// the current DST state a no-op, and re-running after the real one is a
+// harmless no-op too since playersWithoutPick will already be empty. After
+// the Sunday noon deadline, players without a pick get the SNF away team,
+// then the MNF away team, or are eliminated if they've already used both.
 export async function GET(req: NextRequest) {
   const unauthorized = await requireCronOrAdmin(req)
   if (unauthorized) return unauthorized
