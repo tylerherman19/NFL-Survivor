@@ -25,8 +25,8 @@ export async function POST(req: NextRequest) {
 
     const { full_name, email, phone, venmo } = await req.json()
 
-    if (!full_name?.trim() || !email?.trim()) {
-      return NextResponse.json({ error: 'Name and email are required' }, { status: 400 })
+    if (!full_name?.trim() || !email?.trim() || !phone?.trim() || !venmo?.trim()) {
+      return NextResponse.json({ error: 'Name, email, phone, and Venmo handle are required' }, { status: 400 })
     }
 
     const name = full_name.trim()

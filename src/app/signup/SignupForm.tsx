@@ -65,8 +65,8 @@ export default function SignupForm() {
                   {[
                     { label: 'Full Name', type: 'text', val: fullName, set: setFullName, placeholder: 'e.g. John Smith', required: true, autoComplete: 'name' },
                     { label: 'Email', type: 'email', val: email, set: setEmail, placeholder: 'you@example.com', required: true, autoComplete: 'email', note: 'Your PIN will be sent here.' },
-                    { label: 'Phone (optional)', type: 'tel', val: phone, set: setPhone, placeholder: '(608) 555-1234', required: false, autoComplete: 'tel' },
-                    { label: 'Venmo Handle (optional)', type: 'text', val: venmo, set: setVenmo, placeholder: '@yourhandle', required: false },
+                    { label: 'Phone', type: 'tel', val: phone, set: setPhone, placeholder: '(608) 555-1234', required: true, autoComplete: 'tel' },
+                    { label: 'Venmo Handle', type: 'text', val: venmo, set: setVenmo, placeholder: '@yourhandle', required: true },
                   ].map(({ label, type, val, set, placeholder, required, autoComplete, note }) => (
                     <div key={label}>
                       <label className="eyebrow block mb-2" style={{ color: 'var(--dark)' }}>{label}</label>
