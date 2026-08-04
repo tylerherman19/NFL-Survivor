@@ -1,23 +1,52 @@
-// Icon half of the "vintage badge" logo (design 1a) — a dark ring around a
-// cream disc with a small football glyph. Used wherever the wordmark text
-// ("NFL SURVIVOR POOL") already appears separately, e.g. site headers.
-export default function LogoMark({ size = 32 }: { size?: number }) {
+// Full "vintage badge" logo (design 1a): dark ring, stacked wordmark, football
+// glyph. Self-contained — includes the "PICK AND PRAY" text, so it replaces
+// (not sits beside) a separate site-name text label wherever it's used.
+export default function LogoMark({ size = 44 }: { size?: number }) {
   return (
     <svg
       width={size}
       height={size}
       viewBox="0 0 64 64"
-      fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
+      aria-label="Pick and Pray"
       className="shrink-0"
     >
-      <circle cx="32" cy="32" r="28" fill="var(--cream)" stroke="var(--dark)" strokeWidth="6" />
-      <g transform="translate(32 34) rotate(45)">
-        <ellipse cx="0" cy="0" rx="15" ry="9" fill="var(--dark)" />
-        <line x1="-8" y1="0" x2="8" y2="0" stroke="var(--cream)" strokeWidth="1.5" />
-        <line x1="-2.5" y1="-2.5" x2="-2.5" y2="2.5" stroke="var(--cream)" strokeWidth="1.5" />
-        <line x1="2.5" y1="-2.5" x2="2.5" y2="2.5" stroke="var(--cream)" strokeWidth="1.5" />
+      <circle cx="32" cy="32" r="27" fill="var(--cream)" stroke="var(--dark)" strokeWidth="6" />
+      <text
+        x="32"
+        y="24.5"
+        textAnchor="middle"
+        className="font-display"
+        fontSize="9.5"
+        letterSpacing="0.3"
+        fill="var(--dark)"
+      >
+        PICK
+      </text>
+      <text
+        x="32"
+        y="33.5"
+        textAnchor="middle"
+        className="font-display"
+        fontSize="9.5"
+        letterSpacing="0.3"
+        fill="var(--dark)"
+      >
+        AND
+      </text>
+      <text
+        x="32"
+        y="42.5"
+        textAnchor="middle"
+        className="font-display"
+        fontSize="9.5"
+        letterSpacing="0.3"
+        fill="var(--dark)"
+      >
+        PRAY
+      </text>
+      <g transform="translate(32 49.5) rotate(45)">
+        <ellipse cx="0" cy="0" rx="6.5" ry="4" fill="var(--dark)" />
       </g>
     </svg>
   )

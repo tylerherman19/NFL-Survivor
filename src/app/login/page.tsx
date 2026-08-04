@@ -38,9 +38,8 @@ export default function LoginPage() {
       {/* Header */}
       <header style={{ background: 'var(--dark)' }}>
         <div className="mx-auto max-w-5xl px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 font-display text-white text-lg tracking-wider">
-            <LogoMark size={28} />
-            NFL SURVIVOR POOL
+          <Link href="/">
+            <LogoMark size={44} />
           </Link>
         </div>
       </header>
