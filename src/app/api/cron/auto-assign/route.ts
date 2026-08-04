@@ -108,7 +108,7 @@ export async function GET(req: NextRequest) {
         results.push({ player: player.full_name, action: `auto-assigned ${autoTeam}` })
       } else {
         const reason = 'Missed deadline — both auto-assign options already used'
-        await supabase
+        const { error: eliminateError } = await supabase
           .from('players')
           .update({
             status: 'eliminated',
@@ -116,6 +116,13 @@ export async function GET(req: NextRequest) {
             elimination_reason: reason,
           })
           .eq('id', player.id)
+
+        if (eliminateError) {
+          // Leave player alive — next cron run (this deadline check still
+          // passes) retries instead of falsely reporting them eliminated.
+          results.push({ player: player.full_name, action: `skipped: ${eliminateError.message}` })
+          continue
+        }
 
         if (player.email) {
           sendEliminationEmail(player.email, player.full_name, reason, week.week_number).catch(

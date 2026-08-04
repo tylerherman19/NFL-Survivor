@@ -64,7 +64,13 @@ export async function GET(req: NextRequest) {
       )
       if (!dbGame || dbGame.result === result) continue
 
-      await supabase.from('games').update({ result }).eq('id', dbGame.id)
+      const { error: updateError } = await supabase.from('games').update({ result }).eq('id', dbGame.id)
+      if (updateError) {
+        // Leave dbGame.result as-is so this game is skipped below instead of
+        // being graded on a result that never actually saved; next run retries.
+        console.error(`Failed to save result for game ${dbGame.id}:`, updateError)
+        continue
+      }
       dbGame.result = result
       updatedGames.push(`${awayAbbr}@${homeAbbr}: ${result}`)
     }

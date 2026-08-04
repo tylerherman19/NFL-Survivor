@@ -61,10 +61,17 @@ export async function gradeWeekPicks(
       const reason = `Week ${weekNumber}: picked ${pick.team} — ${
         game.result === 'tie' ? 'game ended in a tie' : 'lost'
       }`
-      await db
+      const { error: eliminateError } = await db
         .from('players')
         .update({ status: 'eliminated', elimination_week: weekNumber, elimination_reason: reason })
         .eq('id', player.id)
+
+      if (eliminateError) {
+        // Leave player.status as 'alive' — next run (grading is idempotent)
+        // will retry the elimination instead of a false "eliminated" report.
+        console.error(`Failed to eliminate player ${player.id}:`, eliminateError)
+        continue
+      }
 
       eliminated.push(player.full_name)
       if (player.email) {
