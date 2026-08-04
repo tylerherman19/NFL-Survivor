@@ -10,7 +10,14 @@ export function getResend() {
 export const FROM_EMAIL = 'Pick and Pray <pool@pickandpray.org>'
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://pickandpray.org'
 
-const LOGO_HEADER = `<div style="text-align: center; margin-bottom: 20px;"><img src="${APP_URL}/logo.png" width="72" height="72" alt="Pick and Pray" style="border-radius: 50%;" /></div>`
+const LOGO_HEADER = `
+  <table role="presentation" align="center" style="margin: 0 auto 20px;" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td style="padding-right: 12px;"><img src="${APP_URL}/logo.png" width="64" height="64" alt="Pick and Pray" style="border-radius: 50%; display: block;" /></td>
+      <td style="font-family: Arial, Helvetica, sans-serif; font-weight: 900; font-size: 22px; letter-spacing: 1px; color: #1a1a1a; white-space: nowrap;">NFL SURVIVOR</td>
+    </tr>
+  </table>
+`
 
 export function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
