@@ -34,7 +34,10 @@ export default function SiteHeader({ seasonStarted = false }: { seasonStarted?: 
   return (
     <header style={{ background: 'var(--dark)' }}>
       <div className="mx-auto max-w-5xl px-4 py-4 flex items-center justify-between">
-        <LogoMark size={44} />
+        <span className="flex items-center gap-3 font-display text-white text-xl tracking-wider">
+          <LogoMark size={64} />
+          NFL SURVIVOR
+        </span>
 
         {/* Desktop nav */}
         <nav className="hidden sm:flex items-center gap-6">

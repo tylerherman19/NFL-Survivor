@@ -145,8 +145,9 @@ function Shell({ children, session, weekNumber }: { children: React.ReactNode; s
       <header style={{ background: 'var(--dark)' }}>
         <div className="mx-auto max-w-2xl px-4 py-4 flex items-center justify-between">
           <div>
-            <Link href="/">
-              <LogoMark size={44} />
+            <Link href="/" className="flex items-center gap-3 font-display text-white text-xl tracking-wider">
+              <LogoMark size={64} />
+              NFL SURVIVOR
             </Link>
             {weekNumber && <p className="text-xs tracking-widest uppercase mt-0.5" style={{ color: '#666' }}>Week {weekNumber}</p>}
           </div>

@@ -85,8 +85,9 @@ export default async function HistoryPage() {
       <header style={{ background: 'var(--dark)' }}>
         <div className="mx-auto max-w-2xl px-4 py-4 flex items-center justify-between">
           <div>
-            <Link href="/">
-              <LogoMark size={44} />
+            <Link href="/" className="flex items-center gap-3 font-display text-white text-xl tracking-wider">
+              <LogoMark size={64} />
+              NFL SURVIVOR
             </Link>
           </div>
           <div className="flex items-center gap-4">

@@ -123,8 +123,9 @@ export default async function GridPage() {
     <div style={{ background: 'var(--cream)', minHeight: '100vh' }}>
       <header style={{ background: 'var(--dark)' }}>
         <div className="mx-auto max-w-5xl px-4 py-4 flex items-center justify-between">
-          <Link href="/">
-            <LogoMark size={44} />
+          <Link href="/" className="flex items-center gap-3 font-display text-white text-xl tracking-wider">
+            <LogoMark size={64} />
+            NFL SURVIVOR
           </Link>
           <Link href="/" className="text-xs tracking-widest uppercase text-gray-400 hover:text-white transition-colors">Standings</Link>
         </div>
