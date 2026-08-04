@@ -2,6 +2,7 @@ import { getDb, getEffectiveNow } from '@/lib/testMode'
 import { getWeekSundayDeadline, isPickRevealed } from '@/lib/deadline'
 import type { Game } from '@/types'
 import Link from 'next/link'
+import LogoMark from '@/app/components/LogoMark'
 
 // Cache the render for 60s (like the homepage) so 1k concurrent viewers are
 // served from the CDN instead of each triggering the full query set. Current-week
@@ -122,7 +123,10 @@ export default async function GridPage() {
     <div style={{ background: 'var(--cream)', minHeight: '100vh' }}>
       <header style={{ background: 'var(--dark)' }}>
         <div className="mx-auto max-w-5xl px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="font-display text-white text-lg tracking-wider">NFL SURVIVOR POOL</Link>
+          <Link href="/" className="flex items-center gap-2 font-display text-white text-lg tracking-wider">
+            <LogoMark size={28} />
+            NFL SURVIVOR POOL
+          </Link>
           <Link href="/" className="text-xs tracking-widest uppercase text-gray-400 hover:text-white transition-colors">Standings</Link>
         </div>
       </header>

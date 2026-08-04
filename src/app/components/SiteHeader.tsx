@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import LogoMark from './LogoMark'
 
 const BASE_NAV_LINKS = [
   { label: 'Standings', href: '/#standings' },
@@ -33,7 +34,10 @@ export default function SiteHeader({ seasonStarted = false }: { seasonStarted?: 
   return (
     <header style={{ background: 'var(--dark)' }}>
       <div className="mx-auto max-w-5xl px-4 py-4 flex items-center justify-between">
-        <span className="font-display text-white text-lg tracking-wider">NFL SURVIVOR POOL</span>
+        <span className="flex items-center gap-2 font-display text-white text-lg tracking-wider">
+          <LogoMark size={28} />
+          NFL SURVIVOR POOL
+        </span>
 
         {/* Desktop nav */}
         <nav className="hidden sm:flex items-center gap-6">

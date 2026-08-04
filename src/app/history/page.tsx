@@ -5,6 +5,7 @@ import { NFL_TEAM_NAMES, NFL_TEAMS } from '@/types'
 import type { Week, Game } from '@/types'
 import Link from 'next/link'
 import LogoutButton from '../components/LogoutButton'
+import LogoMark from '../components/LogoMark'
 
 export default async function HistoryPage() {
   const session = await getSession()
@@ -84,7 +85,10 @@ export default async function HistoryPage() {
       <header style={{ background: 'var(--dark)' }}>
         <div className="mx-auto max-w-2xl px-4 py-4 flex items-center justify-between">
           <div>
-            <Link href="/" className="font-display text-white text-lg tracking-wider">NFL SURVIVOR POOL</Link>
+            <Link href="/" className="flex items-center gap-2 font-display text-white text-lg tracking-wider">
+              <LogoMark size={28} />
+              NFL SURVIVOR POOL
+            </Link>
           </div>
           <div className="flex items-center gap-4">
             <Link href="/pick" className="text-xs tracking-widest uppercase" style={{ color: '#888' }}>Make Pick</Link>

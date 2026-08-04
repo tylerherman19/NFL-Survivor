@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import LogoMark from '@/app/components/LogoMark'
 import { getDb } from '@/lib/testMode'
 import { teamColor } from '@/lib/teamColors'
 import { getNflOdds, matchGameOdds, type KalshiNflEvent } from '@/lib/kalshi'
@@ -111,7 +112,10 @@ export default async function SchedulePage() {
     <div className="min-h-screen flex flex-col" style={{ background: 'var(--cream)' }}>
       <header style={{ background: 'var(--dark)' }}>
         <div className="mx-auto max-w-5xl px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="font-display text-white text-lg tracking-wider">NFL SURVIVOR POOL</Link>
+          <Link href="/" className="flex items-center gap-2 font-display text-white text-lg tracking-wider">
+            <LogoMark size={28} />
+            NFL SURVIVOR POOL
+          </Link>
           <nav className="flex items-center gap-6">
             <Link href="/" className="text-xs tracking-widest uppercase text-gray-400 hover:text-white transition-colors">Standings</Link>
             <Link href="/login" className="text-xs tracking-widest uppercase text-gray-400 hover:text-white transition-colors">Log In</Link>

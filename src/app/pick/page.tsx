@@ -8,6 +8,7 @@ import LogoutButton from '../components/LogoutButton'
 import { getPickDeadline, getTeamDeadline } from '@/lib/deadline'
 import { getNflOdds, matchGameOdds } from '@/lib/kalshi'
 import Link from 'next/link'
+import LogoMark from '@/app/components/LogoMark'
 
 export default async function PickPage() {
   const session = await getSession()
@@ -144,7 +145,10 @@ function Shell({ children, session, weekNumber }: { children: React.ReactNode; s
       <header style={{ background: 'var(--dark)' }}>
         <div className="mx-auto max-w-2xl px-4 py-4 flex items-center justify-between">
           <div>
-            <Link href="/" className="font-display text-white text-lg tracking-wider">NFL SURVIVOR POOL</Link>
+            <Link href="/" className="flex items-center gap-2 font-display text-white text-lg tracking-wider">
+              <LogoMark size={28} />
+              NFL SURVIVOR POOL
+            </Link>
             {weekNumber && <p className="text-xs tracking-widest uppercase mt-0.5" style={{ color: '#666' }}>Week {weekNumber}</p>}
           </div>
           <div className="flex items-center gap-4">

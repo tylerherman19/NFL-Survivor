@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import LogoMark from '@/app/components/LogoMark'
 import { hasSeasonStarted } from '@/lib/season'
 import SignupForm from './SignupForm'
 
@@ -15,7 +16,10 @@ export default async function SignupPage() {
       <div className="min-h-screen flex flex-col" style={{ background: 'var(--cream)' }}>
         <header style={{ background: 'var(--dark)' }}>
           <div className="mx-auto max-w-5xl px-4 py-4">
-            <Link href="/" className="font-display text-white text-lg tracking-wider">NFL SURVIVOR POOL</Link>
+            <Link href="/" className="flex items-center gap-2 font-display text-white text-lg tracking-wider">
+              <LogoMark size={28} />
+              NFL SURVIVOR POOL
+            </Link>
           </div>
         </header>
         <main className="flex-1 flex items-center justify-center px-4 py-12">

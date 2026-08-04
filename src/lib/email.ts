@@ -10,6 +10,8 @@ export function getResend() {
 export const FROM_EMAIL = 'Pick and Pray <pool@pickandpray.org>'
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://pickandpray.org'
 
+const LOGO_HEADER = `<div style="text-align: center; margin-bottom: 20px;"><img src="${APP_URL}/logo.png" width="72" height="72" alt="Pick and Pray" style="border-radius: 50%;" /></div>`
+
 export function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
@@ -33,6 +35,7 @@ export async function sendWelcomeEmail(
     subject: "You're in the NFL Survivor Pool! Here's your PIN",
     html: `
       <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+        ${LOGO_HEADER}
         <h2 style="color: #16a34a;">Welcome to the NFL Survivor Pool!</h2>
         <p>Hey ${name},</p>
         <p>You've been added to the pool. Here's everything you need to know:</p>
@@ -63,6 +66,7 @@ export async function sendPickConfirmationEmail(
     subject: `Pick confirmed: ${teamName} — Week ${weekNumber}`,
     html: `
       <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+        ${LOGO_HEADER}
         <h2 style="color: #16a34a;">Pick Confirmed ✓</h2>
         <p>Hey ${esc(fullName)},</p>
         <p>Your Week ${weekNumber} pick is locked in:</p>
@@ -90,6 +94,7 @@ export async function sendEliminationEmail(
     subject: `You've been eliminated — Week ${weekNumber}`,
     html: `
       <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+        ${LOGO_HEADER}
         <h2 style="color: #dc2626;">Eliminated — Week ${weekNumber}</h2>
         <p>Hey ${esc(fullName)},</p>
         <p>Unfortunately, you've been eliminated from the pool:</p>
@@ -116,6 +121,7 @@ export async function sendPinResetEmail(
     subject: 'NFL Survivor Pool — Reset your PIN',
     html: `
       <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+        ${LOGO_HEADER}
         <h2>Reset Your PIN</h2>
         <p>Hey ${esc(fullName)},</p>
         <p>Click the button below to set a new PIN. This link expires in 1 hour.</p>
@@ -139,6 +145,7 @@ export async function sendReminderEmail(
     subject: `Reminder: Week ${weekNumber} pick deadline approaching`,
     html: `
       <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+        ${LOGO_HEADER}
         <h2 style="color: #d97706;">&#9200; Pick Reminder</h2>
         <p>Hey ${esc(fullName)},</p>
         <p>You haven't submitted your Week ${weekNumber} pick yet!</p>
