@@ -8,7 +8,7 @@ export function getResend() {
 }
 
 export const FROM_EMAIL = 'Pick and Pray <pool@pickandpray.org>'
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://nfl-survivor.vercel.app'
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://pickandpray.org'
 
 export function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')

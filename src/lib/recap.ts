@@ -86,7 +86,7 @@ export function generateRecap(input: RecapInput): string {
 
   lines.push('')
   lines.push(
-    `Full standings + pick history: ${process.env.NEXT_PUBLIC_APP_URL || 'nfl-survivor.vercel.app'}`
+    `Full standings + pick history: ${process.env.NEXT_PUBLIC_APP_URL || 'https://pickandpray.org'}`
   )
 
   return lines.join('\n')
