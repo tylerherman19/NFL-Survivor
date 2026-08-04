@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/testMode'
 import { requireAdmin } from '@/lib/api'
+import { gradeWeekPicks } from '@/lib/grading'
+import type { Game } from '@/types'
 
 export async function POST(req: NextRequest) {
   const unauthorized = await requireAdmin()
@@ -30,7 +32,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Game not found' }, { status: 404 })
     }
 
-    return NextResponse.json({ ok: true, game })
+    // Marking a game final should grade it immediately, not wait for the
+    // nightly cron — mirrors what the sandbox's "Mark Final" already does.
+    let grading = null
+    if (result !== 'pending') {
+      const { data: week } = await supabase
+        .from('weeks')
+        .select('week_number')
+        .eq('id', game.week_id)
+        .single()
+      const { data: weekGames } = await supabase
+        .from('games')
+        .select('*')
+        .eq('week_id', game.week_id)
+      const completedGames = ((weekGames || []) as Game[]).filter((g) => g.result !== 'pending')
+      if (week) {
+        grading = await gradeWeekPicks(supabase, game.week_id, week.week_number, completedGames)
+      }
+    }
+
+    return NextResponse.json({ ok: true, game, grading })
   } catch (err) {
     console.error('results error', err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
