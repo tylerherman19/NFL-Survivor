@@ -20,8 +20,9 @@ export function toKalshiCode(espnAbbr: string): string {
 }
 
 export interface TeamOdds {
-  prob: number // mid of yes bid/ask, 0–1
-  spread: number // ask − bid, 0–1
+  yesProb: number // this team's own market: mid of yes bid/ask, 0–1
+  noProb: number // same market's mid of no bid/ask — the true complement of yesProb
+  spread: number // yes ask − yes bid, 0–1
 }
 
 export interface KalshiNflEvent {
@@ -36,6 +37,8 @@ interface KalshiMarket {
   status: string
   yes_bid_dollars: string
   yes_ask_dollars: string
+  no_bid_dollars: string
+  no_ask_dollars: string
 }
 
 const MONTHS: Record<string, number> = {
@@ -91,7 +94,9 @@ export async function getNflOdds(): Promise<KalshiNflEvent[]> {
 
         const bid = parseFloat(mkt.yes_bid_dollars)
         const ask = parseFloat(mkt.yes_ask_dollars)
-        if (isNaN(bid) || isNaN(ask) || ask <= 0) continue
+        const noBid = parseFloat(mkt.no_bid_dollars)
+        const noAsk = parseFloat(mkt.no_ask_dollars)
+        if (isNaN(bid) || isNaN(ask) || ask <= 0 || isNaN(noBid) || isNaN(noAsk)) continue
         const spread = ask - bid
         if (spread > MAX_SPREAD) continue
 
@@ -103,7 +108,7 @@ export async function getNflOdds(): Promise<KalshiNflEvent[]> {
           evt = { eventTicker: mkt.event_ticker, dateMs, teams: {} }
           byEvent.set(mkt.event_ticker, evt)
         }
-        evt.teams[teamCode] = { prob: (bid + ask) / 2, spread }
+        evt.teams[teamCode] = { yesProb: (bid + ask) / 2, noProb: (noBid + noAsk) / 2, spread }
       }
 
       cursor = data.cursor ?? ''
@@ -131,14 +136,18 @@ export function matchGameOdds(
 
   for (const evt of events) {
     if (Math.abs(evt.dateMs - gameDateMs) > DAY_MS) continue
+    // Each team has its own separately-traded market, so their yes-mids are
+    // NOT guaranteed to be complements of each other (independent order
+    // books can both drift to the same price, e.g. 50/50, even when the
+    // "true" split is 51/49) — cross-market normalization is unreliable.
+    // Within a single market, though, yes and no are the same contract's two
+    // outcomes and are complementary by construction. Anchor on one team's
+    // own market and take its yes/no pair directly, matching what Kalshi
+    // itself displays.
     const homeOdds = evt.teams[home]
+    if (homeOdds) return { homeProb: homeOdds.yesProb, awayProb: homeOdds.noProb }
     const awayOdds = evt.teams[away]
-    if (!homeOdds || !awayOdds) continue
-    // Each side is its own order book, so the two mids carry their own
-    // bid/ask spread and don't sum to 100% on their own (the gap is vig,
-    // not signal) — normalize so they read as complementary probabilities.
-    const total = homeOdds.prob + awayOdds.prob
-    return { homeProb: homeOdds.prob / total, awayProb: awayOdds.prob / total }
+    if (awayOdds) return { homeProb: awayOdds.noProb, awayProb: awayOdds.yesProb }
   }
   return null
 }
