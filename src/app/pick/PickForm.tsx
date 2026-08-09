@@ -175,7 +175,7 @@ export default function PickForm({ weekId, weekNumber, gameRows, usedTeams, team
       )}
 
       <div>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-1">
           <p className="eyebrow">{isChange ? 'Switch to a different team' : 'Select a team'}</p>
           {hasOdds && (
             <div className="flex items-center gap-2">
@@ -198,6 +198,11 @@ export default function PickForm({ weekId, weekNumber, gameRows, usedTeams, team
             </div>
           )}
         </div>
+        {hasOdds && (
+          <p className="text-xs mb-3" style={{ color: 'var(--muted)' }}>
+            Win % is Kalshi market odds — shift constantly, not guarantees.
+          </p>
+        )}
         <div className="space-y-2">
           {sortedRows.map((row) => {
             const disabled = row.locked
