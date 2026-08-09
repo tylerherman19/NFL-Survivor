@@ -92,6 +92,26 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
     else setMessage('Failed to regen PIN')
   }
 
+  async function bulkDelete() {
+    if (!someSelected) return
+    const ids = [...selected]
+    if (!confirm(`Permanently delete ${ids.length} player${ids.length !== 1 ? 's' : ''}? This cannot be undone and removes all their picks.`)) return
+    setBulkWorking(true)
+    setMessage('')
+    const results = await Promise.all(
+      ids.map((id) => fetch(`/api/players/${id}`, { method: 'DELETE' }))
+    )
+    const failed = results.filter((r) => !r.ok).length
+    setMessage(
+      failed
+        ? `Deleted ${ids.length - failed} player${ids.length - failed !== 1 ? 's' : ''}, ${failed} failed`
+        : `Deleted ${ids.length} player${ids.length !== 1 ? 's' : ''}`
+    )
+    setSelected(new Set())
+    setBulkWorking(false)
+    router.refresh()
+  }
+
   async function deletePlayer(player: Player) {
     if (!confirm(`Permanently delete ${player.full_name}? This cannot be undone and removes all their picks.`)) return
     const res = await fetch(`/api/players/${player.id}`, { method: 'DELETE' })
@@ -247,6 +267,14 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
             style={{ background: 'var(--red-tint)', color: 'var(--red)' }}
           >
             Mark Unpaid
+          </button>
+          <button
+            onClick={bulkDelete}
+            disabled={bulkWorking}
+            className="pill disabled:opacity-50"
+            style={{ background: 'var(--red-tint)', color: 'var(--red)' }}
+          >
+            Delete
           </button>
           <button
             onClick={() => setSelected(new Set())}

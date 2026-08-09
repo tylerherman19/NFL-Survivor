@@ -15,9 +15,12 @@ export async function POST(req: NextRequest) {
   if (unauthorized) return unauthorized
 
   try {
-    const { season_year, start_week, end_week } = await req.json()
+    const { season_year, start_week, end_week, season_type } = await req.json()
     if (!Number.isInteger(season_year)) {
       return NextResponse.json({ error: 'Missing season_year' }, { status: 400 })
+    }
+    if (season_type && season_type !== 'preseason' && season_type !== 'regular') {
+      return NextResponse.json({ error: 'Invalid season_type' }, { status: 400 })
     }
     const startWeek = Number.isInteger(start_week) ? start_week : MIN_WEEK
     const endWeek = Number.isInteger(end_week) ? end_week : 18
@@ -30,7 +33,7 @@ export async function POST(req: NextRequest) {
     const failures: { week: number; error?: string }[] = []
 
     for (let week = startWeek; week <= endWeek; week++) {
-      const result = await syncWeekFromEspn(supabase, week, season_year)
+      const result = await syncWeekFromEspn(supabase, week, season_year, season_type || 'regular')
       if (result.ok) {
         synced.push({ week, games: result.gamesSynced ?? 0 })
         continue

@@ -5,6 +5,7 @@ import { NFL_TEAM_NAMES } from '@/types'
 import Link from 'next/link'
 import AdvanceWeekButton from './AdvanceWeekButton'
 import SetActiveWeek from './SetActiveWeek'
+import ResetPoolButton from './ResetPoolButton'
 
 export default async function AdminDashboard() {
   const isAdmin = await getAdminSession()
@@ -14,7 +15,7 @@ export default async function AdminDashboard() {
   const [{ data: week }, { data: players }, { data: allWeeks }] = await Promise.all([
     supabase.from('weeks').select('*').eq('is_active', true).single(),
     supabase.from('players').select('id, full_name, email, status, paid'),
-    supabase.from('weeks').select('id, week_number, season_year, is_active').order('week_number'),
+    supabase.from('weeks').select('id, week_number, season_year, season_type, is_active').order('week_number'),
   ])
 
   const alive = players?.filter((p: { status: string }) => p.status === 'alive') || []
@@ -63,7 +64,7 @@ export default async function AdminDashboard() {
         <h1 className="text-2xl font-bold" style={{ color: 'var(--dark)' }}>Admin Dashboard</h1>
         {week && (
           <p className="mt-1" style={{ color: 'var(--muted)' }}>
-            Active: Week {week.week_number} · Season {week.season_year}
+            Active: {week.season_type === 'preseason' ? 'Preseason ' : ''}Week {week.week_number} · Season {week.season_year}
           </p>
         )}
       </div>
@@ -83,7 +84,13 @@ export default async function AdminDashboard() {
           </p>
         </div>
       )}
-      {week && <AdvanceWeekButton currentWeekNumber={week.week_number} seasonYear={week.season_year} />}
+      {week && (
+        <AdvanceWeekButton
+          currentWeekNumber={week.week_number}
+          seasonYear={week.season_year}
+          seasonType={week.season_type}
+        />
+      )}
 
       {week && (
         <div className="grid gap-4 sm:grid-cols-2">
@@ -224,6 +231,8 @@ export default async function AdminDashboard() {
       </div>
 
       {allWeeks && allWeeks.length > 0 && <SetActiveWeek weeks={allWeeks} />}
+
+      <ResetPoolButton />
     </div>
   )
 }

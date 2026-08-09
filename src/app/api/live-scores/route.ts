@@ -23,6 +23,7 @@ export interface LiveGame {
 
 export interface LiveScoresResponse {
   weekNumber: number | null
+  seasonType: 'preseason' | 'regular' | null
   games: LiveGame[]
   picksVisible: boolean
   hasLiveGames: boolean
@@ -33,7 +34,7 @@ export interface LiveScoresResponse {
 }
 
 const EMPTY: LiveScoresResponse = {
-  weekNumber: null, games: [], picksVisible: false, hasLiveGames: false, season: null, source: 'none',
+  weekNumber: null, seasonType: null, games: [], picksVisible: false, hasLiveGames: false, season: null, source: 'none',
 }
 
 // Turn a row from our own `games` table into a ticker card. Sandbox rows carry
@@ -82,7 +83,7 @@ export async function GET() {
     // Get active week from our DB
     const { data: week } = await supabase
       .from('weeks')
-      .select('id, week_number, season_year')
+      .select('id, week_number, season_year, season_type')
       .eq('is_active', true)
       .single()
 
@@ -101,7 +102,7 @@ export async function GET() {
       // also falls through to the schedule.
       testMode
         ? Promise.resolve(null)
-        : fetchEspnScoreboard(week.season_year, week.week_number, 30).catch(() => null),
+        : fetchEspnScoreboard(week.season_year, week.week_number, 30, week.season_type ?? 'regular').catch(() => null),
       getEffectiveNow(),
     ])
 
@@ -191,6 +192,7 @@ export async function GET() {
 
     return NextResponse.json({
       weekNumber: week.week_number,
+      seasonType: week.season_type ?? 'regular',
       season: week.season_year,
       games,
       picksVisible: revealedTeams.size > 0,

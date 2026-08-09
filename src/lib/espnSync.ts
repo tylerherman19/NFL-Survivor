@@ -1,6 +1,6 @@
 import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { fetchEspnScoreboard, eventCompetitors } from './espn'
+import { fetchEspnScoreboard, eventCompetitors, type SeasonType } from './espn'
 
 type GameDay = 'thursday' | 'friday' | 'saturday' | 'sunday' | 'monday' | 'tuesday'
 
@@ -42,14 +42,15 @@ export interface SyncResult {
 export async function syncWeekFromEspn(
   supabase: SupabaseClient,
   weekNumber: number,
-  seasonYear: number
+  seasonYear: number,
+  seasonType: SeasonType = 'regular'
 ): Promise<SyncResult> {
-  const events = await fetchEspnScoreboard(seasonYear, weekNumber)
+  const events = await fetchEspnScoreboard(seasonYear, weekNumber, 0, seasonType)
   if (events === null) {
     return { ok: false, error: 'ESPN unavailable, or it has no data for that season yet' }
   }
   if (events.length === 0) {
-    return { ok: false, error: `No games found for Week ${weekNumber} ${seasonYear}. Season may not be scheduled yet.` }
+    return { ok: false, error: `No games found for ${seasonType === 'preseason' ? 'Preseason ' : ''}Week ${weekNumber} ${seasonYear}. Season may not be scheduled yet.` }
   }
 
   const { data: existingWeek } = await supabase
@@ -57,6 +58,7 @@ export async function syncWeekFromEspn(
     .select('id')
     .eq('week_number', weekNumber)
     .eq('season_year', seasonYear)
+    .eq('season_type', seasonType)
     .single()
 
   const { data: currentActive } = await supabase
@@ -71,7 +73,7 @@ export async function syncWeekFromEspn(
   } else {
     const { data: newWeek, error } = await supabase
       .from('weeks')
-      .insert({ week_number: weekNumber, season_year: seasonYear, is_active: !currentActive })
+      .insert({ week_number: weekNumber, season_year: seasonYear, season_type: seasonType, is_active: !currentActive })
       .select('id')
       .single()
     if (error || !newWeek) {

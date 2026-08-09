@@ -8,13 +8,16 @@ export async function POST(req: NextRequest) {
   if (unauthorized) return unauthorized
 
   try {
-    const { week_number, season_year } = await req.json()
+    const { week_number, season_year, season_type } = await req.json()
     if (!week_number || !season_year) {
       return NextResponse.json({ error: 'Missing week_number or season_year' }, { status: 400 })
     }
+    if (season_type && season_type !== 'preseason' && season_type !== 'regular') {
+      return NextResponse.json({ error: 'Invalid season_type' }, { status: 400 })
+    }
 
     const supabase = await getDb()
-    const result = await syncWeekFromEspn(supabase, week_number, season_year)
+    const result = await syncWeekFromEspn(supabase, week_number, season_year, season_type || 'regular')
 
     if (!result.ok) {
       const status =

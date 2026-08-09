@@ -12,14 +12,14 @@ export const revalidate = 60
 export default async function GridPage() {
   // Guard the fetch so a DB outage (or a build without env) degrades to the
   // empty state instead of failing the render / prerender.
-  let weeks: { id: string; week_number: number; season_year: number }[] = []
+  let weeks: { id: string; week_number: number; season_year: number; season_type?: 'preseason' | 'regular' }[] = []
   let players: { id: string; full_name: string; status: string; elimination_week: number | null }[] = []
   let allPicks: { player_id: string; week_id: string; team: string }[] = []
   let allGames: { week_id: string; home_team: string; away_team: string; result: string; kickoff_central: string }[] = []
   try {
     const supabase = await getDb()
     const [weeksRes, playersRes, picksRes, gamesRes] = await Promise.all([
-      supabase.from('weeks').select('id, week_number, season_year').order('week_number'),
+      supabase.from('weeks').select('id, week_number, season_year, season_type').order('week_number'),
       supabase.from('players').select('id, full_name, status, elimination_week').not('email', 'like', '%@nflsurvivor.internal').order('full_name'),
       supabase.from('picks').select('player_id, week_id, team'),
       // kickoff_central is what every deadline/reveal calculation below keys
@@ -160,7 +160,7 @@ export default async function GridPage() {
                       className="py-2 px-1 text-center"
                       style={{ color: 'var(--muted)', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', minWidth: 44 }}
                     >
-                      <span className="block">Wk{w.week_number}</span>
+                      <span className="block">{w.season_type === 'preseason' ? 'P' : ''}Wk{w.week_number}</span>
                       {topPickByWeek[w.id] && (
                         <span className="block font-mono" style={{ fontSize: 9, fontWeight: 400, color: 'var(--muted)' }}>
                           {topPickByWeek[w.id]!.team} ×{topPickByWeek[w.id]!.count}

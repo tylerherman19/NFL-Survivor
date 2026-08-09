@@ -37,6 +37,7 @@ export interface SweatGame {
 
 export interface SweatResponse {
   weekNumber: number | null
+  seasonType: 'preseason' | 'regular' | null
   season: number | null
   hasLiveGames: boolean
   allRevealed: boolean
@@ -56,6 +57,7 @@ export interface SweatResponse {
 
 const EMPTY: SweatResponse = {
   weekNumber: null,
+  seasonType: null,
   season: null,
   hasLiveGames: false,
   allRevealed: false,
@@ -70,7 +72,7 @@ export async function GET() {
     const testMode = await isTestMode()
     const { data: week } = await supabase
       .from('weeks')
-      .select('id, week_number, season_year')
+      .select('id, week_number, season_year, season_type')
       .eq('is_active', true)
       .single()
 
@@ -92,7 +94,7 @@ export async function GET() {
         ? Promise.resolve(null)
         // Null when ESPN is down or served last season's data — treated below
         // as "no ESPN games", so every revealed pick just shows as not started.
-        : fetchEspnScoreboard(week.season_year, week.week_number, 30).catch(() => null),
+        : fetchEspnScoreboard(week.season_year, week.week_number, 30, week.season_type ?? 'regular').catch(() => null),
     ])
 
     // Alive players sweat; players eliminated this week stay on the board as OUT.
@@ -216,6 +218,7 @@ export async function GET() {
     return NextResponse.json(
       {
         weekNumber: week.week_number,
+        seasonType: week.season_type ?? 'regular',
         season: week.season_year,
         hasLiveGames,
         allRevealed: deadlinePassed,

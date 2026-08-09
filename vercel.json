@@ -19,6 +19,14 @@
     {
       "path": "/api/cron/sync-results",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/auto-advance",
+      "schedule": "0 17 * * 2"
+    },
+    {
+      "path": "/api/cron/auto-advance",
+      "schedule": "0 18 * * 2"
     }
   ]
 }

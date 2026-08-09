@@ -3,6 +3,7 @@ import LogoMark from '@/app/components/LogoMark'
 import { getDb } from '@/lib/testMode'
 import { teamColor } from '@/lib/teamColors'
 import { getNflOdds, matchGameOdds, type KalshiNflEvent } from '@/lib/kalshi'
+import { fetchEspnScoreboard, eventCompetitors, type SeasonType } from '@/lib/espn'
 
 export const revalidate = 3600
 
@@ -22,30 +23,20 @@ interface ScheduleWeek {
   games: ScheduleGame[]
 }
 
-async function fetchWeekGames(season: number, week: number, kalshiEvents: KalshiNflEvent[]): Promise<ScheduleGame[]> {
+async function fetchWeekGames(season: number, week: number, seasonType: SeasonType, kalshiEvents: KalshiNflEvent[]): Promise<ScheduleGame[]> {
   try {
-    // ESPN's scoreboard uses `dates=` for the season year (`season=` is ignored)
-    const url = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?seasontype=2&week=${week}&dates=${season}`
-    const res = await fetch(url, { next: { revalidate: 3600 } })
-    if (!res.ok) return []
-    const data = await res.json()
-    const events: Array<{
-      date: string
-      competitions?: Array<{ competitors?: Array<{ homeAway: string; team: { abbreviation: string } }> }>
-    }> = data.events ?? []
+    const events = await fetchEspnScoreboard(season, week, 3600, seasonType)
+    if (!events) return []
 
     const games: ScheduleGame[] = []
     for (const event of events) {
-      const comp = event.competitions?.[0]
-      if (!comp) continue
-      const home = comp.competitors?.find((c) => c.homeAway === 'home')
-      const away = comp.competitors?.find((c) => c.homeAway === 'away')
-      if (!home || !away) continue
+      const teams = eventCompetitors(event)
+      if (!teams) continue
 
-      const odds = matchGameOdds(home.team.abbreviation, away.team.abbreviation, event.date, kalshiEvents)
+      const odds = matchGameOdds(teams.home.team.abbreviation, teams.away.team.abbreviation, event.date, kalshiEvents)
       games.push({
-        homeAbbr: home.team.abbreviation,
-        awayAbbr: away.team.abbreviation,
+        homeAbbr: teams.home.team.abbreviation,
+        awayAbbr: teams.away.team.abbreviation,
         kickoff: event.date,
         homeProb: odds?.homeProb ?? null,
         awayProb: odds?.awayProb ?? null,
@@ -58,32 +49,37 @@ async function fetchWeekGames(season: number, week: number, kalshiEvents: Kalshi
   }
 }
 
-async function getScheduleData(): Promise<{ weeks: ScheduleWeek[]; season: number; activeWeek: number | null }> {
+async function getScheduleData(): Promise<{ weeks: ScheduleWeek[]; season: number; activeWeek: number | null; seasonType: SeasonType }> {
   let activeWeek: number | null = null
   let season = 2026
+  let seasonType: SeasonType = 'regular'
   try {
     const supabase = await getDb()
     const { data: week } = await supabase
       .from('weeks')
-      .select('week_number, season_year')
+      .select('week_number, season_year, season_type')
       .eq('is_active', true)
       .single()
     if (week) {
       activeWeek = week.week_number
       season = week.season_year
+      seasonType = (week.season_type as SeasonType) ?? 'regular'
     }
   } catch { /* pool not started yet */ }
 
-  const startWeek = activeWeek ? Math.min(activeWeek + 1, TOTAL_WEEKS) : 1
-  const endWeek = Math.min(startWeek + WEEKS_AHEAD - 1, TOTAL_WEEKS)
+  // Preseason only runs a handful of weeks — regular season's 18-week cap
+  // doesn't apply, so just let empty ESPN responses naturally end the lookahead.
+  const maxWeek = seasonType === 'preseason' ? activeWeek ? activeWeek + WEEKS_AHEAD : WEEKS_AHEAD : TOTAL_WEEKS
+  const startWeek = activeWeek ? Math.min(activeWeek + 1, maxWeek) : 1
+  const endWeek = Math.min(startWeek + WEEKS_AHEAD - 1, maxWeek)
 
   const kalshiEvents = await getNflOdds()
   const weekNumbers: number[] = []
   for (let w = startWeek; w <= endWeek; w++) weekNumbers.push(w)
 
-  const results = await Promise.all(weekNumbers.map((w) => fetchWeekGames(season, w, kalshiEvents)))
+  const results = await Promise.all(weekNumbers.map((w) => fetchWeekGames(season, w, seasonType, kalshiEvents)))
   const weeks: ScheduleWeek[] = weekNumbers.map((weekNumber, i) => ({ weekNumber, games: results[i] }))
-  return { weeks, season, activeWeek }
+  return { weeks, season, activeWeek, seasonType }
 }
 
 function formatKickoff(iso: string): string {
@@ -105,7 +101,8 @@ function OddsCell({ prob }: { prob: number | null }) {
 }
 
 export default async function SchedulePage() {
-  const { weeks, season, activeWeek } = await getScheduleData()
+  const { weeks, season, activeWeek, seasonType } = await getScheduleData()
+  const weekLabel = seasonType === 'preseason' ? 'Preseason Week' : 'Week'
   const hasAnyGames = weeks.some((w) => w.games.length > 0)
 
   return (
@@ -135,7 +132,7 @@ export default async function SchedulePage() {
             UPCOMING SCHEDULE
           </h1>
           <p className="mt-2 eyebrow">
-            {season} Season{activeWeek ? ` · Currently Week ${activeWeek}` : ''}
+            {season} Season{activeWeek ? ` · Currently ${weekLabel} ${activeWeek}` : ''}
           </p>
           <p className="mt-3 text-sm" style={{ color: 'var(--muted)' }}>
             Odds via Kalshi markets. Plan ahead — you can only use each team once.
@@ -151,7 +148,7 @@ export default async function SchedulePage() {
           weeks.map(({ weekNumber, games }) =>
             games.length === 0 ? null : (
               <section key={weekNumber} className="pt-9">
-                <p className="eyebrow mb-3">Week {weekNumber}</p>
+                <p className="eyebrow mb-3">{weekLabel} {weekNumber}</p>
                 <div className="card overflow-hidden">
                   <table className="w-full text-sm">
                     <thead>

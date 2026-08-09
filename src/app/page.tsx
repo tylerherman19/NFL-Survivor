@@ -264,10 +264,16 @@ export default async function DashboardPage() {
                 {data.week?.season_year ?? '2026'} SEASON
               </h1>
               <div className="mt-3 flex items-center gap-3">
-                <span className="eyebrow">Week {data.week?.week_number ?? '—'} of {TOTAL_WEEKS}</span>
-                <span className="hidden sm:block h-2 w-40 rounded-full overflow-hidden" style={{ background: 'var(--surface-sunken)' }}>
-                  <span className="block h-full rounded-full" style={{ background: 'var(--dark)', width: `${((data.week?.week_number ?? 0) / TOTAL_WEEKS) * 100}%` }} />
-                </span>
+                {data.week?.season_type === 'preseason' ? (
+                  <span className="eyebrow">Preseason · Week {data.week?.week_number ?? '—'}</span>
+                ) : (
+                  <>
+                    <span className="eyebrow">Week {data.week?.week_number ?? '—'} of {TOTAL_WEEKS}</span>
+                    <span className="hidden sm:block h-2 w-40 rounded-full overflow-hidden" style={{ background: 'var(--surface-sunken)' }}>
+                      <span className="block h-full rounded-full" style={{ background: 'var(--dark)', width: `${((data.week?.week_number ?? 0) / TOTAL_WEEKS) * 100}%` }} />
+                    </span>
+                  </>
+                )}
               </div>
             </div>
             {data.nextDeadline && (

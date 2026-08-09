@@ -152,7 +152,7 @@ export default function LiveTicker({ weekNumber, season }: { weekNumber?: number
         <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 mb-2">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="whitespace-nowrap text-xs font-bold tracking-widest uppercase" style={{ color: 'var(--muted)' }}>
-              Week {data.weekNumber} Scores
+              {data.seasonType === 'preseason' ? 'Preseason ' : ''}Week {data.weekNumber} Scores
             </span>
             {liveCount > 0 && (
               <span className="flex items-center gap-1 whitespace-nowrap text-xs font-bold tracking-wider" style={{ color: 'var(--red)' }}>

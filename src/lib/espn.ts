@@ -27,6 +27,11 @@ export interface EspnEvent {
 
 const SCOREBOARD_URL = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard'
 
+export type SeasonType = 'preseason' | 'regular'
+
+// ESPN's own seasontype codes: 1 = preseason, 2 = regular season.
+const ESPN_SEASON_TYPE: Record<SeasonType, number> = { preseason: 1, regular: 2 }
+
 // Fetch the scoreboard for a season+week. Returns null when ESPN is
 // unavailable or served a different season: ESPN silently falls back to the
 // most recent completed season when the requested one has no data yet (e.g.
@@ -35,9 +40,15 @@ const SCOREBOARD_URL = 'https://site.api.espn.com/apis/site/v2/sports/football/n
 export async function fetchEspnScoreboard(
   seasonYear: number,
   weekNumber: number,
-  revalidateSeconds = 0
+  revalidateSeconds = 0,
+  seasonType: SeasonType = 'regular'
 ): Promise<EspnEvent[] | null> {
-  const url = `${SCOREBOARD_URL}?seasontype=2&dates=${seasonYear}&week=${weekNumber}`
+  // ESPN's preseason week numbering is off by one from how the NFL/everyone
+  // else labels it: ESPN's week=1 is just the standalone Hall of Fame Game,
+  // and what's publicly called "Preseason Week 1" (the first full slate) is
+  // ESPN's week=2. Shift by one so our own week_number stays human-friendly.
+  const espnWeek = seasonType === 'preseason' ? weekNumber + 1 : weekNumber
+  const url = `${SCOREBOARD_URL}?seasontype=${ESPN_SEASON_TYPE[seasonType]}&dates=${seasonYear}&week=${espnWeek}`
   const res = await fetch(url, revalidateSeconds > 0 ? { next: { revalidate: revalidateSeconds } } : undefined)
   if (!res.ok) return null
   const data = await res.json()
