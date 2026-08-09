@@ -134,7 +134,11 @@ export function matchGameOdds(
     const homeOdds = evt.teams[home]
     const awayOdds = evt.teams[away]
     if (!homeOdds || !awayOdds) continue
-    return { homeProb: homeOdds.prob, awayProb: awayOdds.prob }
+    // Each side is its own order book, so the two mids carry their own
+    // bid/ask spread and don't sum to 100% on their own (the gap is vig,
+    // not signal) — normalize so they read as complementary probabilities.
+    const total = homeOdds.prob + awayOdds.prob
+    return { homeProb: homeOdds.prob / total, awayProb: awayOdds.prob / total }
   }
   return null
 }
