@@ -241,6 +241,11 @@ export default function PickForm({ weekId, weekNumber, gameRows, usedTeams, team
             )
           })}
         </div>
+        {hasOdds && (
+          <p className="text-xs mt-3" style={{ color: 'var(--muted)' }}>
+            Odds refresh every 5 minutes.
+          </p>
+        )}
       </div>
 
       {selected && (
