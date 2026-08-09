@@ -6,7 +6,6 @@ import type { Game } from '@/types'
 import PickForm, { type GameRow } from './PickForm'
 import LogoutButton from '../components/LogoutButton'
 import { getPickDeadline, getTeamDeadline } from '@/lib/deadline'
-import { getNflOdds, matchGameOdds } from '@/lib/kalshi'
 import Link from 'next/link'
 import LogoMark from '@/app/components/LogoMark'
 
@@ -58,18 +57,6 @@ export default async function PickPage() {
         locked: now >= deadline,
       }
     })
-
-    const teamOdds: Record<string, number> = {}
-    try {
-      const kalshiEvents = await getNflOdds()
-      for (const g of gamesData) {
-        const odds = matchGameOdds(g.home_team, g.away_team, g.kickoff_central, kalshiEvents)
-        if (odds) {
-          teamOdds[g.home_team] = odds.homeProb
-          teamOdds[g.away_team] = odds.awayProb
-        }
-      }
-    } catch { /* non-critical */ }
 
     let teamRecords: Record<string, string> = {}
     try {
@@ -124,7 +111,6 @@ export default async function PickPage() {
             gameRows={gameRows}
             usedTeams={usedTeams}
             teamRecords={teamRecords}
-            teamOdds={teamOdds}
             currentPick={currentPick ? { team: currentPick.team, deadline: currentPickDeadline?.toISOString() || null } : null}
           />
         )}

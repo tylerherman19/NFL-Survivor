@@ -2,7 +2,6 @@ import Link from 'next/link'
 import LogoMark from '@/app/components/LogoMark'
 import { getDb } from '@/lib/testMode'
 import { teamColor } from '@/lib/teamColors'
-import { getNflOdds, matchGameOdds, type KalshiNflEvent } from '@/lib/kalshi'
 import { fetchEspnScoreboard, eventCompetitors, type SeasonType } from '@/lib/espn'
 
 export const revalidate = 3600
@@ -14,8 +13,6 @@ interface ScheduleGame {
   homeAbbr: string
   awayAbbr: string
   kickoff: string // ISO UTC
-  homeProb: number | null
-  awayProb: number | null
 }
 
 interface ScheduleWeek {
@@ -23,7 +20,7 @@ interface ScheduleWeek {
   games: ScheduleGame[]
 }
 
-async function fetchWeekGames(season: number, week: number, seasonType: SeasonType, kalshiEvents: KalshiNflEvent[]): Promise<ScheduleGame[]> {
+async function fetchWeekGames(season: number, week: number, seasonType: SeasonType): Promise<ScheduleGame[]> {
   try {
     const events = await fetchEspnScoreboard(season, week, 3600, seasonType)
     if (!events) return []
@@ -33,13 +30,10 @@ async function fetchWeekGames(season: number, week: number, seasonType: SeasonTy
       const teams = eventCompetitors(event)
       if (!teams) continue
 
-      const odds = matchGameOdds(teams.home.team.abbreviation, teams.away.team.abbreviation, event.date, kalshiEvents)
       games.push({
         homeAbbr: teams.home.team.abbreviation,
         awayAbbr: teams.away.team.abbreviation,
         kickoff: event.date,
-        homeProb: odds?.homeProb ?? null,
-        awayProb: odds?.awayProb ?? null,
       })
     }
     games.sort((a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime())
@@ -73,11 +67,10 @@ async function getScheduleData(): Promise<{ weeks: ScheduleWeek[]; season: numbe
   const startWeek = activeWeek ? Math.min(activeWeek + 1, maxWeek) : 1
   const endWeek = Math.min(startWeek + WEEKS_AHEAD - 1, maxWeek)
 
-  const kalshiEvents = await getNflOdds()
   const weekNumbers: number[] = []
   for (let w = startWeek; w <= endWeek; w++) weekNumbers.push(w)
 
-  const results = await Promise.all(weekNumbers.map((w) => fetchWeekGames(season, w, seasonType, kalshiEvents)))
+  const results = await Promise.all(weekNumbers.map((w) => fetchWeekGames(season, w, seasonType)))
   const weeks: ScheduleWeek[] = weekNumbers.map((weekNumber, i) => ({ weekNumber, games: results[i] }))
   return { weeks, season, activeWeek, seasonType }
 }
@@ -92,12 +85,6 @@ function formatKickoff(iso: string): string {
     minute: '2-digit',
     timeZoneName: 'short',
   })
-}
-
-function OddsCell({ prob }: { prob: number | null }) {
-  if (prob === null) return <span className="text-xs" style={{ color: 'var(--muted)' }}>—</span>
-  const color = prob >= 0.6 ? 'var(--green)' : prob >= 0.4 ? 'var(--dark)' : 'var(--red)'
-  return <span className="font-mono text-sm font-semibold" style={{ color }}>{Math.round(prob * 100)}%</span>
 }
 
 export default async function SchedulePage() {
@@ -135,7 +122,7 @@ export default async function SchedulePage() {
             {season} Season{activeWeek ? ` · Currently ${weekLabel} ${activeWeek}` : ''}
           </p>
           <p className="mt-3 text-sm" style={{ color: 'var(--muted)' }}>
-            Odds via Kalshi markets. Plan ahead — you can only use each team once.
+            Plan ahead — you can only use each team once.
           </p>
         </div>
 
@@ -154,8 +141,6 @@ export default async function SchedulePage() {
                     <thead>
                       <tr style={{ background: 'var(--surface-sunken)' }}>
                         <th className="py-2.5 pl-4 text-left eyebrow">Matchup</th>
-                        <th className="py-2.5 text-right eyebrow">Away</th>
-                        <th className="py-2.5 text-right eyebrow">Home</th>
                         <th className="py-2.5 pr-4 text-right eyebrow hidden sm:table-cell">Kickoff (CT)</th>
                       </tr>
                     </thead>
@@ -172,8 +157,6 @@ export default async function SchedulePage() {
                             </div>
                             <span className="block sm:hidden text-xs mt-1" style={{ color: 'var(--muted)' }}>{formatKickoff(g.kickoff)}</span>
                           </td>
-                          <td className="py-3 text-right"><OddsCell prob={g.awayProb} /></td>
-                          <td className="py-3 text-right"><OddsCell prob={g.homeProb} /></td>
                           <td className="py-3 pr-4 text-right text-xs hidden sm:table-cell tnum" style={{ color: 'var(--muted)' }}>{formatKickoff(g.kickoff)}</td>
                         </tr>
                       ))}
@@ -185,12 +168,6 @@ export default async function SchedulePage() {
           )
         )}
       </main>
-
-      <footer style={{ background: 'var(--dark)' }} className="mt-8">
-        <div className="mx-auto max-w-5xl px-4 py-5">
-          <span className="text-xs tracking-widest uppercase text-gray-500">Odds are market midpoints from Kalshi and shift constantly — not guarantees.</span>
-        </div>
-      </footer>
     </div>
   )
 }

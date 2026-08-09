@@ -21,18 +21,11 @@ interface Props {
   gameRows: GameRow[]
   usedTeams: string[]
   teamRecords?: Record<string, string>
-  teamOdds?: Record<string, number>
   currentPick?: CurrentPick | null
 }
 
 function formatLockTime(iso: string): string {
   return new Date(iso).toLocaleString('en-US', { timeZone: 'America/Chicago', weekday: 'short', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })
-}
-
-function oddsColor(prob: number): string {
-  if (prob >= 0.6) return 'var(--green)'
-  if (prob >= 0.4) return 'var(--dark)'
-  return 'var(--red)'
 }
 
 function TeamHalf({
@@ -42,7 +35,6 @@ function TeamHalf({
   selected,
   isCurrentPick,
   record,
-  odds,
   onClick,
 }: {
   team: string
@@ -51,7 +43,6 @@ function TeamHalf({
   selected: boolean
   isCurrentPick: boolean
   record?: string
-  odds?: number
   onClick: () => void
 }) {
   const c = teamColor(team).primary
@@ -80,29 +71,21 @@ function TeamHalf({
       </div>
       <div className="flex items-center gap-2 mt-1.5 flex-wrap">
         {record && <span className="text-xs tnum" style={{ color: 'var(--muted)' }}>{record}</span>}
-        {odds !== undefined && (
-          <span className="text-xs font-semibold tnum" style={{ color: oddsColor(odds) }}>{Math.round(odds * 100)}% win</span>
-        )}
         {used && <span className="text-xs font-semibold" style={{ color: 'var(--red)' }}>Already used</span>}
       </div>
     </button>
   )
 }
 
-export default function PickForm({ weekId, weekNumber, gameRows, usedTeams, teamRecords, teamOdds, currentPick }: Props) {
+export default function PickForm({ weekId, weekNumber, gameRows, usedTeams, teamRecords, currentPick }: Props) {
   const router = useRouter()
   const [selected, setSelected] = useState<string | null>(null)
   const [confirmed, setConfirmed] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
-  const [sortBy, setSortBy] = useState<'kickoff' | 'odds'>('kickoff')
 
-  const hasOdds = Object.keys(teamOdds ?? {}).length > 0
-  const rowBestOdds = (row: GameRow) => Math.max(teamOdds?.[row.away.team] ?? -1, teamOdds?.[row.home.team] ?? -1)
-  const sortedRows = sortBy === 'odds' && hasOdds
-    ? [...gameRows].sort((a, b) => rowBestOdds(b) - rowBestOdds(a))
-    : [...gameRows].sort((a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime())
+  const sortedRows = [...gameRows].sort((a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime())
 
   const isChange = !!currentPick
   const anySelectable = gameRows.some((r) => (!r.locked && !r.away.used) || (!r.locked && !r.home.used))
@@ -175,34 +158,7 @@ export default function PickForm({ weekId, weekNumber, gameRows, usedTeams, team
       )}
 
       <div>
-        <div className="flex items-center justify-between mb-1">
-          <p className="eyebrow">{isChange ? 'Switch to a different team' : 'Select a team'}</p>
-          {hasOdds && (
-            <div className="flex items-center gap-2">
-              <span className="eyebrow">Sort:</span>
-              {(['kickoff', 'odds'] as const).map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => setSortBy(mode)}
-                  className="text-xs tracking-widest uppercase px-2.5 py-1 rounded-full transition-colors"
-                  style={{
-                    background: sortBy === mode ? 'var(--dark)' : 'transparent',
-                    border: `1px solid ${sortBy === mode ? 'var(--dark)' : 'var(--border)'}`,
-                    color: sortBy === mode ? '#fff' : 'var(--muted)',
-                    fontWeight: sortBy === mode ? 700 : 400,
-                  }}
-                >
-                  {mode === 'kickoff' ? 'Kickoff' : 'Win %'}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-        {hasOdds && (
-          <p className="text-xs mb-3" style={{ color: 'var(--muted)' }}>
-            Win % is Kalshi market odds — shift constantly, not guarantees.
-          </p>
-        )}
+        <p className="eyebrow mb-3">{isChange ? 'Switch to a different team' : 'Select a team'}</p>
         <div className="space-y-2">
           {sortedRows.map((row) => {
             const disabled = row.locked
@@ -216,7 +172,6 @@ export default function PickForm({ weekId, weekNumber, gameRows, usedTeams, team
                     selected={selected === row.away.team}
                     isCurrentPick={currentPick?.team === row.away.team}
                     record={teamRecords?.[row.away.team]}
-                    odds={teamOdds?.[row.away.team]}
                     onClick={() => { setSelected(row.away.team); setConfirmed(false) }}
                   />
                   <div style={{ width: 1, background: 'var(--border)' }} />
@@ -227,7 +182,6 @@ export default function PickForm({ weekId, weekNumber, gameRows, usedTeams, team
                     selected={selected === row.home.team}
                     isCurrentPick={currentPick?.team === row.home.team}
                     record={teamRecords?.[row.home.team]}
-                    odds={teamOdds?.[row.home.team]}
                     onClick={() => { setSelected(row.home.team); setConfirmed(false) }}
                   />
                 </div>
@@ -241,11 +195,6 @@ export default function PickForm({ weekId, weekNumber, gameRows, usedTeams, team
             )
           })}
         </div>
-        {hasOdds && (
-          <p className="text-xs mt-3" style={{ color: 'var(--muted)' }}>
-            Odds refresh every 5 minutes.
-          </p>
-        )}
       </div>
 
       {selected && (
