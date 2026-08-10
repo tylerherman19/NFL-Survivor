@@ -8,6 +8,30 @@ export interface GradeResult {
   advanced: string[]
 }
 
+// Teams that have already lost or tied in a decided (non-pending) game —
+// picking one of these means elimination once grading runs. Shared by
+// gradeWeekPicks (which acts on it) and countPendingEliminations (which
+// just previews it before the admin hits "Grade").
+function computeLosers(games: Game[]): Set<string> {
+  const losers = new Set<string>() // includes both teams of a tie
+  for (const g of games) {
+    if (g.result === 'home_win') losers.add(g.away_team)
+    else if (g.result === 'away_win') losers.add(g.home_team)
+    else if (g.result === 'tie') { losers.add(g.home_team); losers.add(g.away_team) }
+  }
+  return losers
+}
+
+// Alive players whose pick has already lost (or tied) in a game that's been
+// decided but not yet graded — i.e. what "Grade All Picks" is about to do.
+export function countPendingEliminations(
+  picks: { team: string; playerStatus: string }[],
+  games: Game[]
+): number {
+  const losers = computeLosers(games)
+  return picks.filter((p) => p.playerStatus === 'alive' && losers.has(p.team)).length
+}
+
 // Grade every pick for a week against its completed games: a loss or a tie
 // eliminates, a win advances, an unfinished game is skipped. Idempotent —
 // already-eliminated players are ignored, so re-running after each new final
@@ -20,20 +44,11 @@ export async function gradeWeekPicks(
   completedGames: Game[]
 ): Promise<GradeResult> {
   const winners = new Set<string>()
-  const losers = new Set<string>() // includes both teams of a tie
-
   for (const g of completedGames) {
-    if (g.result === 'home_win') {
-      winners.add(g.home_team)
-      losers.add(g.away_team)
-    } else if (g.result === 'away_win') {
-      winners.add(g.away_team)
-      losers.add(g.home_team)
-    } else if (g.result === 'tie') {
-      losers.add(g.home_team)
-      losers.add(g.away_team)
-    }
+    if (g.result === 'home_win') winners.add(g.home_team)
+    else if (g.result === 'away_win') winners.add(g.away_team)
   }
+  const losers = computeLosers(completedGames)
 
   const { data: picks } = await db
     .from('picks')

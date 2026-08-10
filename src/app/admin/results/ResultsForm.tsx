@@ -7,11 +7,12 @@ import type { Game, Week } from '@/types'
 interface Props {
   week: Week
   games: Game[]
+  pendingEliminations: number
 }
 
 type GameResult = 'home_win' | 'away_win' | 'tie' | 'pending'
 
-export default function ResultsForm({ week, games }: Props) {
+export default function ResultsForm({ week, games, pendingEliminations }: Props) {
   const router = useRouter()
   const [results, setResults] = useState<Record<string, GameResult>>(
     Object.fromEntries(games.map((g) => [g.id, g.result as GameResult]))
@@ -130,6 +131,11 @@ export default function ResultsForm({ week, games }: Props) {
           {submitting ? 'Grading…' : 'Grade All Picks & Eliminate Losers'}
         </button>
       </div>
+
+      <p className="text-slate-400 text-sm">
+        <span className="font-semibold text-white">Pending Grade:</span>{' '}
+        {pendingEliminations} player{pendingEliminations === 1 ? '' : 's'} slated to be eliminated
+      </p>
 
       {message && (
         <p className={`text-sm ${message.startsWith('✅') ? 'text-green-400' : 'text-red-400'}`}>

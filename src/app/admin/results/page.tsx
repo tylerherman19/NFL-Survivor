@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getAdminSession } from '@/lib/session'
 import { getDb } from '@/lib/testMode'
+import { countPendingEliminations } from '@/lib/grading'
 import ResultsForm from './ResultsForm'
 import type { Game, Week } from '@/types'
 
@@ -16,6 +17,7 @@ export default async function ResultsPage() {
     .single()
 
   let games: Game[] = []
+  let pendingEliminations = 0
   if (activeWeek) {
     const { data } = await supabase
       .from('games')
@@ -23,6 +25,16 @@ export default async function ResultsPage() {
       .eq('week_id', activeWeek.id)
       .order('kickoff_central')
     games = data || []
+
+    const { data: pickRows } = await supabase
+      .from('picks')
+      .select('team, players(status)')
+      .eq('week_id', activeWeek.id)
+    const picks = (pickRows || []).map((p) => ({
+      team: p.team as string,
+      playerStatus: (p.players as unknown as { status: string } | null)?.status ?? '',
+    }))
+    pendingEliminations = countPendingEliminations(picks, games)
   }
 
   return (
@@ -31,7 +43,7 @@ export default async function ResultsPage() {
       {!activeWeek ? (
         <p className="text-slate-400">No active week. Set up the schedule first.</p>
       ) : (
-        <ResultsForm week={activeWeek as Week} games={games} />
+        <ResultsForm week={activeWeek as Week} games={games} pendingEliminations={pendingEliminations} />
       )}
     </div>
   )
