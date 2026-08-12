@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation'
+import { redirect, unstable_rethrow } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { getDb, getEffectiveNow } from '@/lib/testMode'
 import { NFL_TEAM_NAMES } from '@/types'
@@ -116,7 +116,10 @@ export default async function PickPage() {
         )}
       </Shell>
     )
-  } catch {
+  } catch (err) {
+    // redirect() (line 30) throws a Next-internal error — rethrow it so a
+    // stale session actually lands on /login instead of the failure message.
+    unstable_rethrow(err)
     return (
       <Shell session={session}>
         <p className="text-center text-sm" style={{ color: 'var(--muted)' }}>Failed to load. Try refreshing.</p>
