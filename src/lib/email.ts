@@ -7,7 +7,7 @@ export function getResend() {
   return _resend
 }
 
-export const FROM_EMAIL = 'Pick and Pray <pool@pickandpray.org>'
+export const FROM_EMAIL = 'Griffin Sell - NFL Survivor <pool@pickandpray.org>'
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://pickandpray.org'
 
 const LOGO_HEADER = `
