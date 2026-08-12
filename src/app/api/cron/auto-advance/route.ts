@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { getDb } from '@/lib/testMode'
-import { requireCronOrAdmin } from '@/lib/api'
+import { requireCronOrAdmin, isCronRequest } from '@/lib/api'
 import { syncWeekFromEspn } from '@/lib/espnSync'
 import type { SeasonType } from '@/lib/espn'
 
@@ -19,6 +19,22 @@ const LAST_REGULAR_SEASON_WEEK = 18
 export async function GET(req: NextRequest) {
   const unauthorized = await requireCronOrAdmin(req)
   if (unauthorized) return unauthorized
+
+  // The cron fires at both 17:00 and 18:00 UTC, but exactly one of those is
+  // noon Central depending on DST. Unlike auto-assign (whose deadline check
+  // makes the extra run a no-op), advancing is not idempotent — without this
+  // guard the second run would advance a second time and the pool would skip
+  // a week. Only real cron traffic is gated: an admin hitting this route
+  // (Testing panel / manual push) is deliberate and always allowed.
+  if (isCronRequest(req)) {
+    const centralHour = parseInt(
+      new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', hour: 'numeric', hour12: false }).format(new Date()),
+      10
+    )
+    if (centralHour !== 12) {
+      return NextResponse.json({ ok: true, message: `Skipped: ${centralHour}:00 CT is the redundant DST-coverage run — only the noon CT run advances` })
+    }
+  }
 
   try {
     const supabase = await getDb()

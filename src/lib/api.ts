@@ -23,12 +23,17 @@ export async function requireAdmin(): Promise<NextResponse | null> {
   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 }
 
+// True when the request carries the Vercel Cron secret. CRON_SECRET must
+// actually be set — otherwise "Bearer undefined" would match.
+export function isCronRequest(req: NextRequest): boolean {
+  const secret = process.env.CRON_SECRET
+  return !!secret && req.headers.get('authorization') === `Bearer ${secret}`
+}
+
 // Cron endpoints accept the Vercel Cron secret (always runs against
 // production — no cookies) or a logged-in admin, which lets the Testing
-// panel exercise these flows against the sandbox. CRON_SECRET must actually
-// be set for the header path — otherwise "Bearer undefined" would match.
+// panel exercise these flows against the sandbox.
 export async function requireCronOrAdmin(req: NextRequest): Promise<NextResponse | null> {
-  const secret = process.env.CRON_SECRET
-  if (secret && req.headers.get('authorization') === `Bearer ${secret}`) return null
+  if (isCronRequest(req)) return null
   return requireAdmin()
 }

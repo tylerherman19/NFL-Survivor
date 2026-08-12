@@ -7,6 +7,9 @@ import type { Game } from '@/types'
 
 // Vercel Cron — auto-syncs ESPN game results + grades picks, no admin needed.
 // Runs daily at 6am UTC (midnight CST / 1am CDT) to catch TNF, Sunday, and MNF completions.
+
+// Grading awaits a paced elimination email per eliminated player.
+export const maxDuration = 300
 export async function GET(req: NextRequest) {
   const unauthorized = await requireCronOrAdmin(req)
   if (unauthorized) return unauthorized

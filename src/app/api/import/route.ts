@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/testMode'
 import { requireAdmin, escapeIlike } from '@/lib/api'
 import { generatePin, hashPin } from '@/lib/pin'
-import { sendWelcomeEmail } from '@/lib/email'
+import { sendWelcomeEmail, sleep, SEND_DELAY_MS } from '@/lib/email'
 
 // bcrypt cost-12 hash (~250ms) plus a Resend call, serially, per row — allow
 // enough runtime that a full-size batch can't be killed mid-row by a platform
@@ -93,8 +93,14 @@ export async function POST(req: NextRequest) {
           continue
         }
 
-        await sendWelcomeEmail(row.email, row.full_name, pin)
+        // A dropped welcome email means a player who never receives their PIN
+        // — surface it to the admin instead of reporting silent success.
+        const emailResult = await sendWelcomeEmail(row.email, row.full_name, pin)
+        if (!emailResult.ok) {
+          errors.push(`${row.full_name}: created, but welcome email failed — regenerate their PIN to resend it`)
+        }
         count++
+        await sleep(SEND_DELAY_MS)
       } catch {
         errors.push(`${row.full_name}: unexpected error`)
       }

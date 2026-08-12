@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/testMode'
 import { requireCronOrAdmin } from '@/lib/api'
 import { formatCentralTime, getWeekSundayDeadline } from '@/lib/deadline'
-import { sendReminderEmail } from '@/lib/email'
+import { sendReminderEmail, sleep, SEND_DELAY_MS } from '@/lib/email'
 import type { Game } from '@/types'
+
+// Sends are paced for Resend's ~2 req/sec limit — allow enough runtime for a
+// full-group reminder batch.
+export const maxDuration = 300
 
 export async function GET(req: NextRequest) {
   const unauthorized = await requireCronOrAdmin(req)
@@ -48,18 +52,26 @@ export async function GET(req: NextRequest) {
       (p: { id: string }) => !playersWithPicks.has(p.id)
     )
 
+    let reminded = 0
+    const failures: string[] = []
     for (const player of toRemind) {
-      if (player.email) {
-        await sendReminderEmail(
-          player.email,
-          player.full_name,
-          week.week_number,
-          deadlineStr
-        )
-      }
+      if (!player.email) continue
+      const result = await sendReminderEmail(
+        player.email,
+        player.full_name,
+        week.week_number,
+        deadlineStr
+      )
+      if (result.ok) reminded++
+      else failures.push(player.full_name)
+      if (toRemind.length > 2) await sleep(SEND_DELAY_MS)
     }
 
-    return NextResponse.json({ ok: true, reminded: toRemind.length })
+    return NextResponse.json({
+      ok: true,
+      reminded,
+      failures: failures.length > 0 ? failures : undefined,
+    })
   } catch (err) {
     console.error('reminders error', err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })

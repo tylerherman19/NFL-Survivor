@@ -88,8 +88,12 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
   async function regenPin(playerId: string, fullName: string) {
     if (!confirm(`Regenerate PIN for ${fullName}? They'll get a new email.`)) return
     const res = await fetch(`/api/players/${playerId}/regen-pin`, { method: 'POST' })
-    if (res.ok) setMessage(`New PIN sent to ${fullName}`)
-    else setMessage('Failed to regen PIN')
+    if (res.ok) {
+      setMessage(`New PIN sent to ${fullName}`)
+    } else {
+      const data = await res.json().catch(() => null)
+      setMessage(data?.error || 'Failed to regen PIN')
+    }
   }
 
   async function bulkDelete() {

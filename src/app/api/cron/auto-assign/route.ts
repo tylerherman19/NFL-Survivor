@@ -5,6 +5,9 @@ import { getSNFGame, getMNFGame, getWeekSundayDeadline } from '@/lib/deadline'
 import { sendEliminationEmail, sendPickConfirmationEmail } from '@/lib/email'
 import type { Game } from '@/types'
 
+// Per-player DB round trips plus awaited emails — allow a big no-pick cohort.
+export const maxDuration = 300
+
 // Vercel Cron (vercel.json) — fires at 17:00 and 18:00 UTC Sunday (noon
 // Central for both CDT and CST, since the NFL season straddles the November
 // DST switch); the deadline check below makes whichever run is premature for
@@ -103,10 +106,11 @@ export async function GET(req: NextRequest) {
           continue
         }
 
+        // Awaited: fire-and-forget sends can be dropped when the serverless
+        // function is frozen after responding. Failures are logged inside the
+        // sender; the assignment itself already succeeded.
         if (player.email) {
-          sendPickConfirmationEmail(player.email, player.full_name, autoTeam, week.week_number).catch(
-            console.error
-          )
+          await sendPickConfirmationEmail(player.email, player.full_name, autoTeam, week.week_number)
         }
 
         results.push({ player: player.full_name, action: `auto-assigned ${autoTeam}` })
@@ -129,9 +133,7 @@ export async function GET(req: NextRequest) {
         }
 
         if (player.email) {
-          sendEliminationEmail(player.email, player.full_name, reason, week.week_number).catch(
-            console.error
-          )
+          await sendEliminationEmail(player.email, player.full_name, reason, week.week_number)
         }
 
         results.push({ player: player.full_name, action: 'eliminated (no auto-assign available)' })

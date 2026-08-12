@@ -4,6 +4,9 @@ import { requireAdmin } from '@/lib/api'
 import { gradeWeekPicks } from '@/lib/grading'
 import type { Game } from '@/types'
 
+// Grading awaits a paced elimination email per eliminated player.
+export const maxDuration = 300
+
 export async function POST(req: NextRequest) {
   const unauthorized = await requireAdmin()
   if (unauthorized) return unauthorized

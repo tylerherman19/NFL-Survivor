@@ -93,12 +93,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to create account' }, { status: 500 })
     }
 
-    try {
-      await sendWelcomeEmail(emailLower, name, pin)
-    } catch (emailErr) {
-      // The account exists but the PIN never arrived — tell the player how to
-      // recover instead of failing the whole signup with a 500.
-      console.error('welcome email failed', emailErr)
+    // Resend reports failures via the result, not by throwing. The account
+    // exists but the PIN never arrived — tell the player how to recover
+    // instead of failing the whole signup with a 500.
+    const emailResult = await sendWelcomeEmail(emailLower, name, pin)
+    if (!emailResult.ok) {
       return NextResponse.json({
         ok: true,
         warning: 'Account created, but the welcome email failed to send. Use "Forgot PIN" on the login page to get your PIN.',

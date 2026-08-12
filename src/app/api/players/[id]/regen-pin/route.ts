@@ -32,8 +32,15 @@ export async function POST(
   const { error } = await supabase.from('players').update({ pin_hash }).eq('id', id)
   if (error) return NextResponse.json({ error: 'Failed to update PIN' }, { status: 500 })
 
-  // Reuse welcome email template (it shows the PIN)
-  await sendWelcomeEmail(player.email, player.full_name, pin)
+  // Reuse welcome email template (it shows the PIN). The PIN is already
+  // saved, so a failed send needs the admin to retry — surface it.
+  const emailResult = await sendWelcomeEmail(player.email, player.full_name, pin)
+  if (!emailResult.ok) {
+    return NextResponse.json(
+      { error: 'PIN was reset, but the email failed to send — try again to email it' },
+      { status: 502 }
+    )
+  }
 
   return NextResponse.json({ ok: true })
 }

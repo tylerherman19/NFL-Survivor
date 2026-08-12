@@ -159,11 +159,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Send confirmation email (non-blocking)
+    // Awaited: fire-and-forget sends can be dropped when the serverless
+    // function is frozen after responding. The pick is already saved, so a
+    // failed send (logged inside the sender) doesn't fail the request.
     if (player.email) {
-      sendPickConfirmationEmail(player.email, player.full_name, team, week.week_number).catch(
-        console.error
-      )
+      await sendPickConfirmationEmail(player.email, player.full_name, team, week.week_number)
     }
 
     revalidatePath('/')

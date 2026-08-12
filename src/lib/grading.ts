@@ -1,7 +1,7 @@
 import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Game } from '@/types'
-import { sendEliminationEmail } from './email'
+import { sendEliminationEmail, sleep, SEND_DELAY_MS } from './email'
 
 export interface GradeResult {
   eliminated: string[]
@@ -89,8 +89,11 @@ export async function gradeWeekPicks(
       }
 
       eliminated.push(player.full_name)
+      // Awaited: fire-and-forget sends can be dropped when the serverless
+      // function is frozen after responding; paced for Resend's rate limit.
       if (player.email) {
-        sendEliminationEmail(player.email, player.full_name, reason, weekNumber).catch(console.error)
+        await sendEliminationEmail(player.email, player.full_name, reason, weekNumber)
+        await sleep(SEND_DELAY_MS)
       }
     } else if (winners.has(pick.team)) {
       advanced.push(player.full_name)

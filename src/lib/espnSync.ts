@@ -86,10 +86,6 @@ export async function syncWeekFromEspn(
     await supabase.from('weeks').update({ is_active: true }).eq('id', weekId)
   }
 
-  // Delete existing games for this week (clean slate) — scoped to this
-  // week_id only, so it never touches any other week's schedule or results.
-  await supabase.from('games').delete().eq('week_id', weekId)
-
   const rows = []
   for (const event of events) {
     const teams = eventCompetitors(event)
@@ -114,15 +110,34 @@ export async function syncWeekFromEspn(
       kickoff_central: kickoffUtc,
       is_snf: isSnf,
       is_mnf: isMnf,
-      result: 'pending',
     })
   }
 
+  // Upsert on (week_id, home_team, away_team) — same pattern as the manual
+  // schedule form. `result` is intentionally omitted: it takes the table
+  // default ('pending') on insert and is left untouched on conflict, so
+  // re-syncing an already-graded week can never wipe its results.
   if (rows.length > 0) {
-    const { error: insertError } = await supabase.from('games').insert(rows)
+    const { error: insertError } = await supabase
+      .from('games')
+      .upsert(rows, { onConflict: 'week_id,home_team,away_team' })
     if (insertError) {
       return { ok: false, error: `Failed to save games: ${insertError.message}` }
     }
+  }
+
+  // Remove games ESPN no longer lists for this week (e.g. a matchup that was
+  // moved to another week) — scoped to this week_id only.
+  const { data: existingGames } = await supabase
+    .from('games')
+    .select('id, home_team, away_team')
+    .eq('week_id', weekId)
+  const currentMatchups = new Set(rows.map((r) => `${r.home_team}|${r.away_team}`))
+  const staleIds = (existingGames || [])
+    .filter((g) => !currentMatchups.has(`${g.home_team}|${g.away_team}`))
+    .map((g) => g.id)
+  if (staleIds.length > 0) {
+    await supabase.from('games').delete().in('id', staleIds)
   }
 
   return { ok: true, weekId, gamesSynced: rows.length }

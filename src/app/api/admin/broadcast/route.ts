@@ -66,22 +66,25 @@ export async function POST(req: NextRequest) {
     let sent = 0
     const failures: string[] = []
     for (const player of recipients) {
-      try {
-        await resend.emails.send({
-          from: FROM_EMAIL,
-          to: player.email,
-          subject: subject.trim(),
-          html: `
-            <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-              <p>Hey ${esc(player.full_name)},</p>
-              <p>${htmlBody}</p>
-              <p style="margin-top: 24px; color: #666; font-size: 14px;">— NFL Survivor Pool</p>
-            </div>
-          `,
-        })
-        sent++
-      } catch {
+      // Resend reports failures via `error`, it does not throw — check it,
+      // or the send report would claim success for every recipient.
+      const { error: sendError } = await resend.emails.send({
+        from: FROM_EMAIL,
+        to: player.email,
+        subject: subject.trim(),
+        html: `
+          <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+            <p>Hey ${esc(player.full_name)},</p>
+            <p>${htmlBody}</p>
+            <p style="margin-top: 24px; color: #666; font-size: 14px;">— NFL Survivor Pool</p>
+          </div>
+        `,
+      })
+      if (sendError) {
+        console.error(`Broadcast to ${player.email} failed:`, sendError)
         failures.push(player.full_name)
+      } else {
+        sent++
       }
       if (recipients.length > 2) await sleep(SEND_DELAY_MS)
     }
