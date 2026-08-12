@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/testMode'
 import { requireAdmin } from '@/lib/api'
 import { syncWeekFromEspn } from '@/lib/espnSync'
+import { logAudit } from '@/lib/audit'
 
 export async function POST(req: NextRequest) {
   const unauthorized = await requireAdmin()
@@ -28,6 +29,13 @@ export async function POST(req: NextRequest) {
             : 500
       return NextResponse.json({ error: result.error }, { status })
     }
+
+    await logAudit(supabase, {
+      event_type: 'schedule-synced',
+      actor: 'admin',
+      message: `Admin synced ${season_type === 'preseason' ? 'Preseason ' : ''}Week ${week_number} schedule from ESPN (${result.gamesSynced} games)`,
+      details: { week_number, season_year, season_type: season_type || 'regular', games_synced: result.gamesSynced },
+    })
 
     return NextResponse.json({ ok: true, week_id: result.weekId, games_synced: result.gamesSynced })
   } catch (err) {

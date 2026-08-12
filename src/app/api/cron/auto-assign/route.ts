@@ -3,6 +3,7 @@ import { getDb, getEffectiveNow } from '@/lib/testMode'
 import { requireCronOrAdmin } from '@/lib/api'
 import { getSNFGame, getMNFGame, getWeekSundayDeadline } from '@/lib/deadline'
 import { sendEliminationEmail, sendPickConfirmationEmail } from '@/lib/email'
+import { logAudit } from '@/lib/audit'
 import type { Game } from '@/types'
 
 // Per-player DB round trips plus awaited emails — allow a big no-pick cohort.
@@ -106,6 +107,15 @@ export async function GET(req: NextRequest) {
           continue
         }
 
+        await logAudit(supabase, {
+          event_type: 'pick-auto-assigned',
+          actor: 'system',
+          player_id: player.id,
+          player_name: player.full_name,
+          message: `${player.full_name} missed the Week ${week.week_number} deadline — auto-assigned ${autoTeam}`,
+          details: { week_number: week.week_number, team: autoTeam },
+        })
+
         // Awaited: fire-and-forget sends can be dropped when the serverless
         // function is frozen after responding. Failures are logged inside the
         // sender; the assignment itself already succeeded.
@@ -131,6 +141,15 @@ export async function GET(req: NextRequest) {
           results.push({ player: player.full_name, action: `skipped: ${eliminateError.message}` })
           continue
         }
+
+        await logAudit(supabase, {
+          event_type: 'player-eliminated',
+          actor: 'system',
+          player_id: player.id,
+          player_name: player.full_name,
+          message: `${player.full_name} eliminated — ${reason}`,
+          details: { week_number: week.week_number, cause: 'missed-deadline' },
+        })
 
         if (player.email) {
           await sendEliminationEmail(player.email, player.full_name, reason, week.week_number)

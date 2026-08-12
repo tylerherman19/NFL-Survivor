@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/testMode'
 import { requireAdmin } from '@/lib/api'
 import { gradeWeekPicks } from '@/lib/grading'
+import { logAudit } from '@/lib/audit'
 import type { Game } from '@/types'
 
 // Grading awaits a paced elimination email per eliminated player.
@@ -34,6 +35,13 @@ export async function POST(req: NextRequest) {
     if (error || !game) {
       return NextResponse.json({ error: 'Game not found' }, { status: 404 })
     }
+
+    await logAudit(supabase, {
+      event_type: 'result-set',
+      actor: 'admin',
+      message: `Admin set ${game.away_team}@${game.home_team} result to ${result}`,
+      details: { game_id, home_team: game.home_team, away_team: game.away_team, result },
+    })
 
     // Marking a game final should grade it immediately, not wait for the
     // nightly cron — mirrors what the sandbox's "Mark Final" already does.

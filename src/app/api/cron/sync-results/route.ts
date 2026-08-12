@@ -3,6 +3,7 @@ import { getDb } from '@/lib/testMode'
 import { requireCronOrAdmin } from '@/lib/api'
 import { fetchEspnScoreboard, eventCompetitors } from '@/lib/espn'
 import { gradeWeekPicks } from '@/lib/grading'
+import { logAudit } from '@/lib/audit'
 import type { Game } from '@/types'
 
 // Vercel Cron — auto-syncs ESPN game results + grades picks, no admin needed.
@@ -76,6 +77,15 @@ export async function GET(req: NextRequest) {
       }
       dbGame.result = result
       updatedGames.push(`${awayAbbr}@${homeAbbr}: ${result}`)
+    }
+
+    if (updatedGames.length > 0) {
+      await logAudit(supabase, {
+        event_type: 'results-synced',
+        actor: 'system',
+        message: `ESPN sync recorded ${updatedGames.length} Week ${week.week_number} result${updatedGames.length === 1 ? '' : 's'}: ${updatedGames.join(', ')}`,
+        details: { week_number: week.week_number, results: updatedGames },
+      })
     }
 
     // Grade everything completed so far — gradeWeekPicks is idempotent, so

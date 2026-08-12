@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { getDb } from '@/lib/testMode'
 import { requireCronOrAdmin, isCronRequest } from '@/lib/api'
 import { syncWeekFromEspn } from '@/lib/espnSync'
+import { logAudit } from '@/lib/audit'
 import type { SeasonType } from '@/lib/espn'
 
 const LAST_REGULAR_SEASON_WEEK = 18
@@ -70,10 +71,18 @@ export async function GET(req: NextRequest) {
     const { error: activateErr } = await supabase.from('weeks').update({ is_active: true }).eq('id', result.weekId)
     if (activateErr) return NextResponse.json({ ok: false, error: activateErr.message }, { status: 500 })
 
+    const label = `${seasonType === 'preseason' ? 'Preseason ' : ''}Week ${nextWeekNumber}`
+    await logAudit(supabase, {
+      event_type: 'week-advanced',
+      actor: isCronRequest(req) ? 'system' : 'admin',
+      message: `Pool advanced from Week ${week.week_number} to ${label} (${result.gamesSynced} games synced)`,
+      details: { from_week: week.week_number, to_week: nextWeekNumber, season_type: seasonType, games_synced: result.gamesSynced },
+    })
+
     revalidatePath('/')
     return NextResponse.json({
       ok: true,
-      advanced_to: `${seasonType === 'preseason' ? 'Preseason ' : ''}Week ${nextWeekNumber}`,
+      advanced_to: label,
       games_synced: result.gamesSynced,
     })
   } catch (err) {

@@ -3,6 +3,7 @@ import { getDb } from '@/lib/testMode'
 import { requireAdmin, escapeIlike } from '@/lib/api'
 import { generatePin, hashPin } from '@/lib/pin'
 import { sendWelcomeEmail, sleep, SEND_DELAY_MS } from '@/lib/email'
+import { logAudit } from '@/lib/audit'
 
 // bcrypt cost-12 hash (~250ms) plus a Resend call, serially, per row — allow
 // enough runtime that a full-size batch can't be killed mid-row by a platform
@@ -105,6 +106,13 @@ export async function POST(req: NextRequest) {
         errors.push(`${row.full_name}: unexpected error`)
       }
     }
+
+    await logAudit(supabase, {
+      event_type: 'players-imported',
+      actor: 'admin',
+      message: `Admin imported ${count} player${count === 1 ? '' : 's'} from CSV${skipped > 0 ? ` (${skipped} already existed)` : ''}`,
+      details: { created: count, skipped, errors },
+    })
 
     return NextResponse.json({
       ok: true,

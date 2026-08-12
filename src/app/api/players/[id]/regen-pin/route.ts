@@ -3,6 +3,7 @@ import { getDb } from '@/lib/testMode'
 import { requireAdmin, isUuid } from '@/lib/api'
 import { generatePin, hashPin } from '@/lib/pin'
 import { sendWelcomeEmail } from '@/lib/email'
+import { logAudit } from '@/lib/audit'
 
 export async function POST(
   _req: NextRequest,
@@ -35,6 +36,16 @@ export async function POST(
   // Reuse welcome email template (it shows the PIN). The PIN is already
   // saved, so a failed send needs the admin to retry — surface it.
   const emailResult = await sendWelcomeEmail(player.email, player.full_name, pin)
+
+  await logAudit(supabase, {
+    event_type: 'pin-regenerated',
+    actor: 'admin',
+    player_id: player.id,
+    player_name: player.full_name,
+    message: `Admin regenerated PIN for ${player.full_name}`,
+    details: { email_sent: emailResult.ok },
+  })
+
   if (!emailResult.ok) {
     return NextResponse.json(
       { error: 'PIN was reset, but the email failed to send — try again to email it' },

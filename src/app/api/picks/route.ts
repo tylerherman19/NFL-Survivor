@@ -5,6 +5,7 @@ import { getSession, getAdminSession } from '@/lib/session'
 import { isUuid } from '@/lib/api'
 import { getTeamDeadline } from '@/lib/deadline'
 import { sendPickConfirmationEmail } from '@/lib/email'
+import { logAudit } from '@/lib/audit'
 import { NFL_TEAMS } from '@/types'
 import type { Game } from '@/types'
 
@@ -158,6 +159,17 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Failed to save pick' }, { status: 500 })
       }
     }
+
+    await logAudit(supabase, {
+      event_type: existingPick ? 'pick-changed' : 'pick-submitted',
+      actor: isAdmin ? 'admin' : 'player',
+      player_id: playerId,
+      player_name: player.full_name,
+      message: existingPick
+        ? `${player.full_name} changed Week ${week.week_number} pick: ${existingPick.team} → ${team}${isAdmin ? ' (by admin)' : ''}`
+        : `${player.full_name} picked ${team} for Week ${week.week_number}${isAdmin ? ' (by admin)' : ''}`,
+      details: { week_number: week.week_number, team, previous_team: existingPick?.team ?? null },
+    })
 
     // Awaited: fire-and-forget sends can be dropped when the serverless
     // function is frozen after responding. The pick is already saved, so a

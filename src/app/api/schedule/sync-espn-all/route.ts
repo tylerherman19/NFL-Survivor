@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/testMode'
 import { requireAdmin } from '@/lib/api'
 import { syncWeekFromEspn } from '@/lib/espnSync'
+import { logAudit } from '@/lib/audit'
 
 // 18 regular-season weeks + up to 4 playoff weeks, synced serially — comfortably
 // fits Vercel's default timeout, but a few seconds of headroom per week is cheap.
@@ -45,6 +46,14 @@ export async function POST(req: NextRequest) {
       if (result.error?.startsWith('No games found')) break
       failures.push({ week, error: result.error })
     }
+
+    const totalGames = synced.reduce((sum, s) => sum + s.games, 0)
+    await logAudit(supabase, {
+      event_type: 'schedule-synced',
+      actor: 'admin',
+      message: `Admin bulk-synced ${synced.length} week${synced.length === 1 ? '' : 's'} from ESPN (${totalGames} games)${failures.length > 0 ? `, ${failures.length} failed` : ''}`,
+      details: { season_year, weeks_synced: synced.map((s) => s.week), total_games: totalGames, failures },
+    })
 
     return NextResponse.json({
       ok: failures.length === 0,

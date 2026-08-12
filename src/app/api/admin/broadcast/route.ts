@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/testMode'
 import { requireAdmin } from '@/lib/api'
 import { getResend, esc, isDeliverable, FROM_EMAIL } from '@/lib/email'
+import { logAudit } from '@/lib/audit'
 
 // Sends are paced at ~1.6/sec for Resend rate limits, so allow up to 4 min of runtime
 export const maxDuration = 300
@@ -88,6 +89,13 @@ export async function POST(req: NextRequest) {
       }
       if (recipients.length > 2) await sleep(SEND_DELAY_MS)
     }
+
+    await logAudit(supabase, {
+      event_type: 'broadcast-sent',
+      actor: 'admin',
+      message: `Admin emailed ${sent} of ${recipients.length} (${audience}): "${subject.trim()}"${failures.length > 0 ? ` — ${failures.length} failed` : ''}`,
+      details: { subject: subject.trim(), audience, sent, total: recipients.length, failures },
+    })
 
     return NextResponse.json({
       ok: true,

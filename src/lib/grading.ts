@@ -2,6 +2,7 @@ import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Game } from '@/types'
 import { sendEliminationEmail, sleep, SEND_DELAY_MS } from './email'
+import { logAudit } from './audit'
 
 export interface GradeResult {
   eliminated: string[]
@@ -89,6 +90,14 @@ export async function gradeWeekPicks(
       }
 
       eliminated.push(player.full_name)
+      await logAudit(db, {
+        event_type: 'player-eliminated',
+        actor: 'system',
+        player_id: player.id,
+        player_name: player.full_name,
+        message: `${player.full_name} eliminated — ${reason}`,
+        details: { week_number: weekNumber, team: pick.team, result: game.result },
+      })
       // Awaited: fire-and-forget sends can be dropped when the serverless
       // function is frozen after responding; paced for Resend's rate limit.
       if (player.email) {
