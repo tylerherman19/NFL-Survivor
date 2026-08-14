@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation'
 import { getAdminSession } from '@/lib/session'
-import { getDb } from '@/lib/testMode'
+import { getDb, getEffectiveNow } from '@/lib/testMode'
+import { getSignupCutoff } from '@/lib/season'
+import { formatCentralTime } from '@/lib/deadline'
 import { NFL_TEAM_NAMES } from '@/types'
 import Link from 'next/link'
 import AdvanceWeekButton from './AdvanceWeekButton'
@@ -12,11 +14,17 @@ export default async function AdminDashboard() {
   if (!isAdmin) redirect('/admin/login')
   const supabase = await getDb()
 
-  const [{ data: week }, { data: players }, { data: allWeeks }] = await Promise.all([
+  const [{ data: week }, { data: players }, { data: allWeeks }, signupAnchor, now] = await Promise.all([
     supabase.from('weeks').select('*').eq('is_active', true).single(),
     supabase.from('players').select('id, full_name, email, status, paid'),
     supabase.from('weeks').select('id, week_number, season_year, season_type, is_active').order('week_number'),
+    getSignupCutoff(),
+    getEffectiveNow(),
   ])
+
+  // Surfaced so the signup gate is inspectable rather than inferred — this is
+  // the exact value haveSignupsClosed() compares against.
+  const signupsClosed = signupAnchor ? now >= signupAnchor.cutoff : false
 
   const alive = players?.filter((p: { status: string }) => p.status === 'alive') || []
   const paid = players?.filter((p: { paid: boolean }) => p.paid) || []
@@ -66,6 +74,29 @@ export default async function AdminDashboard() {
           <p className="mt-1" style={{ color: 'var(--muted)' }}>
             Active: {week.season_type === 'preseason' ? 'Preseason ' : ''}Week {week.week_number} · Season {week.season_year}
           </p>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
+        <p className="text-slate-400 text-xs font-medium uppercase tracking-wide mb-2">Signups</p>
+        {!signupAnchor ? (
+          <>
+            <p className="text-green-400 font-medium">Open — no cutoff yet</p>
+            <p className="text-slate-400 text-sm mt-1">
+              Nothing to anchor to until an active week exists with games synced. Signups stay open until then.
+            </p>
+          </>
+        ) : (
+          <>
+            <p className={`font-medium ${signupsClosed ? 'text-red-400' : 'text-green-400'}`}>
+              {signupsClosed ? 'Closed' : 'Open'} — {signupsClosed ? 'closed' : 'closes'} {formatCentralTime(signupAnchor.cutoff)}
+            </p>
+            <p className="text-slate-400 text-sm mt-1">
+              Anchored to {signupAnchor.seasonType === 'preseason' ? 'Preseason ' : ''}Week {signupAnchor.weekNumber} ·{' '}
+              Season {signupAnchor.seasonYear} — that week&apos;s Sunday 12:00 PM CT pick deadline. Advancing weeks
+              does not move it; switching between preseason and regular season does.
+            </p>
+          </>
         )}
       </div>
 
