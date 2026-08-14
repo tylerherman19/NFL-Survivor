@@ -25,11 +25,11 @@ function RedButton({ href, children }: { href: string; children: React.ReactNode
   )
 }
 
-export default function SiteHeader({ seasonStarted = false }: { seasonStarted?: boolean }) {
+export default function SiteHeader({ signupsClosed = false }: { signupsClosed?: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false)
-  // Sign Up only makes sense before the season's first game — signups close
-  // for good once it kicks off (enforced server-side too, this just matches).
-  const showSignUp = !seasonStarted
+  // Sign Up only makes sense until Week 1's picks lock at Sunday 12 PM CT —
+  // signups close for good then (enforced server-side too, this just matches).
+  const showSignUp = !signupsClosed
 
   return (
     <header style={{ background: 'var(--dark)' }}>

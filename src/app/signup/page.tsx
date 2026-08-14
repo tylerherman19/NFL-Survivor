@@ -1,17 +1,18 @@
 import Link from 'next/link'
 import LogoMark from '@/app/components/LogoMark'
-import { hasSeasonStarted } from '@/lib/season'
+import { haveSignupsClosed } from '@/lib/season'
 import SignupForm from './SignupForm'
 
 // Re-check every 60s (matches the homepage) so this doesn't freeze at
-// whatever hasSeasonStarted() returned at build time — it has to flip to
-// closed shortly after kickoff, not stay stuck open for the page's lifetime.
+// whatever haveSignupsClosed() returned at build time — it has to flip to
+// closed shortly after the Week 1 deadline, not stay stuck open for the
+// page's lifetime.
 export const revalidate = 60
 
 export default async function SignupPage() {
-  const seasonStarted = await hasSeasonStarted()
+  const signupsClosed = await haveSignupsClosed()
 
-  if (seasonStarted) {
+  if (signupsClosed) {
     return (
       <div className="min-h-screen flex flex-col" style={{ background: 'var(--cream)' }}>
         <header style={{ background: 'var(--dark)' }}>
@@ -26,7 +27,7 @@ export default async function SignupPage() {
           <div className="w-full max-w-sm card p-6 sm:p-8 text-center space-y-4">
             <p className="font-display text-4xl" style={{ color: 'var(--dark)' }}>SIGNUPS ARE CLOSED</p>
             <p className="text-sm" style={{ color: 'var(--muted)' }}>
-              The season has started, so new entries aren&apos;t accepted anymore. Already signed up?
+              Week 1 picks have locked, so new entries aren&apos;t accepted anymore. Already signed up?
             </p>
             <Link href="/login" className="btn-primary inline-block font-display tracking-wider px-6 py-3">
               LOG IN

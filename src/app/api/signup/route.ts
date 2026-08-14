@@ -4,14 +4,14 @@ import { generatePin, hashPin } from '@/lib/pin'
 import { sendWelcomeEmail } from '@/lib/email'
 import { checkRateLimit, getIP } from '@/lib/rateLimit'
 import { escapeIlike } from '@/lib/api'
-import { hasSeasonStarted } from '@/lib/season'
+import { haveSignupsClosed } from '@/lib/season'
 
 export async function POST(req: NextRequest) {
   try {
     // Enforced server-side, not just hidden in the UI — the whole point is to
-    // stop late signups once real games (and picks) are in motion.
-    if (await hasSeasonStarted()) {
-      return NextResponse.json({ error: 'Signups are closed — the season has started.' }, { status: 403 })
+    // stop late signups once Week 1's picks have locked.
+    if (await haveSignupsClosed()) {
+      return NextResponse.json({ error: 'Signups are closed — Week 1 picks have locked.' }, { status: 403 })
     }
 
     const ip = await getIP()
