@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { NFL_TEAM_NAMES } from '@/types'
-import type { StandingRow, TeamStat, Week } from '@/types'
+import type { SeasonType, StandingRow, TeamStat, Week } from '@/types'
 import { teamColor } from '@/lib/teamColors'
 import Countdown from './components/Countdown'
 import LiveTicker from './components/LiveTicker'
@@ -43,6 +43,36 @@ async function getDashboardData() {
 
     // Find active week from allWeeks
     const week = (allWeeks || []).find((w: { is_active: boolean }) => w.is_active) || null
+
+    // Everything derived below is scoped to the season currently being played.
+    // A preseason trial and the regular season coexist in the weeks table under
+    // the same season_year — the unique key is (season_type, week_number,
+    // season_year) — so aggregating across both double-counts every shared week
+    // number: two "Week 1" carnage cards, two Week 1 points on the survival
+    // curve, preseason picks folded into team history and weeks survived.
+    // Read off the active week, like getSignupCutoff does. With no active week
+    // there is nothing being played, so fall back to the newest season present
+    // (regular ahead of preseason) rather than mixing them.
+    const seasonAnchor =
+      week ||
+      (allWeeks || [])
+        .slice()
+        .sort((a: { season_year: number; season_type?: SeasonType }, b: { season_year: number; season_type?: SeasonType }) => {
+          if (a.season_year !== b.season_year) return b.season_year - a.season_year
+          const at = a.season_type ?? 'regular'
+          const bt = b.season_type ?? 'regular'
+          if (at === bt) return 0
+          return at === 'regular' ? -1 : 1
+        })[0] ||
+      null
+
+    const seasonType: SeasonType = seasonAnchor ? seasonAnchor.season_type ?? 'regular' : 'regular'
+    const seasonWeeks = (allWeeks || []).filter(
+      (w: { season_type?: SeasonType; season_year: number }) =>
+        !seasonAnchor || ((w.season_type ?? 'regular') === seasonType && w.season_year === seasonAnchor.season_year)
+    )
+    const seasonWeekIds = new Set<string>(seasonWeeks.map((w: { id: string }) => w.id))
+    const seasonPicks = (allPicks || []).filter((p: { week_id: string }) => seasonWeekIds.has(p.week_id))
 
     let currentPicks: Record<string, string> = {}
     // Subset of currentPicks whose team has already locked, so it can be shown
@@ -94,12 +124,10 @@ async function getDashboardData() {
       }
     }
 
-    // Count weeks survived per player from all picks (including current week)
+    // Count weeks survived per player from this season's picks (including current week)
     const weeksSurvivedByPlayer: Record<string, number> = {}
-    if (allPicks) {
-      for (const pick of allPicks) {
-        weeksSurvivedByPlayer[pick.player_id] = (weeksSurvivedByPlayer[pick.player_id] || 0) + 1
-      }
+    for (const pick of seasonPicks) {
+      weeksSurvivedByPlayer[pick.player_id] = (weeksSurvivedByPlayer[pick.player_id] || 0) + 1
     }
 
     const standings: StandingRow[] = players.map(
@@ -122,7 +150,7 @@ async function getDashboardData() {
     })
 
     // Filter picks to exclude current week for team stats and carnage
-    const allPicksWithTeam = (allPicks || []).filter((p: { week_id: string }) => !week || p.week_id !== week.id)
+    const allPicksWithTeam = seasonPicks.filter((p: { week_id: string }) => !week || p.week_id !== week.id)
 
     const teamMap: Record<string, { times_picked: number; wins: number; eliminations: number }> = {}
     if (allPicksWithTeam) {
@@ -162,7 +190,7 @@ async function getDashboardData() {
     const picksPending = alive.length - picksMade
 
     // Survival curve: players remaining after each completed week
-    const completedWeeks = (allWeeks || []).filter(
+    const completedWeeks = seasonWeeks.filter(
       (w: { week_number: number }) => !week || w.week_number < week.week_number
     )
     const survivalCurve = completedWeeks.map((w: { week_number: number }) => ({
@@ -177,7 +205,7 @@ async function getDashboardData() {
 
     // Weekly carnage: eliminations per past week and the team most responsible
     const weekIdByNumber: Record<number, string> = {}
-    for (const w of allWeeks || []) weekIdByNumber[w.week_number] = w.id
+    for (const w of seasonWeeks) weekIdByNumber[w.week_number] = w.id
     const carnage = completedWeeks
       .map((w: { week_number: number }) => {
         const elim = players.filter(
@@ -461,22 +489,29 @@ export default async function DashboardPage() {
           {data.teamStats.length > 0 && (
             <Section title="Team Pick History">
               <div className="card overflow-hidden">
+                {/* Every cell carries its own horizontal padding: .eyebrow's 0.18em
+                    tracking makes these headers wide enough that with no gap they
+                    ran together into one "TEAM TIMES PICKED WIN RATE ELIMINATIONS"
+                    string on a phone. Short labels keep four tracked columns inside
+                    a 390px viewport, and the numeric columns are right-aligned so
+                    the figures sit under their own header instead of hugging the
+                    column to their left. */}
                 <table className="w-full text-sm">
                   <thead>
                     <tr style={{ background: 'var(--surface-sunken)' }}>
-                      <th className="py-2.5 pl-4 text-left eyebrow">Team</th>
-                      <th className="py-2.5 text-left eyebrow">Times Picked</th>
-                      <th className="py-2.5 text-left eyebrow">Win Rate</th>
-                      <th className="py-2.5 pr-4 text-left eyebrow">Eliminations</th>
+                      <th className="py-2.5 pl-4 pr-3 text-left eyebrow">Team</th>
+                      <th className="py-2.5 px-3 text-right eyebrow whitespace-nowrap">Picks</th>
+                      <th className="py-2.5 px-3 text-right eyebrow whitespace-nowrap">Win Rate</th>
+                      <th className="py-2.5 pl-3 pr-4 text-right eyebrow whitespace-nowrap">Outs</th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.teamStats.map((stat) => (
                       <tr key={stat.team} className="row-hover border-t" style={{ borderColor: 'var(--border)' }}>
-                        <td className="py-2.5 pl-4"><TeamChip team={stat.team} showName /></td>
-                        <td className="py-2.5 tnum" style={{ color: 'var(--dark)' }}>{stat.times_picked}</td>
-                        <td className="py-2.5">
-                          <div className="flex items-center gap-2">
+                        <td className="py-2.5 pl-4 pr-3"><TeamChip team={stat.team} showName /></td>
+                        <td className="py-2.5 px-3 text-right tnum" style={{ color: 'var(--dark)' }}>{stat.times_picked}</td>
+                        <td className="py-2.5 px-3">
+                          <div className="flex items-center justify-end gap-2">
                             <div className="w-16 rounded-full overflow-hidden hidden sm:block" style={{ background: 'var(--surface-sunken)', height: 6 }}>
                               <div className="h-full rounded-full" style={{ width: `${stat.win_rate * 100}%`, background: stat.win_rate >= 0.6 ? 'var(--green)' : stat.win_rate >= 0.4 ? 'var(--dark)' : 'var(--red)' }} />
                             </div>
@@ -485,7 +520,7 @@ export default async function DashboardPage() {
                             </span>
                           </div>
                         </td>
-                        <td className="py-2.5 pr-4 tnum" style={{ color: 'var(--dark)' }}>{stat.eliminations_caused}</td>
+                        <td className="py-2.5 pl-3 pr-4 text-right tnum" style={{ color: 'var(--dark)' }}>{stat.eliminations_caused}</td>
                       </tr>
                     ))}
                   </tbody>
