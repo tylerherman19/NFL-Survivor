@@ -489,22 +489,29 @@ export default async function DashboardPage() {
           {data.teamStats.length > 0 && (
             <Section title="Team Pick History">
               <div className="card overflow-hidden">
+                {/* Every cell carries its own horizontal padding: .eyebrow's 0.18em
+                    tracking makes these headers wide enough that with no gap they
+                    ran together into one "TEAM TIMES PICKED WIN RATE ELIMINATIONS"
+                    string on a phone. Short labels keep four tracked columns inside
+                    a 390px viewport, and the numeric columns are right-aligned so
+                    the figures sit under their own header instead of hugging the
+                    column to their left. */}
                 <table className="w-full text-sm">
                   <thead>
                     <tr style={{ background: 'var(--surface-sunken)' }}>
-                      <th className="py-2.5 pl-4 text-left eyebrow">Team</th>
-                      <th className="py-2.5 text-left eyebrow">Times Picked</th>
-                      <th className="py-2.5 text-left eyebrow">Win Rate</th>
-                      <th className="py-2.5 pr-4 text-left eyebrow">Eliminations</th>
+                      <th className="py-2.5 pl-4 pr-3 text-left eyebrow">Team</th>
+                      <th className="py-2.5 px-3 text-right eyebrow whitespace-nowrap">Picks</th>
+                      <th className="py-2.5 px-3 text-right eyebrow whitespace-nowrap">Win Rate</th>
+                      <th className="py-2.5 pl-3 pr-4 text-right eyebrow whitespace-nowrap">Outs</th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.teamStats.map((stat) => (
                       <tr key={stat.team} className="row-hover border-t" style={{ borderColor: 'var(--border)' }}>
-                        <td className="py-2.5 pl-4"><TeamChip team={stat.team} showName /></td>
-                        <td className="py-2.5 tnum" style={{ color: 'var(--dark)' }}>{stat.times_picked}</td>
-                        <td className="py-2.5">
-                          <div className="flex items-center gap-2">
+                        <td className="py-2.5 pl-4 pr-3"><TeamChip team={stat.team} showName /></td>
+                        <td className="py-2.5 px-3 text-right tnum" style={{ color: 'var(--dark)' }}>{stat.times_picked}</td>
+                        <td className="py-2.5 px-3">
+                          <div className="flex items-center justify-end gap-2">
                             <div className="w-16 rounded-full overflow-hidden hidden sm:block" style={{ background: 'var(--surface-sunken)', height: 6 }}>
                               <div className="h-full rounded-full" style={{ width: `${stat.win_rate * 100}%`, background: stat.win_rate >= 0.6 ? 'var(--green)' : stat.win_rate >= 0.4 ? 'var(--dark)' : 'var(--red)' }} />
                             </div>
@@ -513,7 +520,7 @@ export default async function DashboardPage() {
                             </span>
                           </div>
                         </td>
-                        <td className="py-2.5 pr-4 tnum" style={{ color: 'var(--dark)' }}>{stat.eliminations_caused}</td>
+                        <td className="py-2.5 pl-3 pr-4 text-right tnum" style={{ color: 'var(--dark)' }}>{stat.eliminations_caused}</td>
                       </tr>
                     ))}
                   </tbody>
