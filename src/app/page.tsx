@@ -335,9 +335,9 @@ export default async function DashboardPage() {
                 <thead>
                   <tr style={{ background: 'var(--surface-sunken)' }}>
                     <th className="py-2.5 pl-4 w-10 text-left eyebrow">#</th>
-                    <th className="py-2.5 text-left eyebrow">Player</th>
-                    <th className="py-2.5 text-left eyebrow hidden sm:table-cell">Status</th>
-                    <th className="py-2.5 pr-4 text-left eyebrow">{data.week ? `Wk ${data.week.week_number} Pick` : 'Pick'}</th>
+                    <th className="py-2.5 text-left eyebrow w-full">Player</th>
+                    <th className="py-2.5 text-left eyebrow hidden sm:table-cell whitespace-nowrap">Status</th>
+                    <th className="py-2.5 pr-4 text-left eyebrow whitespace-nowrap">{data.week ? `Wk ${data.week.week_number} Pick` : 'Pick'}</th>
                   </tr>
                 </thead>
                 <tbody>
