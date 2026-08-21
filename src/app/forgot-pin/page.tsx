@@ -42,13 +42,13 @@ export default function ForgotPinPage() {
       <main className="flex-1 flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-sm">
           <h1 className="font-display text-5xl mb-1" style={{ color: 'var(--dark)' }}>FORGOT PIN?</h1>
-          <p className="text-sm mb-8" style={{ color: 'var(--muted)' }}>Enter your email and we&apos;ll send a reset link.</p>
+          <p className="text-sm mb-8" style={{ color: 'var(--muted)' }}>Enter your email and we&apos;ll send you a new PIN.</p>
 
           {sent ? (
             <div className="border p-6 text-center" style={{ borderColor: 'var(--border)' }}>
               <p className="font-bold" style={{ color: 'var(--dark)' }}>Check your email</p>
               <p className="text-sm mt-2" style={{ color: 'var(--muted)' }}>
-                If that email is in our system, a PIN reset link is on its way. It expires in 1 hour.
+                If that email is in our system, a new PIN is on its way.
               </p>
             </div>
           ) : (
@@ -72,7 +72,7 @@ export default function ForgotPinPage() {
                 className="w-full font-display tracking-wider text-white py-3 disabled:opacity-50"
                 style={{ background: 'var(--red)' }}
               >
-                {loading ? 'SENDING…' : 'SEND RESET LINK'}
+                {loading ? 'SENDING…' : 'SEND NEW PIN'}
               </button>
             </form>
           )}

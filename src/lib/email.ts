@@ -168,28 +168,6 @@ export async function sendEliminationEmail(
   })
 }
 
-export async function sendPinResetEmail(
-  email: string,
-  fullName: string,
-  resetToken: string
-): Promise<SendResult> {
-  if (!isDeliverable(email)) return { ok: true }
-  const resetUrl = `${APP_URL}/reset-pin?token=${encodeURIComponent(resetToken)}`
-  return sendChecked({
-    to: email,
-    subject: 'Reset Your PIN',
-    html: `
-      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-        ${LOGO_HEADER}
-        <p>Hey ${esc(fullName)},</p>
-        <p>Click below to reset your PIN.</p>
-        <a href="${resetUrl}" style="display: inline-block; background: #1a1a1a; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">Reset My PIN</a>
-        <p style="margin-top: 24px; color: #666; font-size: 14px;">Heads up, this link expires in 1 hour. If you didn't request this, no worries, just ignore the email.</p>
-      </div>
-    `,
-  })
-}
-
 export async function sendReminderEmail(
   email: string,
   fullName: string,

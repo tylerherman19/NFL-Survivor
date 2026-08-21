@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/testMode'
-import { generateResetToken } from '@/lib/pin'
-import { sendPinResetEmail } from '@/lib/email'
+import { generatePin, hashPin } from '@/lib/pin'
+import { sendPinRegeneratedEmail } from '@/lib/email'
 import { checkRateLimit, getIP } from '@/lib/rateLimit'
 import { escapeIlike } from '@/lib/api'
 
@@ -25,15 +25,12 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (player) {
-      const token = generateResetToken()
-      const expires = new Date(Date.now() + 60 * 60 * 1000).toISOString() // 1 hour
+      const pin = generatePin()
+      const pin_hash = await hashPin(pin)
 
-      await supabase
-        .from('players')
-        .update({ pin_reset_token: token, pin_reset_expires: expires })
-        .eq('id', player.id)
+      await supabase.from('players').update({ pin_hash }).eq('id', player.id)
 
-      await sendPinResetEmail(player.email, player.full_name, token)
+      await sendPinRegeneratedEmail(player.email, player.full_name, pin)
     }
 
     // Always return success to avoid email enumeration

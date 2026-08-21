@@ -18,8 +18,3 @@ export async function hashPin(pin: string): Promise<string> {
 export async function verifyPin(pin: string, hash: string): Promise<boolean> {
   return bcrypt.compare(pin, hash)
 }
-
-// Generate a URL-safe reset token
-export function generateResetToken(): string {
-  return randomBytes(32).toString('hex')
-}
