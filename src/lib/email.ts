@@ -68,19 +68,28 @@ export async function sendWelcomeEmail(
   const name = esc(fullName)
   return sendChecked({
     to: email,
-    subject: "Welcome to the 2026 NFL Survivor Pool - Here's Your PIN",
+    subject: "Welcome to the 2026 NFL Survivor Pool — You're In!",
     html: `
       <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
         ${LOGO_HEADER}
-        <p>Hey ${name},</p>
-        <p>You're officially in the 2026 NFL Survivor Pool. Let's run through the basics real quick:</p>
-        <p><strong>Entry fee:</strong> $25 via Venmo to <strong>@griffinsell</strong> &mdash; please get that squared away if you haven't already. If you don't have Venmo, reach out to me at 612-790-3985 and we can find another way.</p>
-        <p style="margin-bottom: 4px;"><strong>Your login:</strong> ${name}</p>
-        <p style="margin-top: 0;"><strong>Your PIN:</strong> <span style="font-size: 24px; font-weight: bold; letter-spacing: 4px;">${esc(pin)}</span></p>
+        <p>Hey ${name}, welcome to the 2026 NFL Survivor Pool!</p>
+        <p>Entry: $25 &mdash; If you haven&rsquo;t already, please Venmo @griffinsell before Week 1.</p>
+        <p style="margin-bottom: 4px;">Your login name: ${name}</p>
+        <p style="margin-top: 0;">Your PIN: ${esc(pin)} &mdash; save that PIN, you&rsquo;ll need it every week to submit your pick.</p>
         <a href="${APP_URL}/login" style="display: inline-block; background: #1a1a1a; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">Log In &amp; Make Your Pick</a>
-        <p style="margin-top: 24px;">Pick a team each week. If they win, you live to see another week. If they lose (or tie), you're out. Can't pick the same team twice. Winner takes the pot.</p>
-        <p style="color: #666; font-size: 14px;">Forgot your PIN down the road? There's a reset link on the login page.</p>
-        <p>Alright, good luck. Pick smart, don't overthink it, and let's have a fun season!</p>
+        <p>Join the GroupMe chat here: <a href="https://groupme.com/join_group/116696794/alYOgDf2">https://groupme.com/join_group/116696794/alYOgDf2</a></p>
+        <p>Rules (quick hits):</p>
+        <ul>
+          <li>Choose one NFL team to win each week</li>
+          <li>No repeats; you can&rsquo;t use the same team twice</li>
+          <li>Win and advance; lose or tie and you&rsquo;re out</li>
+          <li>Deadlines: Wed-Sat games lock at kickoff; all other picks lock Sunday at 12PM CT</li>
+          <li>Missed pick: SNF away team OR MNF away team if SNF team was already used. If both already used, you&rsquo;re eliminated.</li>
+        </ul>
+        <p>Last survivor wins the pot. If multiple survivors remain at the end, the entire pot is split amongst those people. My phone number is 612-790-3985 and email is griffin.sell@icloud.com. Please reach out with any questions!</p>
+        <p>Can&rsquo;t remember your PIN? Use the &ldquo;Forgot PIN&rdquo; link on the login page to get a reset email.</p>
+        <p>Good luck,</p>
+        <p>Griffin Sell</p>
       </div>
     `,
   })
@@ -96,38 +105,44 @@ export async function sendPickConfirmationEmail(
   const teamName = NFL_TEAM_NAMES[teamAbbr] || teamAbbr
   return sendChecked({
     to: email,
-    subject: `You're Rolling With ${teamName} - Week ${weekNumber}`,
+    subject: `You're Rolling With ${teamName} — Week ${weekNumber}`,
     html: `
       <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
         ${LOGO_HEADER}
         <p>Hey ${esc(fullName)},</p>
-        <p style="font-size: 20px; font-weight: bold; color: #1a1a1a;">Pick Confirmed - ${esc(teamName)}</p>
-        <p>That's your Week ${weekNumber} pick, locked in. Can change up until kickoff or Sunday 12 PM CT, whichever comes first.</p>
-        <p>We'll see how it shakes out. Check back on standings to see where you're at against everyone else in the pool.</p>
+        <p>You&rsquo;re locked in with ${esc(teamName)} for Week ${weekNumber}. You can still change it up until kickoff or Sunday at 12PM CT, whichever comes first. Let&rsquo;s see how it shakes out.</p>
         <a href="${APP_URL}" style="display: inline-block; background: #1a1a1a; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">View Standings</a>
+        <p style="margin-top: 24px;">Best of luck,</p>
+        <p>Griffin Sell</p>
       </div>
     `,
   })
 }
 
-// `_reason` is still recorded in the DB by callers; the email itself uses one
-// generic message for every elimination (game loss, tie, or missed deadline).
+// `teamAbbr` is null for a missed-deadline elimination (no team was picked).
 export async function sendEliminationEmail(
   email: string,
-  _fullName: string,
-  _reason: string,
+  fullName: string,
+  teamAbbr: string | null,
   weekNumber: number
 ): Promise<SendResult> {
   if (!isDeliverable(email)) return { ok: true }
+  const teamName = teamAbbr ? NFL_TEAM_NAMES[teamAbbr] || teamAbbr : null
+  const outcome = teamName
+    ? `Well&hellip; ${esc(teamName)} came up short.`
+    : `Well&hellip; you missed the deadline.`
   return sendChecked({
     to: email,
-    subject: `Tough One - You're Out Week ${weekNumber}`,
+    subject: `Tough One — You're Out Week ${weekNumber}`,
     html: `
       <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
         ${LOGO_HEADER}
-        <p>Your run ended this week, and that means you've been eliminated from the pool. Feel free to stick around, follow the standings, and see who else drops.</p>
-        <p>Thanks for joining this year. Will be running this back for March Madness, so stay tuned.</p>
+        <p>Hey ${esc(fullName)},</p>
+        <p>${outcome} You&rsquo;ve been eliminated from the pool. Feel free to stick around, follow the standings, and enjoy watching until a winner is crowned.</p>
+        <p>Thanks for playing this year. Will be running it back for March Madness, so stay tuned!</p>
         <a href="${APP_URL}" style="display: inline-block; background: #1a1a1a; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">View Standings</a>
+        <p style="margin-top: 24px;">All the best,</p>
+        <p>Griffin Sell</p>
       </div>
     `,
   })
@@ -164,15 +179,17 @@ export async function sendReminderEmail(
   if (!isDeliverable(email)) return { ok: true }
   return sendChecked({
     to: email,
-    subject: `Don't Sleep On This - Week ${weekNumber} Pick Due Soon`,
+    subject: `Don't Sleep On This — Week ${weekNumber} Pick Due Soon`,
     html: `
       <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
         ${LOGO_HEADER}
         <p>Hey ${esc(fullName)},</p>
-        <p>You haven't made your pick yet.</p>
-        <p><strong>Deadline: ${esc(deadlineStr)}</strong></p>
-        <p>Get your pick in before then or you're getting an auto-pick. Nobody wants to go out like that. Take two minutes and lock it in.</p>
+        <p>Still waiting on your pick...</p>
+        <p>Deadline: ${esc(deadlineStr)}</p>
+        <p>Get your pick in before then or you&rsquo;ll get auto-picked. Take two minutes and lock it in.</p>
         <a href="${APP_URL}/pick" style="display: inline-block; background: #1a1a1a; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">Submit My Pick</a>
+        <p style="margin-top: 24px;">Good luck,</p>
+        <p>Griffin Sell</p>
       </div>
     `,
   })

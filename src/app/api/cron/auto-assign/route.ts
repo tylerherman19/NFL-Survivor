@@ -152,7 +152,7 @@ export async function GET(req: NextRequest) {
         })
 
         if (player.email) {
-          await sendEliminationEmail(player.email, player.full_name, reason, week.week_number)
+          await sendEliminationEmail(player.email, player.full_name, null, week.week_number)
         }
 
         results.push({ player: player.full_name, action: 'eliminated (no auto-assign available)' })

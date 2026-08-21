@@ -101,7 +101,7 @@ export async function gradeWeekPicks(
       // Awaited: fire-and-forget sends can be dropped when the serverless
       // function is frozen after responding; paced for Resend's rate limit.
       if (player.email) {
-        await sendEliminationEmail(player.email, player.full_name, reason, weekNumber)
+        await sendEliminationEmail(player.email, player.full_name, pick.team, weekNumber)
         await sleep(SEND_DELAY_MS)
       }
     } else if (winners.has(pick.team)) {

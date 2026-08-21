@@ -337,14 +337,13 @@ export default async function DashboardPage() {
                     <th className="py-2.5 pl-4 w-10 text-left eyebrow">#</th>
                     <th className="py-2.5 text-left eyebrow">Player</th>
                     <th className="py-2.5 text-left eyebrow hidden sm:table-cell">Status</th>
-                    <th className="py-2.5 text-left eyebrow">{data.week ? `Wk ${data.week.week_number} Pick` : 'Pick'}</th>
-                    <th className="py-2.5 pr-4 text-right eyebrow hidden sm:table-cell">Streak</th>
+                    <th className="py-2.5 pr-4 text-left eyebrow">{data.week ? `Wk ${data.week.week_number} Pick` : 'Pick'}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {aliveRows.length > 0 && (
                     <tr>
-                      <td colSpan={5} className="pt-4 pb-1.5 pl-4">
+                      <td colSpan={4} className="pt-4 pb-1.5 pl-4">
                         <span className="pill pill-alive"><span className="pill-dot" />{aliveRows.length} Still Alive</span>
                       </td>
                     </tr>
@@ -356,7 +355,7 @@ export default async function DashboardPage() {
                       <td className="py-3 hidden sm:table-cell">
                         <span className="pill pill-alive"><span className="pill-dot" />Alive</span>
                       </td>
-                      <td className="py-3">
+                      <td className="py-3 pr-4">
                         {row.current_pick ? (
                           row.pick_revealed ? (
                             <TeamChip team={row.current_pick} showName />
@@ -367,15 +366,12 @@ export default async function DashboardPage() {
                           <span className="text-xs italic" style={{ color: 'var(--red)' }}>no pick yet</span>
                         )}
                       </td>
-                      <td className="py-3 pr-4 text-right text-xs tnum hidden sm:table-cell" style={{ color: 'var(--muted)' }}>
-                        {row.weeks_survived > 0 ? `${row.weeks_survived} wk${row.weeks_survived !== 1 ? 's' : ''}` : '—'}
-                      </td>
                     </tr>
                   ))}
 
                   {elimRows.length > 0 && (
                     <tr>
-                      <td colSpan={5} className="pt-6 pb-1.5 pl-4">
+                      <td colSpan={4} className="pt-6 pb-1.5 pl-4">
                         <span className="pill pill-out">♦ {elimRows.length} Eliminated</span>
                       </td>
                     </tr>
@@ -389,10 +385,7 @@ export default async function DashboardPage() {
                         <td className="py-2.5 hidden sm:table-cell">
                           <span className="pill pill-out">Out{ew ? ` · Wk ${ew}` : ''}</span>
                         </td>
-                        <td className="py-2.5 text-xs" style={{ color: 'var(--muted)' }}>—</td>
-                        <td className="py-2.5 pr-4 text-right text-xs tnum hidden sm:table-cell" style={{ color: 'var(--muted)' }}>
-                          {row.weeks_survived > 0 ? `${row.weeks_survived} wk${row.weeks_survived !== 1 ? 's' : ''}` : '1 wk'}
-                        </td>
+                        <td className="py-2.5 pr-4 text-xs" style={{ color: 'var(--muted)' }}>—</td>
                       </tr>
                     )
                   })}
