@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/testMode'
 import { requireAdmin, isUuid } from '@/lib/api'
 import { generatePin, hashPin } from '@/lib/pin'
-import { sendWelcomeEmail } from '@/lib/email'
+import { sendPinRegeneratedEmail } from '@/lib/email'
 import { logAudit } from '@/lib/audit'
 
 export async function POST(
@@ -33,9 +33,9 @@ export async function POST(
   const { error } = await supabase.from('players').update({ pin_hash }).eq('id', id)
   if (error) return NextResponse.json({ error: 'Failed to update PIN' }, { status: 500 })
 
-  // Reuse welcome email template (it shows the PIN). The PIN is already
-  // saved, so a failed send needs the admin to retry — surface it.
-  const emailResult = await sendWelcomeEmail(player.email, player.full_name, pin)
+  // The PIN is already saved, so a failed send needs the admin to retry —
+  // surface it.
+  const emailResult = await sendPinRegeneratedEmail(player.email, player.full_name, pin)
 
   await logAudit(supabase, {
     event_type: 'pin-regenerated',

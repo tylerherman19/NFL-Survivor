@@ -95,6 +95,26 @@ export async function sendWelcomeEmail(
   })
 }
 
+export async function sendPinRegeneratedEmail(
+  email: string,
+  fullName: string,
+  pin: string
+): Promise<SendResult> {
+  if (!isDeliverable(email)) return { ok: true }
+  return sendChecked({
+    to: email,
+    subject: 'Your PIN Has Been Reset',
+    html: `
+      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+        ${LOGO_HEADER}
+        <p>Hey ${esc(fullName)},</p>
+        <p>Your PIN was reset by the admin. Your new PIN: ${esc(pin)} &mdash; you&rsquo;ll need it next time you log in to make your pick.</p>
+        <a href="${APP_URL}/login" style="display: inline-block; background: #1a1a1a; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">Log In</a>
+      </div>
+    `,
+  })
+}
+
 export async function sendPickConfirmationEmail(
   email: string,
   fullName: string,
