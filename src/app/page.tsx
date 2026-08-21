@@ -317,28 +317,26 @@ export default async function DashboardPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ background: 'var(--surface-sunken)' }}>
-                    <th className="py-2.5 pl-4 w-10 text-left eyebrow">#</th>
-                    <th className="py-2.5 text-left eyebrow w-full">Player</th>
-                    <th className="py-2.5 text-left eyebrow hidden sm:table-cell whitespace-nowrap">Status</th>
-                    <th className="py-2.5 pr-4 text-left eyebrow whitespace-nowrap">{data.week ? `Wk ${data.week.week_number} Pick` : 'Pick'}</th>
+                    <th className="py-2.5 pl-4 text-left eyebrow w-full">Player</th>
+                    <th className="py-2.5 px-4 text-left eyebrow hidden sm:table-cell whitespace-nowrap">Status</th>
+                    <th className="py-2.5 pl-4 pr-4 text-left eyebrow whitespace-nowrap">{data.week ? `Wk ${data.week.week_number} Pick` : 'Pick'}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {aliveRows.length > 0 && (
                     <tr>
-                      <td colSpan={4} className="pt-4 pb-1.5 pl-4">
+                      <td colSpan={3} className="pt-4 pb-1.5 pl-4">
                         <span className="pill pill-alive"><span className="pill-dot" />{aliveRows.length} Still Alive</span>
                       </td>
                     </tr>
                   )}
-                  {aliveRows.map((row, i) => (
+                  {aliveRows.map((row) => (
                     <tr key={row.player_id} className="row-hover border-t" style={{ borderColor: 'var(--border)' }}>
-                      <td className="py-3 pl-4 tnum text-sm" style={{ color: 'var(--muted)' }}>{i + 1}</td>
-                      <td className="py-3 font-bold" style={{ color: 'var(--dark)' }}>{row.full_name}</td>
-                      <td className="py-3 hidden sm:table-cell">
+                      <td className="py-3 pl-4 font-bold" style={{ color: 'var(--dark)' }}>{row.full_name}</td>
+                      <td className="py-3 px-4 hidden sm:table-cell">
                         <span className="pill pill-alive"><span className="pill-dot" />Alive</span>
                       </td>
-                      <td className="py-3 pr-4">
+                      <td className="py-3 pl-4 pr-4">
                         {row.current_pick ? (
                           row.pick_revealed ? (
                             <TeamChip team={row.current_pick} showName />
@@ -354,7 +352,7 @@ export default async function DashboardPage() {
 
                   {elimRows.length > 0 && (
                     <tr>
-                      <td colSpan={4} className="pt-6 pb-1.5 pl-4">
+                      <td colSpan={3} className="pt-6 pb-1.5 pl-4">
                         <span className="pill pill-out">♦ {elimRows.length} Eliminated</span>
                       </td>
                     </tr>
@@ -363,12 +361,11 @@ export default async function DashboardPage() {
                     const ew = (row as StandingRow & { elimination_week?: number | null }).elimination_week
                     return (
                       <tr key={row.player_id} className="border-t" style={{ borderColor: 'var(--border)', opacity: 0.65 }}>
-                        <td className="py-2.5 pl-4 text-sm" style={{ color: 'var(--muted)' }}>—</td>
-                        <td className="py-2.5 text-sm" style={{ color: 'var(--muted)', textDecoration: 'line-through' }}>{row.full_name}</td>
-                        <td className="py-2.5 hidden sm:table-cell">
+                        <td className="py-2.5 pl-4 text-sm" style={{ color: 'var(--muted)', textDecoration: 'line-through' }}>{row.full_name}</td>
+                        <td className="py-2.5 px-4 hidden sm:table-cell">
                           <span className="pill pill-out">Out{ew ? ` · Wk ${ew}` : ''}</span>
                         </td>
-                        <td className="py-2.5 pr-4 text-xs" style={{ color: 'var(--muted)' }}>—</td>
+                        <td className="py-2.5 pl-4 pr-4 text-xs" style={{ color: 'var(--muted)' }}>—</td>
                       </tr>
                     )
                   })}
