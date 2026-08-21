@@ -92,8 +92,8 @@ export default async function AdminDashboard() {
               {signupsClosed ? 'Closed' : 'Open'} — {signupsClosed ? 'closed' : 'closes'} {formatCentralTime(signupAnchor.cutoff)}
             </p>
             <p className="text-slate-400 text-sm mt-1">
-              Anchored to Week {signupAnchor.weekNumber} · Season {signupAnchor.seasonYear} — that week&apos;s
-              Sunday 12:00 PM CT pick deadline. Advancing weeks does not move it.
+              Anchored to Week {signupAnchor.weekNumber} · Season {signupAnchor.seasonYear}
+              {' '}— that week&apos;s Sunday 12:00 PM CT pick deadline. Advancing weeks does not move it.
             </p>
           </>
         )}
