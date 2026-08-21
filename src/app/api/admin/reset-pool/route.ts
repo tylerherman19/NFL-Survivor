@@ -10,7 +10,6 @@ const CONFIRM_PHRASE = 'RESET POOL'
 // back to zero. Deliberately always targets `supabase` (prod) directly, never
 // getDb() — this must never be reachable from the sandbox cookie path, and
 // must always hit prod regardless of the admin's current test-mode state.
-// Used to clear a preseason trial before real regular-season signups start.
 export async function POST(req: NextRequest) {
   const unauthorized = await requireAdmin()
   if (unauthorized) return unauthorized

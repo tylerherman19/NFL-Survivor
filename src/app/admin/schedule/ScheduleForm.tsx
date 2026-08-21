@@ -39,7 +39,6 @@ export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
     activeWeek ? activeWeek.week_number : (weeks.length > 0 ? weeks[weeks.length - 1].week_number + 1 : 1)
   )
   const [seasonYear, setSeasonYear] = useState(activeWeek?.season_year || 2026)
-  const [seasonType, setSeasonType] = useState<'preseason' | 'regular'>(activeWeek?.season_type || 'regular')
   const [newGames, setNewGames] = useState<NewGame[]>([{ ...BLANK_GAME }])
   const [submitting, setSubmitting] = useState(false)
   const [syncing, setSyncing] = useState(false)
@@ -92,13 +91,13 @@ export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
       const res = await fetch('/api/schedule/sync-espn', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ week_number: weekNumber, season_year: seasonYear, season_type: seasonType }),
+        body: JSON.stringify({ week_number: weekNumber, season_year: seasonYear }),
       })
       const data = await res.json()
       if (!res.ok) {
         setMessage(`Error: ${data.error}`)
       } else {
-        setMessage(`✅ Synced ${data.games_synced} games from ESPN for ${seasonType === 'preseason' ? 'Preseason ' : ''}Week ${weekNumber} ${seasonYear}`)
+        setMessage(`✅ Synced ${data.games_synced} games from ESPN for Week ${weekNumber} ${seasonYear}`)
         router.refresh()
       }
     } catch {
@@ -147,7 +146,6 @@ export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
         body: JSON.stringify({
           week_number: weekNumber,
           season_year: seasonYear,
-          season_type: seasonType,
           games: newGames.map((g) => ({
             ...g,
             kickoff_central: `${g.kickoff_date}T${g.kickoff_time}:00`,
@@ -200,17 +198,6 @@ export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
             />
           </div>
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Type</label>
-            <select
-              value={seasonType}
-              onChange={(e) => setSeasonType(e.target.value as 'preseason' | 'regular')}
-              className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-white focus:border-green-500 focus:outline-none"
-            >
-              <option value="regular">Regular</option>
-              <option value="preseason">Preseason</option>
-            </select>
-          </div>
-          <div>
             <label className="block text-xs text-slate-400 mb-1">Week</label>
             <input
               type="number"
@@ -247,7 +234,7 @@ export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
       {activeWeek && (
         <div>
           <h2 className="text-lg font-semibold text-white mb-3">
-            {activeWeek.season_type === 'preseason' ? 'Preseason ' : ''}Week {activeWeek.week_number} Current Schedule
+            Week {activeWeek.week_number} Current Schedule
           </h2>
           {games.length === 0 ? (
             <p className="text-slate-400 text-sm">No games entered yet for this week.</p>
@@ -315,17 +302,6 @@ export default function ScheduleForm({ weeks, activeWeek, games }: Props) {
               onChange={(e) => setWeekNumber(Number(e.target.value))}
               className="w-24 rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
             />
-          </div>
-          <div>
-            <label className="block text-xs text-slate-400 mb-1">Type</label>
-            <select
-              value={seasonType}
-              onChange={(e) => setSeasonType(e.target.value as 'preseason' | 'regular')}
-              className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
-            >
-              <option value="regular">Regular</option>
-              <option value="preseason">Preseason</option>
-            </select>
           </div>
         </div>
 

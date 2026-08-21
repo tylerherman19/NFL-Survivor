@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { NFL_TEAM_NAMES } from '@/types'
-import type { SeasonType, StandingRow, TeamStat, Week } from '@/types'
+import type { StandingRow, TeamStat, Week } from '@/types'
 import { teamColor } from '@/lib/teamColors'
 import Countdown from './components/Countdown'
 import LiveTicker from './components/LiveTicker'
@@ -44,32 +44,21 @@ async function getDashboardData() {
     // Find active week from allWeeks
     const week = (allWeeks || []).find((w: { is_active: boolean }) => w.is_active) || null
 
-    // Everything derived below is scoped to the season currently being played.
-    // A preseason trial and the regular season coexist in the weeks table under
-    // the same season_year — the unique key is (season_type, week_number,
-    // season_year) — so aggregating across both double-counts every shared week
-    // number: two "Week 1" carnage cards, two Week 1 points on the survival
-    // curve, preseason picks folded into team history and weeks survived.
-    // Read off the active week, like getSignupCutoff does. With no active week
-    // there is nothing being played, so fall back to the newest season present
-    // (regular ahead of preseason) rather than mixing them.
+    // Everything derived below is scoped to the season currently being played
+    // (season_year), read off the active week like getSignupCutoff does — a
+    // future season synced early, or last season's leftovers, must not get
+    // folded into this season's carnage cards, survival curve, or team stats.
+    // With no active week there is nothing being played, so fall back to the
+    // newest season_year present.
     const seasonAnchor =
       week ||
       (allWeeks || [])
         .slice()
-        .sort((a: { season_year: number; season_type?: SeasonType }, b: { season_year: number; season_type?: SeasonType }) => {
-          if (a.season_year !== b.season_year) return b.season_year - a.season_year
-          const at = a.season_type ?? 'regular'
-          const bt = b.season_type ?? 'regular'
-          if (at === bt) return 0
-          return at === 'regular' ? -1 : 1
-        })[0] ||
+        .sort((a: { season_year: number }, b: { season_year: number }) => b.season_year - a.season_year)[0] ||
       null
 
-    const seasonType: SeasonType = seasonAnchor ? seasonAnchor.season_type ?? 'regular' : 'regular'
     const seasonWeeks = (allWeeks || []).filter(
-      (w: { season_type?: SeasonType; season_year: number }) =>
-        !seasonAnchor || ((w.season_type ?? 'regular') === seasonType && w.season_year === seasonAnchor.season_year)
+      (w: { season_year: number }) => !seasonAnchor || w.season_year === seasonAnchor.season_year
     )
     const seasonWeekIds = new Set<string>(seasonWeeks.map((w: { id: string }) => w.id))
     const seasonPicks = (allPicks || []).filter((p: { week_id: string }) => seasonWeekIds.has(p.week_id))
@@ -292,16 +281,10 @@ export default async function DashboardPage() {
                 {data.week?.season_year ?? '2026'} SEASON
               </h1>
               <div className="mt-3 flex items-center gap-3">
-                {data.week?.season_type === 'preseason' ? (
-                  <span className="eyebrow">Preseason · Week {data.week?.week_number ?? '—'}</span>
-                ) : (
-                  <>
-                    <span className="eyebrow">Week {data.week?.week_number ?? '—'} of {TOTAL_WEEKS}</span>
-                    <span className="hidden sm:block h-2 w-40 rounded-full overflow-hidden" style={{ background: 'var(--surface-sunken)' }}>
-                      <span className="block h-full rounded-full" style={{ background: 'var(--dark)', width: `${((data.week?.week_number ?? 0) / TOTAL_WEEKS) * 100}%` }} />
-                    </span>
-                  </>
-                )}
+                <span className="eyebrow">Week {data.week?.week_number ?? '—'} of {TOTAL_WEEKS}</span>
+                <span className="hidden sm:block h-2 w-40 rounded-full overflow-hidden" style={{ background: 'var(--surface-sunken)' }}>
+                  <span className="block h-full rounded-full" style={{ background: 'var(--dark)', width: `${((data.week?.week_number ?? 0) / TOTAL_WEEKS) * 100}%` }} />
+                </span>
               </div>
             </div>
             {data.nextDeadline && (

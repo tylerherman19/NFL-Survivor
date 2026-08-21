@@ -9,16 +9,13 @@ export async function POST(req: NextRequest) {
   if (unauthorized) return unauthorized
 
   try {
-    const { week_number, season_year, season_type } = await req.json()
+    const { week_number, season_year } = await req.json()
     if (!week_number || !season_year) {
       return NextResponse.json({ error: 'Missing week_number or season_year' }, { status: 400 })
     }
-    if (season_type && season_type !== 'preseason' && season_type !== 'regular') {
-      return NextResponse.json({ error: 'Invalid season_type' }, { status: 400 })
-    }
 
     const supabase = await getDb()
-    const result = await syncWeekFromEspn(supabase, week_number, season_year, season_type || 'regular')
+    const result = await syncWeekFromEspn(supabase, week_number, season_year)
 
     if (!result.ok) {
       const status =
@@ -33,8 +30,8 @@ export async function POST(req: NextRequest) {
     await logAudit(supabase, {
       event_type: 'schedule-synced',
       actor: 'admin',
-      message: `Admin synced ${season_type === 'preseason' ? 'Preseason ' : ''}Week ${week_number} schedule from ESPN (${result.gamesSynced} games)`,
-      details: { week_number, season_year, season_type: season_type || 'regular', games_synced: result.gamesSynced },
+      message: `Admin synced Week ${week_number} schedule from ESPN (${result.gamesSynced} games)`,
+      details: { week_number, season_year, games_synced: result.gamesSynced },
     })
 
     return NextResponse.json({ ok: true, week_id: result.weekId, games_synced: result.gamesSynced })

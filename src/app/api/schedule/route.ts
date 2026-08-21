@@ -10,14 +10,10 @@ export async function POST(req: NextRequest) {
   if (unauthorized) return unauthorized
 
   try {
-    const { week_number, season_year, season_type, games } = await req.json()
+    const { week_number, season_year, games } = await req.json()
     if (!Number.isInteger(week_number) || !Number.isInteger(season_year) || !Array.isArray(games)) {
       return NextResponse.json({ error: 'Missing week_number, season_year, or games' }, { status: 400 })
     }
-    if (season_type && season_type !== 'preseason' && season_type !== 'regular') {
-      return NextResponse.json({ error: 'Invalid season_type' }, { status: 400 })
-    }
-    const seasonType = season_type || 'regular'
 
     const supabase = await getDb()
 
@@ -27,7 +23,6 @@ export async function POST(req: NextRequest) {
       .select('id')
       .eq('week_number', week_number)
       .eq('season_year', season_year)
-      .eq('season_type', seasonType)
       .single()
 
     const { data: currentActive } = await supabase
@@ -46,7 +41,7 @@ export async function POST(req: NextRequest) {
       // current one. Explicit switches go through /api/admin/set-active-week.
       const { data: newWeek, error } = await supabase
         .from('weeks')
-        .insert({ week_number, season_year, season_type: seasonType, is_active: !currentActive })
+        .insert({ week_number, season_year, is_active: !currentActive })
         .select('id')
         .single()
 

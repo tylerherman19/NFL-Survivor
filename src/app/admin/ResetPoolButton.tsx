@@ -41,8 +41,7 @@ export default function ResetPoolButton() {
     <div className="rounded-xl border border-red-600 bg-red-950/30 p-4 space-y-3">
       <p className="text-sm font-semibold text-red-300">⚠ Reset Pool to Zero</p>
       <p className="text-xs text-slate-400">
-        Permanently deletes every player, week, game, and pick in production. Use this to clear a preseason trial
-        before real signups start. Cannot be undone.
+        Permanently deletes every player, week, game, and pick in production. Cannot be undone.
       </p>
       <div className="flex flex-wrap items-center gap-3">
         <input

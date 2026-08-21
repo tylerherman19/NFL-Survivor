@@ -173,7 +173,7 @@ export default function SweatBoard() {
         <div>
           <h1 className="font-display text-7xl leading-none" style={{ color: 'var(--dark)' }}>SWEAT BOARD</h1>
           <p className="mt-1 eyebrow">
-            {data.seasonType === 'preseason' ? 'Preseason ' : ''}Week {data.weekNumber} · live picks &amp; scores
+            Week {data.weekNumber} · live picks &amp; scores
             {data.hasLiveGames && (
               <span className="ml-2 font-bold" style={{ color: 'var(--red)' }}>● LIVE</span>
             )}

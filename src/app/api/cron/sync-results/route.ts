@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     const supabase = await getDb()
     const { data: week } = await supabase
       .from('weeks')
-      .select('id, week_number, season_year, season_type')
+      .select('id, week_number, season_year')
       .eq('is_active', true)
       .single()
 
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
 
     // Null when ESPN is down or served a different season (its silent
     // fallback to last season must never grade this season's picks).
-    const events = await fetchEspnScoreboard(week.season_year, week.week_number, 0, week.season_type ?? 'regular')
+    const events = await fetchEspnScoreboard(week.season_year, week.week_number, 0)
     if (events === null) {
       return NextResponse.json({ error: 'ESPN unavailable or wrong season' }, { status: 502 })
     }

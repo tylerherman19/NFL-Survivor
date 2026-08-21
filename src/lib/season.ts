@@ -1,19 +1,17 @@
 import 'server-only'
 import { getDb, getEffectiveNow } from './testMode'
 import { getWeekSundayDeadline } from './deadline'
-import type { Game, SeasonType } from '@/types'
+import type { Game } from '@/types'
 
 export interface SignupCutoff {
   cutoff: Date
-  seasonType: SeasonType
   seasonYear: number
   weekNumber: number
 }
 
 // The instant new signups close: the Sunday 12:00 PM CT pick deadline of the
-// pool's *first week*, for whichever season is currently being played. Null
-// means there is nothing to anchor to yet (no active week, or no games synced
-// for week 1), in which case signups stay open.
+// season's Week 1. Null means there is nothing to anchor to yet (no active
+// week, or no games synced for week 1), in which case signups stay open.
 //
 // Week 1 opens Thursday night, but a player who joins Friday or Saturday can
 // still make a legitimate Week 1 pick off the Sunday slate, since
@@ -21,22 +19,14 @@ export interface SignupCutoff {
 // Thursday's game is simply off the table for them, exactly as it is for
 // anyone who hadn't picked it.
 //
-// "First week" is scoped per season — by season_type *and* season_year — and
-// read off the active week. A preseason trial and the real regular season are
-// separate pools with separate cutoffs: during a preseason trial the cutoff is
-// Preseason Week 1's Sunday noon, and the manual preseason -> regular handoff
-// moves it to regular-season Week 1's Sunday noon. Deriving it from the
-// earliest kickoff across the whole games table instead would let any extra
-// synced week — a future week synced early, a leftover trial week, last
-// season's leftovers — silently drag the cutoff somewhere it doesn't belong.
+// "First week" is scoped by season_year and read off the active week.
+// Deriving it from the earliest kickoff across the whole games table instead
+// would let any extra synced week — a future week synced early, last season's
+// leftovers — silently drag the cutoff somewhere it doesn't belong.
 export async function getSignupCutoff(): Promise<SignupCutoff | null> {
   try {
     const supabase = await getDb()
 
-    // select('*') rather than naming season_type: sandbox.weeks predates that
-    // column (migration 011 only altered public.weeks), and PostgREST errors on
-    // a select/filter naming a column the table doesn't have. Reading it off
-    // the row and defaulting keeps this working against either schema.
     const { data: activeWeek } = await supabase
       .from('weeks')
       .select('*')
@@ -46,19 +36,14 @@ export async function getSignupCutoff(): Promise<SignupCutoff | null> {
     // Nothing active yet — the pool hasn't started, so signups stay open.
     if (!activeWeek) return null
 
-    const seasonType: SeasonType = activeWeek.season_type ?? 'regular'
     const seasonYear: number = activeWeek.season_year
 
-    const { data: weeks } = await supabase.from('weeks').select('*')
+    const { data: weeks } = await supabase.from('weeks').select('*').eq('season_year', seasonYear)
     if (!weeks?.length) return null
 
-    // Week 1 of the season currently being played. Filtered in JS for the same
-    // sandbox-compatibility reason as above.
+    // Week 1 of the season currently being played.
     const firstWeek = weeks
-      .filter(
-        (w: { season_type?: SeasonType; season_year: number }) =>
-          (w.season_type ?? 'regular') === seasonType && w.season_year === seasonYear
-      )
+      .slice()
       .sort((a: { week_number: number }, b: { week_number: number }) => a.week_number - b.week_number)[0]
     if (!firstWeek) return null
 
@@ -74,7 +59,7 @@ export async function getSignupCutoff(): Promise<SignupCutoff | null> {
     const cutoff = getWeekSundayDeadline((games ?? []) as Game[])
     if (!cutoff) return null
 
-    return { cutoff, seasonType, seasonYear, weekNumber: firstWeek.week_number }
+    return { cutoff, seasonYear, weekNumber: firstWeek.week_number }
   } catch {
     // No schedule synced yet — signups stay open.
     return null

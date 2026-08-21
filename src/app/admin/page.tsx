@@ -17,7 +17,7 @@ export default async function AdminDashboard() {
   const [{ data: week }, { data: players }, { data: allWeeks }, signupAnchor, now] = await Promise.all([
     supabase.from('weeks').select('*').eq('is_active', true).single(),
     supabase.from('players').select('id, full_name, email, status, paid'),
-    supabase.from('weeks').select('id, week_number, season_year, season_type, is_active').order('week_number'),
+    supabase.from('weeks').select('id, week_number, season_year, is_active').order('week_number'),
     getSignupCutoff(),
     getEffectiveNow(),
   ])
@@ -72,7 +72,7 @@ export default async function AdminDashboard() {
         <h1 className="text-2xl font-bold" style={{ color: 'var(--dark)' }}>Admin Dashboard</h1>
         {week && (
           <p className="mt-1" style={{ color: 'var(--muted)' }}>
-            Active: {week.season_type === 'preseason' ? 'Preseason ' : ''}Week {week.week_number} · Season {week.season_year}
+            Active: Week {week.week_number} · Season {week.season_year}
           </p>
         )}
       </div>
@@ -92,9 +92,8 @@ export default async function AdminDashboard() {
               {signupsClosed ? 'Closed' : 'Open'} — {signupsClosed ? 'closed' : 'closes'} {formatCentralTime(signupAnchor.cutoff)}
             </p>
             <p className="text-slate-400 text-sm mt-1">
-              Anchored to {signupAnchor.seasonType === 'preseason' ? 'Preseason ' : ''}Week {signupAnchor.weekNumber} ·{' '}
-              Season {signupAnchor.seasonYear} — that week&apos;s Sunday 12:00 PM CT pick deadline. Advancing weeks
-              does not move it; switching between preseason and regular season does.
+              Anchored to Week {signupAnchor.weekNumber} · Season {signupAnchor.seasonYear} — that week&apos;s
+              Sunday 12:00 PM CT pick deadline. Advancing weeks does not move it.
             </p>
           </>
         )}
@@ -119,7 +118,6 @@ export default async function AdminDashboard() {
         <AdvanceWeekButton
           currentWeekNumber={week.week_number}
           seasonYear={week.season_year}
-          seasonType={week.season_type}
         />
       )}
 

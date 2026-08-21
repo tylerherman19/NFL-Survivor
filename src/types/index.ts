@@ -15,13 +15,10 @@ export interface Player {
   created_at: string
 }
 
-export type SeasonType = 'preseason' | 'regular'
-
 export interface Week {
   id: string
   week_number: number
   season_year: number
-  season_type: SeasonType
   is_active: boolean
   created_at: string
 }

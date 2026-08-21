@@ -7,7 +7,6 @@ interface WeekOption {
   id: string
   week_number: number
   season_year: number
-  season_type: 'preseason' | 'regular'
   is_active: boolean
 }
 
@@ -23,8 +22,7 @@ export default function SetActiveWeek({ weeks }: { weeks: WeekOption[] }) {
   async function handleActivate() {
     const week = weeks.find((w) => w.id === selected)
     if (!week) return
-    const label = week.season_type === 'preseason' ? `Preseason Week ${week.week_number}` : `Week ${week.week_number}`
-    if (!confirm(`Set ${label} (${week.season_year}) as the active week? Players will immediately see it on the pick page.`)) return
+    if (!confirm(`Set Week ${week.week_number} (${week.season_year}) as the active week? Players will immediately see it on the pick page.`)) return
     setLoading(true)
     setMessage('')
     try {
@@ -63,7 +61,7 @@ export default function SetActiveWeek({ weeks }: { weeks: WeekOption[] }) {
           <option value="">Select a week…</option>
           {inactive.map((w) => (
             <option key={w.id} value={w.id}>
-              {w.season_type === 'preseason' ? 'Preseason ' : ''}Week {w.week_number} · {w.season_year}
+              Week {w.week_number} · {w.season_year}
             </option>
           ))}
         </select>

@@ -2,7 +2,7 @@ import Link from 'next/link'
 import LogoMark from '@/app/components/LogoMark'
 import { getDb } from '@/lib/testMode'
 import { teamColor } from '@/lib/teamColors'
-import { fetchEspnScoreboard, eventCompetitors, type SeasonType } from '@/lib/espn'
+import { fetchEspnScoreboard, eventCompetitors } from '@/lib/espn'
 
 export const revalidate = 3600
 
@@ -20,9 +20,9 @@ interface ScheduleWeek {
   games: ScheduleGame[]
 }
 
-async function fetchWeekGames(season: number, week: number, seasonType: SeasonType): Promise<ScheduleGame[]> {
+async function fetchWeekGames(season: number, week: number): Promise<ScheduleGame[]> {
   try {
-    const events = await fetchEspnScoreboard(season, week, 3600, seasonType)
+    const events = await fetchEspnScoreboard(season, week, 3600)
     if (!events) return []
 
     const games: ScheduleGame[] = []
@@ -43,36 +43,32 @@ async function fetchWeekGames(season: number, week: number, seasonType: SeasonTy
   }
 }
 
-async function getScheduleData(): Promise<{ weeks: ScheduleWeek[]; season: number; activeWeek: number | null; seasonType: SeasonType }> {
+async function getScheduleData(): Promise<{ weeks: ScheduleWeek[]; season: number; activeWeek: number | null }> {
   let activeWeek: number | null = null
   let season = 2026
-  let seasonType: SeasonType = 'regular'
   try {
     const supabase = await getDb()
     const { data: week } = await supabase
       .from('weeks')
-      .select('week_number, season_year, season_type')
+      .select('week_number, season_year')
       .eq('is_active', true)
       .single()
     if (week) {
       activeWeek = week.week_number
       season = week.season_year
-      seasonType = (week.season_type as SeasonType) ?? 'regular'
     }
   } catch { /* pool not started yet */ }
 
-  // Preseason only runs a handful of weeks — regular season's 18-week cap
-  // doesn't apply, so just let empty ESPN responses naturally end the lookahead.
-  const maxWeek = seasonType === 'preseason' ? activeWeek ? activeWeek + WEEKS_AHEAD : WEEKS_AHEAD : TOTAL_WEEKS
+  const maxWeek = TOTAL_WEEKS
   const startWeek = activeWeek ? Math.min(activeWeek + 1, maxWeek) : 1
   const endWeek = Math.min(startWeek + WEEKS_AHEAD - 1, maxWeek)
 
   const weekNumbers: number[] = []
   for (let w = startWeek; w <= endWeek; w++) weekNumbers.push(w)
 
-  const results = await Promise.all(weekNumbers.map((w) => fetchWeekGames(season, w, seasonType)))
+  const results = await Promise.all(weekNumbers.map((w) => fetchWeekGames(season, w)))
   const weeks: ScheduleWeek[] = weekNumbers.map((weekNumber, i) => ({ weekNumber, games: results[i] }))
-  return { weeks, season, activeWeek, seasonType }
+  return { weeks, season, activeWeek }
 }
 
 function formatKickoff(iso: string): string {
@@ -88,8 +84,7 @@ function formatKickoff(iso: string): string {
 }
 
 export default async function SchedulePage() {
-  const { weeks, season, activeWeek, seasonType } = await getScheduleData()
-  const weekLabel = seasonType === 'preseason' ? 'Preseason Week' : 'Week'
+  const { weeks, season, activeWeek } = await getScheduleData()
   const hasAnyGames = weeks.some((w) => w.games.length > 0)
 
   return (
@@ -119,7 +114,7 @@ export default async function SchedulePage() {
             UPCOMING SCHEDULE
           </h1>
           <p className="mt-2 eyebrow">
-            {season} Season{activeWeek ? ` · Currently ${weekLabel} ${activeWeek}` : ''}
+            {season} Season{activeWeek ? ` · Currently Week ${activeWeek}` : ''}
           </p>
           <p className="mt-3 text-sm" style={{ color: 'var(--muted)' }}>
             Plan ahead — you can only use each team once.
@@ -135,7 +130,7 @@ export default async function SchedulePage() {
           weeks.map(({ weekNumber, games }) =>
             games.length === 0 ? null : (
               <section key={weekNumber} className="pt-9">
-                <p className="eyebrow mb-3">{weekLabel} {weekNumber}</p>
+                <p className="eyebrow mb-3">Week {weekNumber}</p>
                 <div className="card overflow-hidden">
                   <table className="w-full text-sm">
                     <thead>
