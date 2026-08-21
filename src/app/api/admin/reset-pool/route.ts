@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { requireAdmin } from '@/lib/api'
 import { supabase } from '@/lib/supabase'
 import { logAudit } from '@/lib/audit'
@@ -48,6 +49,8 @@ export async function POST(req: NextRequest) {
       message: `Admin reset the pool — wiped ${playerCount ?? 0} players, ${pickCount ?? 0} picks, ${weekCount ?? 0} weeks`,
       details: { players: playerCount, picks: pickCount, weeks: weekCount },
     })
+
+    revalidatePath('/')
 
     return NextResponse.json({ ok: true })
   } catch (err) {
