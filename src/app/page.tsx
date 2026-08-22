@@ -300,15 +300,17 @@ export default async function DashboardPage() {
           </div>
 
           {/* Stat cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className={`grid grid-cols-2 gap-3 ${data.aliveCount > 0 && data.aliveCount < 25 ? 'sm:grid-cols-4' : 'sm:grid-cols-3'}`}>
             <StatCard value={data.aliveCount} label="Still Alive" accent="var(--green)" />
             <StatCard value={data.eliminatedCount} label="Eliminated" accent="var(--red)" />
             <StatCard value={`$${data.potSize}`} label="Pot Size" accent="var(--dark)" />
-            <StatCard
-              value={data.aliveCount > 0 ? `$${data.payoutPerSurvivor}` : '—'}
-              label={data.aliveCount === 1 ? 'Winner Takes' : 'Split Estimate'}
-              accent="var(--dark)"
-            />
+            {data.aliveCount > 0 && data.aliveCount < 25 && (
+              <StatCard
+                value={`$${data.payoutPerSurvivor}`}
+                label={data.aliveCount === 1 ? 'Winner Takes' : 'Split Estimate'}
+                accent="var(--dark)"
+              />
+            )}
           </div>
 
           {/* Standings */}
