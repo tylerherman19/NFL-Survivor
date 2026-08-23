@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
-import { getDb } from '@/lib/testMode'
+import { getDb, getEffectiveNow } from '@/lib/testMode'
 import { requireCronOrAdmin, isCronRequest } from '@/lib/api'
 import { syncWeekFromEspn } from '@/lib/espnSync'
 import { logAudit } from '@/lib/audit'
+import type { Game } from '@/types'
 
 const LAST_REGULAR_SEASON_WEEK = 18
 
-// Vercel Cron (vercel.json) — fires Tuesday noon Central (17:00/18:00 UTC,
-// covering both DST states like the auto-assign cron does), well after every
-// week's games (including MNF) have finished.
+// Vercel Cron (vercel.json) — fires Tuesday noon Central (17:00/18:00 UTC).
+// That timing alone assumes the active week's games already happened, which
+// only holds if the active week was set close to its own kickoff. The admin
+// can (and does, ahead of the season) sync a week active days or weeks
+// before it's actually played, so this also checks that the active week's
+// last kickoff has actually passed before advancing.
 //
 // Week N -> N+1 auto-advances all the way through Week 18; past that
 // (playoffs) it stops and requires a manual push.
@@ -46,6 +50,16 @@ export async function GET(req: NextRequest) {
     if (week.week_number >= LAST_REGULAR_SEASON_WEEK) {
       return NextResponse.json({ ok: true, message: `Already at Week ${week.week_number} — post-Week ${LAST_REGULAR_SEASON_WEEK} advancement is manual` })
     }
+
+    const { data: currentGames } = await supabase.from('games').select('kickoff_central').eq('week_id', week.id)
+    const lastKickoff = ((currentGames || []) as Pick<Game, 'kickoff_central'>[])
+      .map((g) => new Date(g.kickoff_central).getTime())
+      .sort((a, b) => b - a)[0]
+    const now = await getEffectiveNow()
+    if (lastKickoff && now.getTime() < lastKickoff) {
+      return NextResponse.json({ ok: true, message: `Week ${week.week_number}'s games haven't all kicked off yet — nothing to advance` })
+    }
+
     const nextWeekNumber = week.week_number + 1
 
     const result = await syncWeekFromEspn(supabase, nextWeekNumber, week.season_year)

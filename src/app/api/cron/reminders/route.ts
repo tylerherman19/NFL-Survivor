@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getDb } from '@/lib/testMode'
+import { getDb, getEffectiveNow } from '@/lib/testMode'
 import { requireCronOrAdmin } from '@/lib/api'
 import { formatCentralTime, getWeekSundayDeadline } from '@/lib/deadline'
 import { sendReminderEmail, sleep, SEND_DELAY_MS } from '@/lib/email'
@@ -8,6 +8,12 @@ import type { Game } from '@/types'
 // Sends are paced for Resend's ~2 req/sec limit — allow enough runtime for a
 // full-group reminder batch.
 export const maxDuration = 300
+
+// Only nag once the deadline is actually close — a week can go active days
+// or weeks before kickoff (the admin syncs ahead to get the site ready), and
+// the Fri/Sun cron schedule in vercel.json would otherwise fire every single
+// week the pool is active regardless of how far off the real deadline is.
+const REMINDER_WINDOW_MS = 3 * 24 * 60 * 60 * 1000
 
 export async function GET(req: NextRequest) {
   const unauthorized = await requireCronOrAdmin(req)
@@ -30,6 +36,15 @@ export async function GET(req: NextRequest) {
 
     const sundayDeadline = getWeekSundayDeadline((games || []) as Game[])
     if (!sundayDeadline) return NextResponse.json({ ok: true, message: 'No deadline found' })
+
+    const now = await getEffectiveNow()
+    const msUntilDeadline = sundayDeadline.getTime() - now.getTime()
+    if (msUntilDeadline > REMINDER_WINDOW_MS) {
+      return NextResponse.json({
+        ok: true,
+        message: `Deadline is ${formatCentralTime(sundayDeadline)} — too far out to remind yet`,
+      })
+    }
 
     const deadlineStr = formatCentralTime(sundayDeadline)
 
