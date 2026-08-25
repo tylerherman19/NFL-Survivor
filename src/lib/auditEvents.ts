@@ -21,6 +21,7 @@ export const AUDIT_EVENT_TYPES: Record<string, string> = {
   'week-advanced': 'Week advanced',
   'broadcast-sent': 'Broadcast sent',
   'pool-reset': 'Pool reset',
+  'welcome-email-failed': 'Welcome email failed',
 }
 
 export type AuditEventType = keyof typeof AUDIT_EVENT_TYPES

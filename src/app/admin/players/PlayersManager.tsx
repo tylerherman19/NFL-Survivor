@@ -30,6 +30,9 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
   const [showImport, setShowImport] = useState(false)
   const [pickModal, setPickModal] = useState<{ player: Player; team: string } | null>(null)
   const [submittingPick, setSubmittingPick] = useState(false)
+  const [editModal, setEditModal] = useState<{ id: string; full_name: string; email: string } | null>(null)
+  const [editError, setEditError] = useState('')
+  const [savingEdit, setSavingEdit] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bulkWorking, setBulkWorking] = useState(false)
   const [search, setSearch] = useState('')
@@ -146,6 +149,29 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
     if (res.ok) {
       setMessage(`${player.full_name} ${player.status === 'alive' ? 'eliminated' : 'restored'}`)
       router.refresh()
+    }
+  }
+
+  async function saveEdit() {
+    if (!editModal) return
+    setSavingEdit(true)
+    setEditError('')
+    try {
+      const res = await fetch(`/api/players/${editModal.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ full_name: editModal.full_name.trim(), email: editModal.email.trim() }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setMessage('Player updated')
+        setEditModal(null)
+        router.refresh()
+      } else {
+        setEditError(data.error || 'Failed to update player')
+      }
+    } finally {
+      setSavingEdit(false)
     }
   }
 
@@ -357,6 +383,13 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
               {/* Bottom row: actions */}
               <div className="flex gap-2 flex-wrap">
                 <button
+                  onClick={() => { setEditModal({ id: p.id, full_name: p.full_name, email: p.email }); setEditError('') }}
+                  className="rounded border px-2 py-1 text-xs"
+                  style={actionBtn('neutral')}
+                >
+                  Edit
+                </button>
+                <button
                   onClick={() => regenPin(p.id, p.full_name)}
                   className="rounded border px-2 py-1 text-xs"
                   style={actionBtn('neutral')}
@@ -462,6 +495,13 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
                   <td className="px-4 py-3">
                     <div className="flex gap-2 flex-wrap">
                       <button
+                        onClick={() => { setEditModal({ id: p.id, full_name: p.full_name, email: p.email }); setEditError('') }}
+                        className="rounded border px-2 py-0.5 text-xs"
+                        style={actionBtn('neutral')}
+                      >
+                        Edit
+                      </button>
+                      <button
                         onClick={() => regenPin(p.id, p.full_name)}
                         className="rounded border px-2 py-0.5 text-xs"
                         style={actionBtn('neutral')}
@@ -538,6 +578,55 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
               </button>
               <button
                 onClick={() => setPickModal(null)}
+                className="flex-1 rounded-lg border py-2"
+                style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit player modal */}
+      {editModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+          <div className="card p-6 w-full max-w-sm space-y-4" style={{ background: 'var(--surface)' }}>
+            <h3 className="font-display text-2xl" style={{ color: 'var(--dark)' }}>Edit Player</h3>
+            <p className="text-xs" style={{ color: 'var(--muted)' }}>
+              Name is the login key — changing it changes what they type in to log in.
+            </p>
+            <div>
+              <label className="eyebrow block mb-1">Full Name</label>
+              <input
+                type="text"
+                value={editModal.full_name}
+                onChange={(e) => setEditModal({ ...editModal, full_name: e.target.value })}
+                className="field w-full px-3 py-2 text-sm"
+                style={{ color: 'var(--dark)' }}
+              />
+            </div>
+            <div>
+              <label className="eyebrow block mb-1">Email</label>
+              <input
+                type="email"
+                value={editModal.email}
+                onChange={(e) => setEditModal({ ...editModal, email: e.target.value })}
+                className="field w-full px-3 py-2 text-sm"
+                style={{ color: 'var(--dark)' }}
+              />
+            </div>
+            {editError && <p className="text-sm" style={{ color: 'var(--red)' }}>{editError}</p>}
+            <div className="flex gap-3">
+              <button
+                onClick={saveEdit}
+                disabled={savingEdit || !editModal.full_name.trim() || !editModal.email.trim()}
+                className="btn-primary flex-1 py-2 font-semibold disabled:opacity-50"
+              >
+                {savingEdit ? 'Saving…' : 'Save'}
+              </button>
+              <button
+                onClick={() => setEditModal(null)}
                 className="flex-1 rounded-lg border py-2"
                 style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
               >

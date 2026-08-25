@@ -15,11 +15,13 @@ export default function ForgotPinPage() {
     setError('')
     setLoading(true)
     try {
-      await fetch('/api/forgot-pin', {
+      const res = await fetch('/api/forgot-pin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim().toLowerCase() }),
       })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error || 'Something went wrong. Try again.'); return }
       setSent(true)
     } catch {
       setError('Something went wrong. Try again.')

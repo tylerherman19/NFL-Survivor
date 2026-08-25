@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { getDb } from '@/lib/testMode'
 import { generatePin, hashPin } from '@/lib/pin'
 import { sendWelcomeEmail } from '@/lib/email'
 import { checkRateLimit, getIP } from '@/lib/rateLimit'
 import { escapeIlike } from '@/lib/api'
 import { haveSignupsClosed } from '@/lib/season'
+import { logAudit } from '@/lib/audit'
 
 export async function POST(req: NextRequest) {
   try {
@@ -47,12 +48,16 @@ export async function POST(req: NextRequest) {
 
     const supabase = await getDb()
 
-    // Check for duplicate email
+    // Check for duplicate email. .limit(1) + maybeSingle() instead of
+    // .single() — .single() errors out (leaving data undefined) when more
+    // than one row matches, which would let a case-variant duplicate slip
+    // past this check.
     const { data: byEmail } = await supabase
       .from('players')
       .select('id')
       .ilike('email', escapeIlike(emailLower))
-      .single()
+      .limit(1)
+      .maybeSingle()
 
     if (byEmail) {
       return NextResponse.json(
@@ -66,7 +71,8 @@ export async function POST(req: NextRequest) {
       .from('players')
       .select('id')
       .ilike('full_name', escapeIlike(name))
-      .single()
+      .limit(1)
+      .maybeSingle()
 
     if (byName) {
       return NextResponse.json(
@@ -89,20 +95,40 @@ export async function POST(req: NextRequest) {
     })
 
     if (insertError) {
+      // 23505 = unique violation. Two requests can both pass the dup-checks
+      // above before either commits (e.g. a double-tap submit) and then race
+      // on the DB's unique email/name constraint — report that as a normal
+      // "already exists" case instead of a generic 500.
+      if (insertError.code === '23505') {
+        return NextResponse.json(
+          { error: 'An account with that email or name already exists. Use "Forgot PIN" on the login page.' },
+          { status: 409 }
+        )
+      }
       console.error('signup insert error', insertError)
       return NextResponse.json({ error: 'Failed to create account' }, { status: 500 })
     }
 
-    // Resend reports failures via the result, not by throwing. The account
-    // exists but the PIN never arrived — tell the player how to recover
-    // instead of failing the whole signup with a 500.
-    const emailResult = await sendWelcomeEmail(emailLower, name, pin)
-    if (!emailResult.ok) {
-      return NextResponse.json({
-        ok: true,
-        warning: 'Account created, but the welcome email failed to send. Use "Forgot PIN" on the login page to get your PIN.',
-      })
-    }
+    // Send the welcome email after the response goes out instead of
+    // awaiting it here. Resend is a third network hop with no timeout of
+    // its own; awaiting it kept the signup request open long enough to hit
+    // the platform's function timeout on a slow send, which returns a
+    // non-JSON error page and shows the client's generic catch-all message.
+    // Failures are logged to the audit trail instead of surfaced inline —
+    // the player can always use "Forgot PIN" to recover.
+    after(async () => {
+      const emailResult = await sendWelcomeEmail(emailLower, name, pin)
+      if (!emailResult.ok) {
+        await logAudit(supabase, {
+          event_type: 'welcome-email-failed',
+          actor: 'system',
+          player_id: null,
+          player_name: name,
+          message: `Welcome email failed to send to ${emailLower}`,
+          details: { error: emailResult.error },
+        })
+      }
+    })
 
     return NextResponse.json({ ok: true })
   } catch (err) {
