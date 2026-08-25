@@ -30,20 +30,13 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
   }
 
-  // full_name doubles as the login key and email is where PINs get sent —
-  // same validation as signup, plus a self-excluded dup check.
+  // full_name is the login key but doesn't have to be unique — login tries
+  // every same-named candidate's PIN (see /api/auth/login). Email must stay
+  // unique since that's where PINs get sent.
   if ('full_name' in updates) {
     const name = typeof updates.full_name === 'string' ? updates.full_name.trim() : ''
     if (!name) return NextResponse.json({ error: 'Name is required' }, { status: 400 })
     if (name.length > 80) return NextResponse.json({ error: 'Name too long (max 80 characters)' }, { status: 400 })
-    const { data: byName } = await supabase
-      .from('players')
-      .select('id')
-      .ilike('full_name', escapeIlike(name))
-      .neq('id', id)
-      .limit(1)
-      .maybeSingle()
-    if (byName) return NextResponse.json({ error: 'Someone with that name is already signed up' }, { status: 409 })
     updates.full_name = name
   }
   if ('email' in updates) {

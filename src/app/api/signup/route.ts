@@ -66,21 +66,8 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Check for duplicate name (login key)
-    const { data: byName } = await supabase
-      .from('players')
-      .select('id')
-      .ilike('full_name', escapeIlike(name))
-      .limit(1)
-      .maybeSingle()
-
-    if (byName) {
-      return NextResponse.json(
-        { error: 'Someone with that name is already signed up. If this is you, use "Forgot PIN" on the login page.' },
-        { status: 409 }
-      )
-    }
-
+    // Names don't have to be unique — two Jasons are fine, login tries every
+    // same-named candidate's PIN (see /api/auth/login). Only email is unique.
     const pin = generatePin()
     const pinHash = await hashPin(pin)
 
@@ -95,13 +82,13 @@ export async function POST(req: NextRequest) {
     })
 
     if (insertError) {
-      // 23505 = unique violation. Two requests can both pass the dup-checks
-      // above before either commits (e.g. a double-tap submit) and then race
-      // on the DB's unique email/name constraint — report that as a normal
-      // "already exists" case instead of a generic 500.
+      // 23505 = unique violation. Two requests can both pass the email
+      // dup-check above before either commits (e.g. a double-tap submit) and
+      // then race on the DB's unique email constraint — report that as a
+      // normal "already exists" case instead of a generic 500.
       if (insertError.code === '23505') {
         return NextResponse.json(
-          { error: 'An account with that email or name already exists. Use "Forgot PIN" on the login page.' },
+          { error: 'An account with that email already exists. Use "Forgot PIN" on the login page.' },
           { status: 409 }
         )
       }
