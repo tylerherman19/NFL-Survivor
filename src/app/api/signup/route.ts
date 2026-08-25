@@ -71,15 +71,19 @@ export async function POST(req: NextRequest) {
     const pin = generatePin()
     const pinHash = await hashPin(pin)
 
-    const { error: insertError } = await supabase.from('players').insert({
-      full_name: name,
-      email: emailLower,
-      phone: phone?.trim() || null,
-      venmo_handle: venmo?.trim() || null,
-      pin_hash: pinHash,
-      paid: false,
-      status: 'alive',
-    })
+    const { data: inserted, error: insertError } = await supabase
+      .from('players')
+      .insert({
+        full_name: name,
+        email: emailLower,
+        phone: phone?.trim() || null,
+        venmo_handle: venmo?.trim() || null,
+        pin_hash: pinHash,
+        paid: false,
+        status: 'alive',
+      })
+      .select('id')
+      .single()
 
     if (insertError) {
       // 23505 = unique violation. Two requests can both pass the email
@@ -95,6 +99,15 @@ export async function POST(req: NextRequest) {
       console.error('signup insert error', insertError)
       return NextResponse.json({ error: 'Failed to create account' }, { status: 500 })
     }
+
+    await logAudit(supabase, {
+      event_type: 'player-signed-up',
+      actor: 'player',
+      player_id: inserted.id,
+      player_name: name,
+      message: `${name} signed up`,
+      details: { email: emailLower },
+    })
 
     // Send the welcome email after the response goes out instead of
     // awaiting it here. Resend is a third network hop with no timeout of

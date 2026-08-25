@@ -22,6 +22,7 @@ export const AUDIT_EVENT_TYPES: Record<string, string> = {
   'broadcast-sent': 'Broadcast sent',
   'pool-reset': 'Pool reset',
   'welcome-email-failed': 'Welcome email failed',
+  'player-signed-up': 'Player signed up',
 }
 
 export type AuditEventType = keyof typeof AUDIT_EVENT_TYPES

@@ -4,6 +4,7 @@ import { generatePin, hashPin } from '@/lib/pin'
 import { sendPinRegeneratedEmail } from '@/lib/email'
 import { checkRateLimit, getIP } from '@/lib/rateLimit'
 import { escapeIlike } from '@/lib/api'
+import { logAudit } from '@/lib/audit'
 
 export async function POST(req: NextRequest) {
   try {
@@ -45,6 +46,16 @@ export async function POST(req: NextRequest) {
     await supabase.from('players').update({ pin_hash }).eq('id', player.id)
 
     const emailResult = await sendPinRegeneratedEmail(player.email, player.full_name, pin)
+
+    await logAudit(supabase, {
+      event_type: 'pin-regenerated',
+      actor: 'player',
+      player_id: player.id,
+      player_name: player.full_name,
+      message: `${player.full_name} requested a PIN reset (forgot PIN)`,
+      details: { email_sent: emailResult.ok },
+    })
+
     if (!emailResult.ok) {
       return NextResponse.json(
         { error: 'PIN was reset, but the email failed to send. Try again in a bit.' },
