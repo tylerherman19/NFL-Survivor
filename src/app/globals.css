@@ -22,6 +22,29 @@
   --radius: 10px;
   --radius-sm: 7px;
   --radius-lg: 14px;
+
+  /* --- Editorial layer ---------------------------------------------------
+     Anton stays the poster voice (masthead, hero, big figures). Analysis is
+     set in a serif so a computed sentence reads as reporting rather than as
+     another UI label. Georgia ships everywhere, so no extra webfont. */
+  --font-serif: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
+
+  /* Ink steps for text. Data marks never carry text color and vice versa. */
+  --ink: #100e0c;
+  --ink-2: #4a4540;
+
+  /* Chart furniture — deliberately recessive against the cream page. */
+  --grid: #e0dad1;
+  --axis: #bdb5a9;
+
+  /* Sequential ramp, one hue (the brand red), light -> dark. Used for "how
+     spent is this team" only; never for identity. */
+  --burn-0: #efe9e1;
+  --burn-1: #eed7d0;
+  --burn-2: #e0b0a4;
+  --burn-3: #cd8375;
+  --burn-4: #b4574a;
+  --burn-5: #8f2e21;
 }
 
 body {
@@ -141,3 +164,113 @@ body {
   .ticker-track { animation: none; }
 }
 .row-hover:hover { background: var(--surface); }
+
+/* --- Editorial modules ---------------------------------------------------
+   Every analysis block is a small article: kicker, a sentence stating the
+   finding, a chart, and a method note. The sentence is generated server-side
+   from the same data the chart draws, so the two can never disagree. */
+
+.kicker {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--red);
+}
+
+.lede {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: 21px;
+  line-height: 1.3;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+  max-width: 34ch;
+}
+@media (min-width: 640px) {
+  .lede { font-size: 25px; max-width: 46ch; }
+}
+.lede strong { font-weight: 700; }
+
+.deck {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  max-width: 68ch;
+}
+
+.method {
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  padding-top: 9px;
+  margin-top: 16px;
+}
+
+/* Full-bleed hairline that separates one story from the next, the way a
+   print page rules between items. */
+.story-rule {
+  border: 0;
+  border-top: 1px solid var(--border-strong);
+  margin: 0;
+}
+
+/* Numbers read as figures, not as headings: tabular, tight, ink-colored. */
+.figure-num {
+  font-family: var(--font-anton), Impact, 'Arial Narrow', sans-serif;
+  font-variant-numeric: tabular-nums;
+  line-height: 0.86;
+  letter-spacing: 0.01em;
+}
+
+/* CSS-only hover readout. The dashboard is a cached server render, so the
+   tooltip layer carries no JS. */
+.hint { position: relative; }
+.hint > .hint-body {
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%) translateY(3px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  background: var(--dark);
+  color: #fff;
+  font-size: 11px;
+  line-height: 1.35;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 6px 9px;
+  border-radius: 6px;
+  white-space: nowrap;
+  z-index: 20;
+  box-shadow: var(--shadow-md);
+}
+.hint:hover > .hint-body,
+.hint:focus-visible > .hint-body {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hint > .hint-body { transition: none; }
+}
+
+/* Bar marks: 4px rounded end at the data side, square against the baseline. */
+.bar-track {
+  background: var(--surface-sunken);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  border-radius: 0 4px 4px 0;
+}
+
+/* Burn-map cell — a 32-team small multiple. */
+.burn-cell {
+  border-radius: 5px;
+  padding: 6px 2px 5px;
+  text-align: center;
+  border: 1px solid rgba(16, 14, 12, 0.06);
+}

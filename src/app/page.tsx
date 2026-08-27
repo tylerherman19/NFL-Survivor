@@ -1,10 +1,19 @@
 import Link from 'next/link'
-import { NFL_TEAM_NAMES } from '@/types'
 import type { StandingRow, TeamStat, Week } from '@/types'
-import { teamColor } from '@/lib/teamColors'
+import { computeInsights, type PoolInsights } from '@/lib/insights'
 import Countdown from './components/Countdown'
 import LiveTicker from './components/LiveTicker'
 import SiteHeader from './components/SiteHeader'
+import TeamChip from './components/TeamChip'
+import {
+  BurnMap,
+  ChalkFigure,
+  ExposureFigure,
+  LeverageTable,
+  OverlapFigure,
+  Story,
+  TrajectoryFigure,
+} from './components/insights'
 
 // Cache the server render for 60 seconds — serves ~1k concurrent users from CDN
 // without hitting Supabase 1k times simultaneously. Pick deadline countdown
@@ -15,22 +24,45 @@ const TOTAL_WEEKS = 18
 
 async function getDashboardData() {
   try {
-    const { getDb } = await import('@/lib/testMode')
-    const supabase = await getDb()
     const { getWeekSundayDeadline, isPickRevealed } = await import('@/lib/deadline')
 
-    // Single Promise.all with 4 queries: all weeks, all players, all picks with team, all games
-    const [
-      { data: allWeeks },
-      { data: allPlayers },
-      { data: allPicks },
-      { data: allGames }
-    ] = await Promise.all([
-      supabase.from('weeks').select('*').order('week_number'),
-      supabase.from('players').select('id, full_name, email, status, elimination_week, elimination_reason, paid').order('full_name'),
-      supabase.from('picks').select('player_id, week_id, team'),
-      supabase.from('games').select('*')
-    ])
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    let allWeeks: any[] | null = null
+    let allPlayers: any[] | null = null
+    let allPicks: any[] | null = null
+    let allGames: any[] | null = null
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+
+    // Local UI work only: a synthetic mid-season pool so every module renders
+    // without DB access, which local dev has no credentials for (the Supabase
+    // keys are Sensitive in Vercel and pull back empty). The NODE_ENV check is
+    // the load-bearing half — it makes it impossible for a stray UI_DEMO in a
+    // deployed environment to put fabricated standings in front of real
+    // players, whatever the env vars say.
+    const demoMode = process.env.NODE_ENV !== 'production' ? process.env.UI_DEMO : undefined
+    if (demoMode === '1' || demoMode === '2') {
+      const { buildDemoData } = await import('@/lib/demoData')
+      const demo = buildDemoData(demoMode)
+      allWeeks = demo.weeks
+      allPlayers = demo.players
+      allPicks = demo.picks
+      allGames = demo.games
+    } else {
+      const { getDb } = await import('@/lib/testMode')
+      const supabase = await getDb()
+
+      // Single Promise.all with 4 queries: all weeks, all players, all picks with team, all games
+      const [weeksRes, playersRes, picksRes, gamesRes] = await Promise.all([
+        supabase.from('weeks').select('*').order('week_number'),
+        supabase.from('players').select('id, full_name, email, status, elimination_week, elimination_reason, paid').order('full_name'),
+        supabase.from('picks').select('player_id, week_id, team'),
+        supabase.from('games').select('*')
+      ])
+      allWeeks = weeksRes.data
+      allPlayers = playersRes.data
+      allPicks = picksRes.data
+      allGames = gamesRes.data
+    }
 
     if (!allPlayers) return null
     const players = allPlayers.filter((p: { email: string }) => !p.email?.endsWith('@nflsurvivor.internal'))
@@ -61,7 +93,9 @@ async function getDashboardData() {
       (w: { season_year: number }) => !seasonAnchor || w.season_year === seasonAnchor.season_year
     )
     const seasonWeekIds = new Set<string>(seasonWeeks.map((w: { id: string }) => w.id))
-    const seasonPicks = (allPicks || []).filter((p: { week_id: string }) => seasonWeekIds.has(p.week_id))
+    const seasonPicks = (allPicks || []).filter(
+      (p: { week_id: string; player_id: string }) => seasonWeekIds.has(p.week_id) && realPlayerIds.has(p.player_id)
+    )
 
     let currentPicks: Record<string, string> = {}
     // Subset of currentPicks whose team has already locked, so it can be shown
@@ -138,7 +172,7 @@ async function getDashboardData() {
       return b.weeks_survived - a.weeks_survived
     })
 
-    // Filter picks to exclude current week for team stats and carnage
+    // Filter picks to exclude current week for team stats
     const allPicksWithTeam = seasonPicks.filter((p: { week_id: string }) => !week || p.week_id !== week.id)
 
     const teamMap: Record<string, { times_picked: number; wins: number; eliminations: number }> = {}
@@ -166,58 +200,25 @@ async function getDashboardData() {
       }))
       .sort((a, b) => b.times_picked - a.times_picked)
 
-    // Current-week pick distribution, built from revealed picks only — before
-    // Sunday noon that's just the teams already locked by an earlier kickoff.
-    const distMap: Record<string, number> = {}
-    for (const team of Object.values(revealedPicks)) {
-      distMap[team] = (distMap[team] || 0) + 1
-    }
-    const pickDistribution = Object.entries(distMap)
-      .map(([team, count]) => ({ team, count }))
-      .sort((a, b) => b.count - a.count || a.team.localeCompare(b.team))
     const picksMade = alive.filter((p: { id: string }) => currentPicks[p.id]).length
     const picksPending = alive.length - picksMade
 
-    // Survival curve: players remaining after each completed week
-    const completedWeeks = seasonWeeks.filter(
-      (w: { week_number: number }) => !week || w.week_number < week.week_number
-    )
-    const survivalCurve = completedWeeks.map((w: { week_number: number }) => ({
-      week_number: w.week_number,
-      remaining:
-        players.length -
-        players.filter(
-          (p: { elimination_week: number | null }) =>
-            p.elimination_week !== null && p.elimination_week <= w.week_number
-        ).length,
-    }))
-
-    // Weekly carnage: eliminations per past week and the team most responsible
-    const weekIdByNumber: Record<number, string> = {}
-    for (const w of seasonWeeks) weekIdByNumber[w.week_number] = w.id
-    const carnage = completedWeeks
-      .map((w: { week_number: number }) => {
-        const elim = players.filter(
-          (p: { elimination_week: number | null }) => p.elimination_week === w.week_number
-        )
-        if (elim.length === 0) return null
-        const teamCounts: Record<string, number> = {}
-        for (const p of elim) {
-          const pick = (allPicksWithTeam || []).find(
-            (pk: { player_id: string; week_id: string }) =>
-              pk.player_id === p.id && pk.week_id === weekIdByNumber[w.week_number]
-          )
-          const key = pick ? pick.team : 'no pick'
-          teamCounts[key] = (teamCounts[key] || 0) + 1
-        }
-        let topTeam: string | null = null
-        let topCount = 0
-        for (const [team, count] of Object.entries(teamCounts)) {
-          if (count > topCount) { topTeam = team; topCount = count }
-        }
-        return { week_number: w.week_number, eliminated: elim.length, topTeam }
-      })
-      .filter((c): c is { week_number: number; eliminated: number; topTeam: string | null } => c !== null)
+    // Everything the editorial modules need is already in hand — the insight
+    // layer is a pure function over it, and only ever sees revealed picks for
+    // the current week.
+    const insights = computeInsights({
+      players,
+      weeks: seasonWeeks
+        .slice()
+        .sort((a: { week_number: number }, b: { week_number: number }) => a.week_number - b.week_number),
+      picks: seasonPicks,
+      games: allGames || [],
+      currentWeek: week,
+      revealedCurrentPicks: revealedPicks,
+      picksMade,
+      potSize,
+      totalWeeks: TOTAL_WEEKS,
+    })
 
     return {
       week: week as Week | null,
@@ -231,15 +232,23 @@ async function getDashboardData() {
       nextDeadline,
       nextDeadlineFormatted,
       picksRevealed,
-      pickDistribution,
       picksMade,
       picksPending,
-      survivalCurve,
-      carnage,
+      insights,
     }
   } catch {
     return null
   }
+}
+
+/** The one sentence worth putting at the top of the page. */
+function topLine(insights: PoolInsights, aliveCount: number): string | null {
+  return (
+    insights.exposure?.headline ??
+    insights.trajectory?.headline ??
+    insights.chalk?.headline ??
+    (aliveCount > 0 ? null : null)
+  )
 }
 
 export default async function DashboardPage() {
@@ -248,6 +257,8 @@ export default async function DashboardPage() {
 
   const aliveRows = data?.standings.filter((r) => r.status === 'alive') ?? []
   const elimRows = data?.standings.filter((r) => r.status === 'eliminated') ?? []
+  const insights = data?.insights
+  const lede = data && insights ? topLine(insights, data.aliveCount) : null
 
   return (
     <div style={{ background: 'var(--cream)', minHeight: '100vh' }}>
@@ -274,46 +285,77 @@ export default async function DashboardPage() {
         </main>
       ) : (
         <main className="mx-auto max-w-5xl px-4 pb-4">
-          {/* Hero */}
-          <div className="pt-9 pb-7 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-5">
-            <div>
-              <h1 className="font-display text-6xl sm:text-8xl leading-[0.9]" style={{ color: 'var(--dark)' }}>
-                {data.week?.season_year ?? '2026'} SEASON
-              </h1>
-              <div className="mt-3 flex items-center gap-3">
-                <span className="eyebrow">Week {data.week?.week_number ?? '—'} of {TOTAL_WEEKS}</span>
-                <span className="hidden sm:block h-2 w-40 rounded-full overflow-hidden" style={{ background: 'var(--surface-sunken)' }}>
-                  <span className="block h-full rounded-full" style={{ background: 'var(--dark)', width: `${((data.week?.week_number ?? 0) / TOTAL_WEEKS) * 100}%` }} />
-                </span>
-              </div>
-            </div>
-            {data.nextDeadline && (
-              <div className="card px-5 py-4 sm:min-w-[240px]" style={{ borderColor: 'var(--border-strong)' }}>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <span className="pill-dot" style={{ background: 'var(--red)' }} />
-                  <p className="eyebrow" style={{ color: 'var(--red)' }}>Pick Deadline</p>
+          {/* Masthead: the week, the deadline, and the finding that leads the page */}
+          <div className="pt-9 pb-6">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-5">
+              <div className="min-w-0">
+                <h1 className="font-display text-6xl sm:text-7xl leading-[0.88]" style={{ color: 'var(--dark)' }}>
+                  {data.week?.season_year ?? '2026'} SEASON
+                </h1>
+                <div className="mt-3 flex items-center gap-3">
+                  <span className="eyebrow">Week {data.week?.week_number ?? '—'} of {TOTAL_WEEKS}</span>
+                  <span className="hidden sm:block h-1.5 w-40 rounded-full overflow-hidden" style={{ background: 'var(--surface-sunken)' }}>
+                    <span className="block h-full rounded-full" style={{ background: 'var(--dark)', width: `${((data.week?.week_number ?? 0) / TOTAL_WEEKS) * 100}%` }} />
+                  </span>
                 </div>
-                <p className="font-bold text-[15px]" style={{ color: 'var(--dark)' }}>{data.nextDeadlineFormatted}</p>
-                <Countdown deadline={data.nextDeadline} />
               </div>
+              {data.nextDeadline && (
+                <div className="card px-5 py-4 sm:min-w-[240px] shrink-0" style={{ borderColor: 'var(--border-strong)' }}>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="pill-dot" style={{ background: 'var(--red)' }} />
+                    <p className="eyebrow" style={{ color: 'var(--red)' }}>Pick Deadline</p>
+                  </div>
+                  <p className="font-bold text-[15px]" style={{ color: 'var(--dark)' }}>{data.nextDeadlineFormatted}</p>
+                  <Countdown deadline={data.nextDeadline} />
+                </div>
+              )}
+            </div>
+
+            {lede && (
+              <p className="lede mt-6" style={{ maxWidth: '52ch' }}>{lede}</p>
             )}
           </div>
 
-          {/* Stat cards */}
-          <div className={`grid grid-cols-2 gap-3 ${data.aliveCount > 0 && data.aliveCount < 20 ? 'sm:grid-cols-4' : 'sm:grid-cols-3'}`}>
-            <StatCard value={data.aliveCount} label="Still Alive" accent="var(--green)" />
-            <StatCard value={data.eliminatedCount} label="Eliminated" accent="var(--red)" />
-            <StatCard value={`$${data.potSize}`} label="Pot Size" accent="var(--dark)" />
-            {data.aliveCount > 0 && data.aliveCount < 20 && (
-              <StatCard
-                value={`$${data.payoutPerSurvivor}`}
-                label={data.aliveCount === 1 ? 'Winner Takes' : 'Split Estimate'}
-                accent="var(--dark)"
-              />
-            )}
+          {/* Scoreboard: the four numbers, set as a ruled strip rather than four boxes */}
+          <div className="card grid grid-cols-2 sm:grid-cols-4 overflow-hidden">
+            <Figure value={data.aliveCount} label="Still Alive" accent="var(--green)" />
+            <Figure value={data.eliminatedCount} label="Eliminated" accent="var(--red)" />
+            <Figure value={`$${data.potSize}`} label="Pot Size" accent="var(--ink)" />
+            <Figure
+              value={data.aliveCount > 0 && data.aliveCount < 20 ? `$${data.payoutPerSurvivor}` : `${data.picksMade}/${data.aliveCount}`}
+              label={
+                data.aliveCount > 0 && data.aliveCount < 20
+                  ? data.aliveCount === 1 ? 'Winner Takes' : 'Split Estimate'
+                  : 'Picks In'
+              }
+              accent="var(--ink)"
+            />
           </div>
 
-          {/* Standings */}
+          {/* ---- This week ---- */}
+          {insights?.exposure && (
+            <Story
+              kicker={`Week ${data.week?.week_number} · Exposure`}
+              lede={insights.exposure.headline === lede ? undefined : insights.exposure.headline}
+              deck={insights.exposure.deck}
+              method="Built only from picks that are already public — a pick goes public the moment its game kicks off, and the rest at Sunday 12 PM CT. Survivor counts assume every other public pick holds."
+            >
+              <ExposureFigure data={insights.exposure} />
+            </Story>
+          )}
+
+          {insights?.leverage && (
+            <Story
+              kicker="Leverage"
+              lede={insights.leverage.headline}
+              deck={insights.leverage.deck}
+              method="Best case is the field that would remain if this pick wins and every other public pick loses. Dollar figures split the current pot across that field."
+            >
+              <LeverageTable data={insights.leverage} />
+            </Story>
+          )}
+
+          {/* ---- Standings ---- */}
           <Section id="standings" title="Standings" className="pt-10">
             <div className="card overflow-hidden">
               <table className="w-full text-sm">
@@ -341,7 +383,7 @@ export default async function DashboardPage() {
                       <td className="py-3 pl-4 pr-4">
                         {row.current_pick ? (
                           row.pick_revealed ? (
-                            <TeamChip team={row.current_pick} showName />
+                            <TeamChip team={row.current_pick} size={18} />
                           ) : (
                             <span className="pill pill-alive">✓ Pick In</span>
                           )
@@ -367,7 +409,9 @@ export default async function DashboardPage() {
                         <td className="py-2.5 px-4 hidden sm:table-cell">
                           <span className="pill pill-out">Out{ew ? ` · Wk ${ew}` : ''}</span>
                         </td>
-                        <td className="py-2.5 pl-4 pr-4 text-xs" style={{ color: 'var(--muted)' }}>—</td>
+                        <td className="py-2.5 pl-4 pr-4 text-xs" style={{ color: 'var(--muted)' }}>
+                          {row.elimination_reason ?? '—'}
+                        </td>
                       </tr>
                     )
                   })}
@@ -376,93 +420,61 @@ export default async function DashboardPage() {
             </div>
           </Section>
 
-          {/* This Week's Pick Distribution */}
-          {data.week && (
-            <Section title={`Week ${data.week.week_number} Pick Distribution`}>
-              <div className="card p-5 space-y-4">
-                {/* Before the Sunday cutoff, the running Picks In / Pending tally
-                    stays up — the bars below it only cover already-locked teams. */}
-                {!data.picksRevealed && (
-                  <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-                    <div className="flex items-baseline gap-2">
-                      <span className="font-display text-4xl leading-none" style={{ color: 'var(--green)' }}>{data.picksMade}</span>
-                      <span className="eyebrow">Picks In</span>
-                    </div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="font-display text-4xl leading-none" style={{ color: 'var(--red)' }}>{data.picksPending}</span>
-                      <span className="eyebrow">Pending</span>
-                    </div>
-                    <span className="text-xs" style={{ color: 'var(--muted)' }}>
-                      {data.pickDistribution.length > 0
-                        ? 'Locked picks are shown below · full breakdown after Sunday 12 PM CT'
-                        : 'Team breakdown revealed as each pick locks · all in after Sunday 12 PM CT'}
-                    </span>
-                  </div>
-                )}
-
-                {data.pickDistribution.length === 0 ? (
-                  data.picksRevealed ? (
-                    <p className="text-sm" style={{ color: 'var(--muted)' }}>No picks were made this week.</p>
-                  ) : null
-                ) : (
-                  <div className="space-y-2.5">
-                    {data.pickDistribution.map((d) => {
-                      const max = data.pickDistribution[0].count
-                      const c = teamColor(d.team).primary
-                      return (
-                        <div key={d.team} className="flex items-center gap-3">
-                          <div className="w-16 shrink-0"><TeamChip team={d.team} /></div>
-                          <div className="flex-1 rounded-full overflow-hidden" style={{ background: 'var(--surface-sunken)', height: 12 }}>
-                            <div className="h-full rounded-full" style={{ width: `${Math.max((d.count / max) * 100, 5)}%`, background: c }} />
-                          </div>
-                          <span className="text-sm w-16 shrink-0 text-right tnum" style={{ color: 'var(--dark)' }}>
-                            {d.count} {d.count === 1 ? 'pick' : 'picks'}
-                          </span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            </Section>
+          {/* ---- The season so far ---- */}
+          {(insights?.trajectory || insights?.chalk || insights?.scarcity || insights?.overlap) && (
+            <div className="pt-12">
+              <hr className="story-rule" />
+              <p className="eyebrow mt-4">The season so far</p>
+            </div>
           )}
 
-          {/* Survival curve */}
-          {data.survivalCurve.length > 0 && (
-            <Section title="Survivors by Week">
-              <div className="card p-5">
-                <SurvivalChart start={data.totalPlayers} points={data.survivalCurve} aliveCount={data.aliveCount} />
-              </div>
-            </Section>
+          {insights?.trajectory && (
+            <Story
+              kicker="Attrition"
+              lede={insights.trajectory.headline === lede ? undefined : insights.trajectory.headline}
+              deck={insights.trajectory.deck}
+              method="The dashed projection compounds the season's average weekly survival rate forward. It is an extrapolation of this pool's own results, not a forecast of any game."
+            >
+              <TrajectoryFigure data={insights.trajectory} />
+            </Story>
           )}
 
-          {/* Weekly carnage */}
-          {data.carnage.length > 0 && (
-            <Section title="Weekly Carnage">
-              <div className="grid sm:grid-cols-2 gap-3">
-                {data.carnage.map((c) => (
-                  <div key={c.week_number} className="card px-4 py-3 flex items-center gap-4">
-                    <div className="text-center shrink-0 w-12">
-                      <p className="font-display text-3xl leading-none" style={{ color: 'var(--red)' }}>{c.eliminated}</p>
-                      <p className="eyebrow mt-0.5" style={{ fontSize: 9 }}>out</p>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-bold text-sm" style={{ color: 'var(--dark)' }}>Week {c.week_number}</p>
-                      <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
-                        {c.topTeam && c.topTeam !== 'no pick' ? (
-                          <>mostly on <span className="font-semibold" style={{ color: 'var(--dark)' }}>{NFL_TEAM_NAMES[c.topTeam] ?? c.topTeam}</span></>
-                        ) : c.topTeam === 'no pick' ? 'mostly missed picks' : 'eliminations'}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Section>
+          {insights?.chalk && (
+            <Story
+              kicker="The crowd"
+              lede={insights.chalk.headline}
+              deck={insights.chalk.deck}
+              method="The crowd pick is the most-selected team in a completed week, across every entry that was still alive to make one."
+            >
+              <ChalkFigure data={insights.chalk} />
+            </Story>
           )}
 
-          {/* Team Pick Stats (past weeks only) */}
+          {insights?.scarcity && (
+            <Story
+              kicker="What's left on the board"
+              lede={insights.scarcity.headline}
+              deck={insights.scarcity.deck}
+              method="Counts cover surviving entries only. A team is spent for a player the moment their pick on it locks — you can't pick the same team twice all season."
+            >
+              <BurnMap data={insights.scarcity} />
+            </Story>
+          )}
+
+          {insights?.overlap && (
+            <Story
+              kicker="Divergence"
+              lede={insights.overlap.headline}
+              deck={insights.overlap.deck}
+              method="Overlap is the share of two survivors' unused teams that is common to both. Boards that overlap heavily tend to live and die together in later weeks."
+            >
+              <OverlapFigure data={insights.overlap} />
+            </Story>
+          )}
+
+          {/* Team ledger — how each team has actually treated the people who picked it */}
           {data.teamStats.length > 0 && (
-            <Section title="Team Pick History">
+            <Section title="Team ledger">
               <div className="card overflow-hidden">
                 {/* Every cell carries its own horizontal padding: .eyebrow's 0.18em
                     tracking makes these headers wide enough that with no gap they
@@ -483,7 +495,7 @@ export default async function DashboardPage() {
                   <tbody>
                     {data.teamStats.map((stat) => (
                       <tr key={stat.team} className="row-hover border-t" style={{ borderColor: 'var(--border)' }}>
-                        <td className="py-2.5 pl-4 pr-3"><TeamChip team={stat.team} showName /></td>
+                        <td className="py-2.5 pl-4 pr-3"><TeamChip team={stat.team} showName size={18} /></td>
                         <td className="py-2.5 px-3 text-right tnum" style={{ color: 'var(--dark)' }}>{stat.times_picked}</td>
                         <td className="py-2.5 px-3">
                           <div className="flex items-center justify-end gap-2">
@@ -501,6 +513,7 @@ export default async function DashboardPage() {
                   </tbody>
                 </table>
               </div>
+              <p className="method">Completed weeks only. Win rate is how often a team delivered for the people who picked it; Outs is how many entries it ended.</p>
             </Section>
           )}
 
@@ -536,66 +549,18 @@ export default async function DashboardPage() {
 
 function Section({ id, title, children, className }: { id?: string; title: string; children: React.ReactNode; className?: string }) {
   return (
-    <section id={id} className={`pt-9 ${className ?? ''}`}>
+    <section id={id} className={`pt-10 ${className ?? ''}`}>
       <p className="eyebrow mb-3">{title}</p>
       {children}
     </section>
   )
 }
 
-function StatCard({ value, label, accent }: { value: string | number; label: string; accent: string }) {
+function Figure({ value, label, accent }: { value: string | number; label: string; accent: string }) {
   return (
-    <div className="card px-4 py-5 sm:px-5 relative overflow-hidden">
-      <span className="absolute left-0 top-0 h-full w-1" style={{ background: accent }} />
-      <p className="font-display text-5xl sm:text-6xl leading-none tnum" style={{ color: accent }}>{value}</p>
-      <p className="mt-1.5 eyebrow">{label}</p>
-    </div>
-  )
-}
-
-function TeamChip({ team, showName }: { team: string; showName?: boolean }) {
-  const c = teamColor(team).primary
-  return (
-    <span className="team-chip text-sm" style={{ color: 'var(--dark)' }}>
-      <span className="team-chip-swatch" style={{ background: c }}>{team.slice(0, 3)}</span>
-      {showName && <span className="hidden sm:inline text-xs font-normal" style={{ color: 'var(--muted)' }}>{NFL_TEAM_NAMES[team] ?? team}</span>}
-    </span>
-  )
-}
-
-function SurvivalChart({ start, points, aliveCount }: { start: number; points: { week_number: number; remaining: number }[]; aliveCount: number }) {
-  const series = [{ week_number: 0, remaining: start }, ...points]
-  const W = 900, H = 190, padL = 8, padR = 8, padT = 12, padB = 24
-  const maxN = Math.max(start, 1) // guard: start can be 0 (no real players yet) → avoid divide-by-zero → NaN coords
-  const n = series.length
-  const x = (i: number) => padL + (i / Math.max(n - 1, 1)) * (W - padL - padR)
-  const y = (v: number) => padT + (1 - v / maxN) * (H - padT - padB)
-  const linePts = series.map((s, i) => `${x(i)},${y(s.remaining)}`).join(' ')
-  const areaPts = `${x(0)},${y(0)} ${linePts} ${x(n - 1)},${y(0)}`
-  return (
-    <div>
-      {/* uniform scaling (no preserveAspectRatio="none") keeps the point circles round */}
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ display: 'block', height: 'auto' }}>
-        <defs>
-          <linearGradient id="survFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--green)" stopOpacity="0.22" />
-            <stop offset="100%" stopColor="var(--green)" stopOpacity="0.02" />
-          </linearGradient>
-        </defs>
-        <polygon points={areaPts} fill="url(#survFill)" />
-        <polyline points={linePts} fill="none" stroke="var(--green)" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-        {series.map((s, i) => (
-          <circle key={i} cx={x(i)} cy={y(s.remaining)} r={3} fill="var(--surface)" stroke="var(--green)" strokeWidth={2} vectorEffect="non-scaling-stroke" />
-        ))}
-      </svg>
-      <div className="flex justify-between mt-2 text-center">
-        {series.map((s, i) => (
-          <div key={i} className="flex-1">
-            <p className="font-bold text-sm tnum" style={{ color: s.remaining <= aliveCount ? 'var(--green)' : 'var(--dark)' }}>{s.remaining}</p>
-            <p className="eyebrow" style={{ fontSize: 9 }}>{i === 0 ? 'Start' : `Wk ${s.week_number}`}</p>
-          </div>
-        ))}
-      </div>
+    <div className="px-4 py-4 sm:px-5 border-t sm:border-t-0 sm:border-l first:border-t-0 sm:first:border-l-0 [&:nth-child(2)]:border-t-0 sm:[&:nth-child(2)]:border-l" style={{ borderColor: 'var(--border)' }}>
+      <p className="figure-num text-4xl sm:text-5xl" style={{ color: accent }}>{value}</p>
+      <p className="mt-2 eyebrow">{label}</p>
     </div>
   )
 }
