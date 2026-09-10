@@ -10,11 +10,9 @@
 // chart library ships to the browser.
 
 import { NFL_TEAM_NAMES } from '@/types'
-import { teamColor } from '@/lib/teamColors'
 import TeamChip from './TeamChip'
 import type {
   ChalkModule,
-  ExposureModule,
   LeverageModule,
   OverlapModule,
   ScarcityModule,
@@ -46,121 +44,6 @@ export function Story({
       {children && <div className="mt-5">{children}</div>}
       {method && <p className="method">{method}</p>}
     </section>
-  )
-}
-
-/* ------------------------------------------------------------------ */
-/* Exposure — how much of the field one result can take out            */
-/* ------------------------------------------------------------------ */
-
-export function ExposureFigure({ data }: { data: ExposureModule }) {
-  const { rows, aliveCount, hiddenCount, complete, floor, worstCase } = data
-  const showHalfLine = aliveCount >= 4
-
-  // Bars are measured against the whole surviving field, not against the
-  // biggest bar. "Six of fourteen" is the fact that matters; scaling to the
-  // leader would make a scattered week look identical to a concentrated one.
-  const widthOf = (count: number) => `${(count / Math.max(aliveCount, 1)) * 100}%`
-
-  return (
-    <div className="card p-4 sm:p-5">
-      {showHalfLine && (
-        <div className="grid items-end mb-1.5" style={{ gridTemplateColumns: '58px 1fr 84px', columnGap: 12 }}>
-          <div />
-          <div className="relative h-4">
-            <span
-              className="absolute eyebrow whitespace-nowrap"
-              style={{ left: '50%', bottom: 0, transform: 'translateX(-50%)', fontSize: 9 }}
-            >
-              half the field
-            </span>
-          </div>
-          <div />
-        </div>
-      )}
-
-      <div className="relative">
-        {showHalfLine && (
-          <div
-            className="absolute inset-0 grid pointer-events-none"
-            style={{ gridTemplateColumns: '58px 1fr 84px', columnGap: 12 }}
-            aria-hidden
-          >
-            <div />
-            <div className="relative">
-              <span className="absolute top-0 bottom-0" style={{ left: '50%', width: 1, background: 'var(--axis)' }} />
-            </div>
-            <div />
-          </div>
-        )}
-
-        <div className="relative space-y-2">
-          {rows.map((row) => (
-            <div
-              key={row.team}
-              className="grid items-center"
-              style={{ gridTemplateColumns: '58px 1fr 84px', columnGap: 12 }}
-            >
-              <TeamChip team={row.team} size={18} />
-              <div className="hint">
-                <div className="bar-track" style={{ height: 15 }}>
-                  <div className="bar-fill" style={{ width: widthOf(row.count), background: teamColor(row.team).primary }} />
-                </div>
-                <span className="hint-body">
-                  {row.count} on {teamName(row.team)} · a loss leaves {row.survivorsIfLoses}
-                </span>
-              </div>
-              <div className="text-right leading-tight">
-                <span className="text-sm font-bold tnum" style={{ color: 'var(--ink)' }}>{row.count}</span>
-                <span className="block tnum" style={{ fontSize: 10, color: 'var(--muted)' }}>
-                  {row.survivorsIfLoses} left
-                </span>
-              </div>
-            </div>
-          ))}
-
-          {hiddenCount > 0 && (
-            <div className="grid items-center" style={{ gridTemplateColumns: '58px 1fr 84px', columnGap: 12 }}>
-              <span className="eyebrow" style={{ fontSize: 9 }}>Hidden</span>
-              {/* .bar-track clips its overflow, so the tooltip has to hang off a
-                  wrapper outside it rather than off the track itself. */}
-              <div className="hint">
-                <div className="bar-track" style={{ height: 15 }}>
-                  <div
-                    className="bar-fill"
-                    style={{
-                      width: widthOf(hiddenCount),
-                      background:
-                        'repeating-linear-gradient(135deg, var(--border) 0 5px, var(--surface-sunken) 5px 10px)',
-                    }}
-                  />
-                </div>
-                <span className="hint-body">{hiddenCount} picks not public until their game locks</span>
-              </div>
-              <div className="text-right leading-tight">
-                <span className="text-sm font-bold tnum" style={{ color: 'var(--muted)' }}>{hiddenCount}</span>
-                <span className="block" style={{ fontSize: 10, color: 'var(--muted)' }}>unknown</span>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {worstCase && (
-        <div
-          className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1 px-3 py-2.5 rounded"
-          style={{ background: 'var(--red-tint)' }}
-        >
-          <span className="eyebrow" style={{ color: 'var(--red)', fontSize: 9 }}>
-            {complete ? 'Worst single result' : 'Worst result so far'}
-          </span>
-          <span className="text-sm" style={{ color: 'var(--ink)' }}>
-            {teamName(worstCase.team)} lose →{' '}
-            <strong className="tnum">{floor}</strong> of {aliveCount} survive
-          </span>
-        </div>
-      )}
-    </div>
   )
 }
 
