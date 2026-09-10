@@ -215,7 +215,6 @@ async function getDashboardData() {
       games: allGames || [],
       currentWeek: week,
       revealedCurrentPicks: revealedPicks,
-      picksMade,
       potSize,
       totalWeeks: TOTAL_WEEKS,
     })

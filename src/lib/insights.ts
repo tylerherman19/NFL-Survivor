@@ -50,8 +50,6 @@ export interface InsightsInput {
   currentWeek: InsightWeek | null
   /** player_id -> team, current week, revealed picks only. */
   revealedCurrentPicks: Record<string, string>
-  /** Count of alive players who have submitted a pick, revealed or not. */
-  picksMade: number
   potSize: number
   totalWeeks: number
 }
@@ -76,8 +74,6 @@ export interface ExposureModule {
   worstCase: ExposureRow | null
   /** Survivors guaranteed to remain no matter which single team loses. */
   floor: number
-  headline: string
-  deck: string
 }
 
 export interface LeverageRow {
@@ -204,7 +200,7 @@ function buildWinners(games: InsightGame[]): Record<string, Set<string>> {
 }
 
 export function computeInsights(input: InsightsInput): PoolInsights {
-  const { players, weeks, picks, games, currentWeek, revealedCurrentPicks, picksMade, potSize, totalWeeks } = input
+  const { players, weeks, picks, games, currentWeek, revealedCurrentPicks, potSize, totalWeeks } = input
 
   const alive = players.filter((p) => p.status === 'alive')
   const nameById: Record<string, string> = {}
@@ -230,7 +226,7 @@ export function computeInsights(input: InsightsInput): PoolInsights {
   }
 
   return {
-    exposure: buildExposure({ alive, revealedCurrentPicks, picksMade, currentWeek }),
+    exposure: buildExposure({ alive, revealedCurrentPicks, currentWeek }),
     leverage: buildLeverage({ alive, revealedCurrentPicks, potSize, nameById }),
     scarcity: buildScarcity({ alive, usedByPlayer, nameById, pastPicks }),
     overlap: buildOverlap({ alive, usedByPlayer, completedWeeks }),
@@ -242,12 +238,10 @@ export function computeInsights(input: InsightsInput): PoolInsights {
 function buildExposure({
   alive,
   revealedCurrentPicks,
-  picksMade,
   currentWeek,
 }: {
   alive: InsightPlayer[]
   revealedCurrentPicks: Record<string, string>
-  picksMade: number
   currentWeek: InsightWeek | null
 }): ExposureModule | null {
   if (!currentWeek || alive.length === 0) return null
@@ -269,25 +263,7 @@ function buildExposure({
   const complete = revealedCount === alive.length
   const worstCase = rows[0] ?? null
   const floor = alive.length - (worstCase?.count ?? 0)
-  const topShare = worstCase ? worstCase.count / revealedCount : 0
-
-  let headline: string
-  if (!worstCase) {
-    headline = 'No picks are public yet.'
-  } else if (rows.length === 1 && complete) {
-    headline = `Every survivor is on ${worstCase.team}. One result decides the week for all of them.`
-  } else if (topShare >= 0.5) {
-    headline = `${worstCase.count} of ${revealedCount} public ${plural(revealedCount, 'pick sits', 'picks sit')} on ${worstCase.team} — one loss would cut the field to ${worstCase.survivorsIfLoses}.`
-  } else if (rows.length >= Math.max(3, revealedCount * 0.6)) {
-    headline = `The field is scattered across ${rows.length} teams. No single result costs more than ${worstCase.count} ${plural(worstCase.count, 'player', 'players')}.`
-  } else {
-    headline = `${worstCase.team} carries ${worstCase.count} of the ${revealedCount} public ${plural(revealedCount, 'pick', 'picks')} — the week's biggest single exposure.`
-  }
-
   const hiddenCount = alive.length - revealedCount
-  const deck = complete
-    ? `All ${alive.length} survivors' picks are public. The worst Sunday the pool can have leaves ${floor} alive.`
-    : `${revealedCount} of ${alive.length} survivor ${plural(revealedCount, 'pick is', 'picks are')} public so far — ${picksMade - revealedCount > 0 ? `${picksMade - revealedCount} in but still hidden, ` : ''}${alive.length - picksMade} not yet made. Bars fill in as each game locks.`
 
   return {
     rows,
@@ -298,8 +274,6 @@ function buildExposure({
     distinctTeams: rows.length,
     worstCase,
     floor,
-    headline,
-    deck,
   }
 }
 
