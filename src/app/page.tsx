@@ -8,7 +8,6 @@ import TeamChip from './components/TeamChip'
 import {
   BurnMap,
   ChalkFigure,
-  ExposureFigure,
   LeverageTable,
   OverlapFigure,
   Story,
@@ -315,14 +314,6 @@ export default async function DashboardPage() {
               accent="var(--ink)"
             />
           </div>
-
-          {/* ---- This week ---- The figure carries the week on its own; no kicker,
-              headline, deck, or method note above or below it. */}
-          {insights?.exposure && (
-            <section className="pt-10">
-              <ExposureFigure data={insights.exposure} />
-            </section>
-          )}
 
           {insights?.leverage && (
             <Story
