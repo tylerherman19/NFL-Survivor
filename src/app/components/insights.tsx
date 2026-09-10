@@ -54,7 +54,7 @@ export function Story({
 /* ------------------------------------------------------------------ */
 
 export function ExposureFigure({ data }: { data: ExposureModule }) {
-  const { rows, aliveCount, hiddenCount, complete, floor, worstCase } = data
+  const { rows, aliveCount, hiddenCount } = data
   const showHalfLine = aliveCount >= 4
 
   // Bars are measured against the whole surviving field, not against the
@@ -145,21 +145,6 @@ export function ExposureFigure({ data }: { data: ExposureModule }) {
           )}
         </div>
       </div>
-
-      {worstCase && (
-        <div
-          className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1 px-3 py-2.5 rounded"
-          style={{ background: 'var(--red-tint)' }}
-        >
-          <span className="eyebrow" style={{ color: 'var(--red)', fontSize: 9 }}>
-            {complete ? 'Worst single result' : 'Worst result so far'}
-          </span>
-          <span className="text-sm" style={{ color: 'var(--ink)' }}>
-            {teamName(worstCase.team)} lose →{' '}
-            <strong className="tnum">{floor}</strong> of {aliveCount} survive
-          </span>
-        </div>
-      )}
     </div>
   )
 }
