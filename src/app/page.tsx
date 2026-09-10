@@ -317,16 +317,12 @@ export default async function DashboardPage() {
             />
           </div>
 
-          {/* ---- This week ---- */}
+          {/* ---- This week ---- The figure carries the week on its own; no kicker,
+              headline, deck, or method note above or below it. */}
           {insights?.exposure && (
-            <Story
-              kicker={`Week ${data.week?.week_number} · Exposure`}
-              lede={insights.exposure.headline}
-              deck={insights.exposure.deck}
-              method="Built only from picks that are already public — a pick goes public the moment its game kicks off, and the rest at Sunday 12 PM CT. Survivor counts assume every other public pick holds."
-            >
+            <section className="pt-10">
               <ExposureFigure data={insights.exposure} />
-            </Story>
+            </section>
           )}
 
           {insights?.leverage && (

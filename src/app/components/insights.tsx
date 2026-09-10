@@ -32,7 +32,6 @@ export function Story({
   id,
 }: {
   kicker: string
-  /** Omitted when this finding already leads the page — never print it twice. */
   lede?: string
   deck?: string
   method?: string
