@@ -10,9 +10,11 @@
 // chart library ships to the browser.
 
 import { NFL_TEAM_NAMES } from '@/types'
+import { teamColor } from '@/lib/teamColors'
 import TeamChip from './TeamChip'
 import type {
   ChalkModule,
+  ExposureModule,
   LeverageModule,
   OverlapModule,
   ScarcityModule,
@@ -44,6 +46,65 @@ export function Story({
       {children && <div className="mt-5">{children}</div>}
       {method && <p className="method">{method}</p>}
     </section>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Exposure — revealed pick counts and the still-hidden field          */
+/* ------------------------------------------------------------------ */
+
+export function ExposureFigure({ data }: { data: ExposureModule }) {
+  const { rows, aliveCount, hiddenCount } = data
+  const widthOf = (count: number) => `${(count / Math.max(aliveCount, 1)) * 100}%`
+
+  return (
+    <div className="card p-4 sm:p-5">
+      <div className="space-y-2">
+        {rows.map((row) => (
+          <div
+            key={row.team}
+            className="grid items-center"
+            style={{ gridTemplateColumns: '58px 1fr 48px', columnGap: 12 }}
+          >
+            <TeamChip team={row.team} size={18} />
+            <div className="bar-track" style={{ height: 15 }}>
+              <div
+                className="bar-fill"
+                style={{ width: widthOf(row.count), background: teamColor(row.team).primary }}
+              />
+            </div>
+            <span className="text-right text-sm font-bold tnum" style={{ color: 'var(--ink)' }}>
+              {row.count}
+            </span>
+          </div>
+        ))}
+
+        {hiddenCount > 0 && (
+          <div
+            className="grid items-center"
+            style={{ gridTemplateColumns: '58px 1fr 48px', columnGap: 12 }}
+          >
+            <span className="eyebrow" style={{ fontSize: 9 }}>Hidden</span>
+            <div className="bar-track" style={{ height: 15 }}>
+              <div
+                className="bar-fill"
+                style={{
+                  width: widthOf(hiddenCount),
+                  background:
+                    'repeating-linear-gradient(135deg, var(--border) 0 5px, var(--surface-sunken) 5px 10px)',
+                }}
+              />
+            </div>
+            <div className="text-right leading-tight">
+              <span className="text-sm font-bold tnum" style={{ color: 'var(--muted)' }}>
+                {hiddenCount}
+              </span>
+              <span className="block" style={{ fontSize: 10, color: 'var(--muted)' }}>unknown</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
 
