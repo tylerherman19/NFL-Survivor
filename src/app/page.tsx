@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import type { StandingRow, TeamStat, Week } from '@/types'
-import { computeInsights, type PoolInsights } from '@/lib/insights'
+import { computeInsights } from '@/lib/insights'
 import Countdown from './components/Countdown'
 import LiveTicker from './components/LiveTicker'
 import SiteHeader from './components/SiteHeader'
@@ -241,16 +241,6 @@ async function getDashboardData() {
   }
 }
 
-/** The one sentence worth putting at the top of the page. */
-function topLine(insights: PoolInsights, aliveCount: number): string | null {
-  return (
-    insights.exposure?.headline ??
-    insights.trajectory?.headline ??
-    insights.chalk?.headline ??
-    (aliveCount > 0 ? null : null)
-  )
-}
-
 export default async function DashboardPage() {
   const { haveSignupsClosed } = await import('@/lib/season')
   const [data, signupsClosed] = await Promise.all([getDashboardData(), haveSignupsClosed()])
@@ -258,7 +248,6 @@ export default async function DashboardPage() {
   const aliveRows = data?.standings.filter((r) => r.status === 'alive') ?? []
   const elimRows = data?.standings.filter((r) => r.status === 'eliminated') ?? []
   const insights = data?.insights
-  const lede = data && insights ? topLine(insights, data.aliveCount) : null
 
   return (
     <div style={{ background: 'var(--cream)', minHeight: '100vh' }}>
@@ -285,7 +274,7 @@ export default async function DashboardPage() {
         </main>
       ) : (
         <main className="mx-auto max-w-5xl px-4 pb-4">
-          {/* Masthead: the week, the deadline, and the finding that leads the page */}
+          {/* Masthead: the week and the deadline */}
           <div className="pt-9 pb-6">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-5">
               <div className="min-w-0">
@@ -310,10 +299,6 @@ export default async function DashboardPage() {
                 </div>
               )}
             </div>
-
-            {lede && (
-              <p className="lede mt-6" style={{ maxWidth: '52ch' }}>{lede}</p>
-            )}
           </div>
 
           {/* Scoreboard: the four numbers, set as a ruled strip rather than four boxes */}
@@ -336,7 +321,7 @@ export default async function DashboardPage() {
           {insights?.exposure && (
             <Story
               kicker={`Week ${data.week?.week_number} · Exposure`}
-              lede={insights.exposure.headline === lede ? undefined : insights.exposure.headline}
+              lede={insights.exposure.headline}
               deck={insights.exposure.deck}
               method="Built only from picks that are already public — a pick goes public the moment its game kicks off, and the rest at Sunday 12 PM CT. Survivor counts assume every other public pick holds."
             >
@@ -431,7 +416,7 @@ export default async function DashboardPage() {
           {insights?.trajectory && (
             <Story
               kicker="Attrition"
-              lede={insights.trajectory.headline === lede ? undefined : insights.trajectory.headline}
+              lede={insights.trajectory.headline}
               deck={insights.trajectory.deck}
               method="The dashed projection compounds the season's average weekly survival rate forward. It is an extrapolation of this pool's own results, not a forecast of any game."
             >
