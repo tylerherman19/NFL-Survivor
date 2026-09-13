@@ -158,7 +158,6 @@ export default function SweatBoard() {
   }
 
   const s = data.summary
-  const inDanger = s.losing + s.noPick
   const games = [...data.games].sort(
     (a, b) =>
       GAME_ORDER[a.state] - GAME_ORDER[b.state] ||
@@ -185,16 +184,6 @@ export default function SweatBoard() {
           </p>
         )}
       </div>
-
-      {/* Danger banner */}
-      {inDanger > 0 && (
-        <div className="mt-6 rounded-lg px-4 py-3 flex items-center gap-3" style={{ background: 'var(--red-tint)', boxShadow: '0 0 0 1px var(--red)' }}>
-          <span className="inline-block w-2 h-2 rounded-full animate-pulse shrink-0" style={{ background: 'var(--red)' }} />
-          <p className="text-sm font-bold" style={{ color: 'var(--red)' }}>
-            {inDanger} player{inDanger !== 1 ? 's' : ''} facing elimination right now
-          </p>
-        </div>
-      )}
 
       {/* Summary tiles */}
       <div className="mt-6 grid grid-cols-3 sm:grid-cols-6 gap-2">
