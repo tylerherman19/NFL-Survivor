@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Player } from '@/types'
 import { NFL_TEAMS, NFL_TEAM_NAMES } from '@/types'
@@ -25,6 +25,10 @@ function actionBtn(color: 'neutral' | 'red' | 'green') {
 export default function PlayersManager({ players, activeWeekId, activeWeekNumber, currentPicks, weeksSurvived }: Props) {
   const router = useRouter()
   const [message, setMessage] = useState('')
+  const [showAdd, setShowAdd] = useState(false)
+  const [newPlayer, setNewPlayer] = useState({ full_name: '', email: '' })
+  const [addError, setAddError] = useState('')
+  const [addingPlayer, setAddingPlayer] = useState(false)
   const [csvText, setCsvText] = useState('')
   const [importing, setImporting] = useState(false)
   const [showImport, setShowImport] = useState(false)
@@ -49,7 +53,8 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
   function toggleSelect(id: string) {
     setSelected((prev) => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
       return next
     })
   }
@@ -202,6 +207,41 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
     }
   }
 
+  async function addPlayer(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setAddingPlayer(true)
+    setAddError('')
+    setMessage('')
+    try {
+      const res = await fetch('/api/admin/players', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name: newPlayer.full_name.trim(),
+          email: newPlayer.email.trim(),
+        }),
+      })
+      const data = await res.json().catch(() => null)
+      if (res.ok) {
+        setMessage(`Added ${newPlayer.full_name.trim()} and sent their welcome email`)
+        setNewPlayer({ full_name: '', email: '' })
+        setShowAdd(false)
+        router.refresh()
+      } else if (data?.playerAdded) {
+        setMessage(data.error)
+        setNewPlayer({ full_name: '', email: '' })
+        setShowAdd(false)
+        router.refresh()
+      } else {
+        setAddError(data?.error || 'Failed to add player')
+      }
+    } catch {
+      setAddError('Failed to add player')
+    } finally {
+      setAddingPlayer(false)
+    }
+  }
+
   async function handleImport() {
     if (!csvText.trim()) return
     setImporting(true)
@@ -228,14 +268,23 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
 
   return (
     <div className="space-y-6">
-      {/* Import section */}
+      {/* Add / import */}
       <div>
-        <button
-          onClick={() => setShowImport(!showImport)}
-          className="btn-primary text-sm font-semibold px-4 py-2"
-        >
-          📥 Import Players from CSV
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={() => { setShowAdd(true); setAddError('') }}
+            className="btn-primary text-sm font-semibold px-4 py-2"
+          >
+            Add Player
+          </button>
+          <button
+            onClick={() => setShowImport(!showImport)}
+            className="rounded-lg border px-4 py-2 text-sm font-semibold"
+            style={{ borderColor: 'var(--border)', color: 'var(--dark)' }}
+          >
+            Import Players from CSV
+          </button>
+        </div>
 
         {showImport && (
           <div className="card mt-4 p-4 space-y-3">
@@ -541,6 +590,64 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
       </div>
 
       {/* Admin pick modal */}
+      {showAdd && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+          <form
+            onSubmit={addPlayer}
+            className="card p-6 w-full max-w-sm space-y-4"
+            style={{ background: 'var(--surface)' }}
+          >
+            <h3 className="font-display text-2xl" style={{ color: 'var(--dark)' }}>Add Player</h3>
+            <p className="text-xs" style={{ color: 'var(--muted)' }}>
+              This bypasses the signup deadline and sends the normal welcome email with their login PIN.
+            </p>
+            <div>
+              <label htmlFor="new-player-name" className="eyebrow block mb-1">Full Name</label>
+              <input
+                id="new-player-name"
+                type="text"
+                value={newPlayer.full_name}
+                onChange={(e) => setNewPlayer({ ...newPlayer, full_name: e.target.value })}
+                autoComplete="name"
+                autoFocus
+                className="field w-full px-3 py-2 text-sm"
+                style={{ color: 'var(--dark)' }}
+              />
+            </div>
+            <div>
+              <label htmlFor="new-player-email" className="eyebrow block mb-1">Email</label>
+              <input
+                id="new-player-email"
+                type="email"
+                value={newPlayer.email}
+                onChange={(e) => setNewPlayer({ ...newPlayer, email: e.target.value })}
+                autoComplete="email"
+                className="field w-full px-3 py-2 text-sm"
+                style={{ color: 'var(--dark)' }}
+              />
+            </div>
+            {addError && <p className="text-sm" style={{ color: 'var(--red)' }}>{addError}</p>}
+            <div className="flex gap-3">
+              <button
+                type="submit"
+                disabled={addingPlayer || !newPlayer.full_name.trim() || !newPlayer.email.trim()}
+                className="btn-primary flex-1 py-2 font-semibold disabled:opacity-50"
+              >
+                {addingPlayer ? 'Adding…' : 'Add & Send Email'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowAdd(false); setAddError('') }}
+                className="flex-1 rounded-lg border py-2"
+                style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {pickModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
           <div className="card p-6 w-full max-w-sm space-y-4" style={{ background: 'var(--surface)' }}>
