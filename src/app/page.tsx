@@ -9,7 +9,6 @@ import {
   BurnMap,
   ChalkFigure,
   ExposureFigure,
-  LeverageTable,
   OverlapFigure,
   Story,
   TrajectoryFigure,
@@ -319,12 +318,6 @@ export default async function DashboardPage() {
           {insights?.exposure && (
             <section className="pt-10">
               <ExposureFigure data={insights.exposure} />
-            </section>
-          )}
-
-          {insights?.leverage && (
-            <section className="pt-10">
-              <LeverageTable data={insights.leverage} />
             </section>
           )}
 
