@@ -323,14 +323,9 @@ export default async function DashboardPage() {
           )}
 
           {insights?.leverage && (
-            <Story
-              kicker="Leverage"
-              lede={insights.leverage.headline}
-              deck={insights.leverage.deck}
-              method="Best case is the field that would remain if this pick wins and every other public pick loses. Dollar figures split the current pot across that field."
-            >
+            <section className="pt-10">
               <LeverageTable data={insights.leverage} />
-            </Story>
+            </section>
           )}
 
           {/* ---- Standings ---- */}
