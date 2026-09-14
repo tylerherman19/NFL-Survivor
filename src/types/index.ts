@@ -73,6 +73,7 @@ export interface StandingRow {
   player_id: string
   full_name: string
   status: PlayerStatus
+  elimination_week?: number | null
   weeks_survived: number
   current_pick: string | null
   pick_locked: boolean

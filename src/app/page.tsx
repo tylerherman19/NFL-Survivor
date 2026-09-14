@@ -4,6 +4,7 @@ import { computeInsights } from '@/lib/insights'
 import Countdown from './components/Countdown'
 import LiveTicker from './components/LiveTicker'
 import SiteHeader from './components/SiteHeader'
+import StandingsTable from './components/StandingsTable'
 import TeamChip from './components/TeamChip'
 import {
   BurnMap,
@@ -245,6 +246,12 @@ export default async function DashboardPage() {
 
   const aliveRows = data?.standings.filter((r) => r.status === 'alive') ?? []
   const elimRows = data?.standings.filter((r) => r.status === 'eliminated') ?? []
+  // Never serialize an unrevealed team into the client-side sort control.
+  // pick_locked preserves the public "Pick In" state without exposing the pick.
+  const clientAliveRows = aliveRows.map((row) => ({
+    ...row,
+    current_pick: row.pick_revealed ? row.current_pick : null,
+  }))
   const insights = data?.insights
 
   return (
@@ -323,67 +330,11 @@ export default async function DashboardPage() {
 
           {/* ---- Standings ---- */}
           <Section id="standings" title="Standings" className="pt-10">
-            <div className="card overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr style={{ background: 'var(--surface-sunken)' }}>
-                    <th className="py-2.5 pl-4 text-left eyebrow w-full">Player</th>
-                    <th className="py-2.5 px-4 text-left eyebrow hidden sm:table-cell whitespace-nowrap">Status</th>
-                    <th className="py-2.5 pl-4 pr-4 text-left eyebrow whitespace-nowrap">{data.week ? `Wk ${data.week.week_number} Pick` : 'Pick'}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {aliveRows.length > 0 && (
-                    <tr>
-                      <td colSpan={3} className="pt-4 pb-1.5 pl-4">
-                        <span className="pill pill-alive"><span className="pill-dot" />{aliveRows.length} Still Alive</span>
-                      </td>
-                    </tr>
-                  )}
-                  {aliveRows.map((row) => (
-                    <tr key={row.player_id} className="row-hover border-t" style={{ borderColor: 'var(--border)' }}>
-                      <td className="py-3 pl-4 font-bold" style={{ color: 'var(--dark)' }}>{row.full_name}</td>
-                      <td className="py-3 px-4 hidden sm:table-cell">
-                        <span className="pill pill-alive"><span className="pill-dot" />Alive</span>
-                      </td>
-                      <td className="py-3 pl-4 pr-4">
-                        {row.current_pick ? (
-                          row.pick_revealed ? (
-                            <TeamChip team={row.current_pick} size={18} />
-                          ) : (
-                            <span className="pill pill-alive">✓ Pick In</span>
-                          )
-                        ) : (
-                          <span className="text-xs italic" style={{ color: 'var(--red)' }}>no pick yet</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-
-                  {elimRows.length > 0 && (
-                    <tr>
-                      <td colSpan={3} className="pt-6 pb-1.5 pl-4">
-                        <span className="pill pill-out">♦ {elimRows.length} Eliminated</span>
-                      </td>
-                    </tr>
-                  )}
-                  {elimRows.map((row) => {
-                    const ew = (row as StandingRow & { elimination_week?: number | null }).elimination_week
-                    return (
-                      <tr key={row.player_id} className="border-t" style={{ borderColor: 'var(--border)', opacity: 0.65 }}>
-                        <td className="py-2.5 pl-4 text-sm" style={{ color: 'var(--muted)', textDecoration: 'line-through' }}>{row.full_name}</td>
-                        <td className="py-2.5 px-4 hidden sm:table-cell">
-                          <span className="pill pill-out">Out{ew ? ` · Wk ${ew}` : ''}</span>
-                        </td>
-                        <td className="py-2.5 pl-4 pr-4 text-xs" style={{ color: 'var(--muted)' }}>
-                          {row.elimination_reason ?? '—'}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <StandingsTable
+              aliveRows={clientAliveRows}
+              elimRows={elimRows}
+              weekNumber={data.week?.week_number ?? null}
+            />
           </Section>
 
           {/* ---- The season so far ---- */}

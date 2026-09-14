@@ -132,8 +132,15 @@ export default async function GridPage() {
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-8">
-        <h1 className="font-display text-6xl leading-none" style={{ color: 'var(--dark)' }}>PICK GRID</h1>
-        <p className="mt-2 mb-6 eyebrow">Full-season pick history · green won · red lost · ? hidden until it locks</p>
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="font-display text-6xl leading-none" style={{ color: 'var(--dark)' }}>PICK GRID</h1>
+            <p className="mt-2 eyebrow">Full-season pick history · green won · red lost · ? hidden until it locks</p>
+          </div>
+          <a href="/api/grid/export" className="btn-primary shrink-0 px-4 py-2 text-center font-display text-sm tracking-wider">
+            EXPORT TO EXCEL
+          </a>
+        </div>
 
         {weeks.length === 0 ? (
           <p className="text-sm" style={{ color: 'var(--muted)' }}>No weeks scheduled yet.</p>
@@ -147,12 +154,6 @@ export default async function GridPage() {
                     style={{ color: 'var(--muted)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', minWidth: 140, position: 'sticky', left: 0, background: 'var(--surface)', zIndex: 1 }}
                   >
                     Player
-                  </th>
-                  <th
-                    className="py-2 px-2 text-center"
-                    style={{ color: 'var(--muted)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', minWidth: 44 }}
-                  >
-                    Left
                   </th>
                   {weeks.map((w) => (
                     <th
@@ -184,9 +185,6 @@ export default async function GridPage() {
                         />
                         <span className="font-medium" style={{ color: 'var(--dark)', whiteSpace: 'nowrap' }}>{player.full_name}</span>
                       </div>
-                    </td>
-                    <td className="py-2 px-2 text-center font-mono" style={{ fontSize: 11, color: 'var(--muted)' }}>
-                      {32 - player.weeksSurvived}
                     </td>
                     {weeks.map((w) => {
                       const team = pickMap[player.id]?.[w.id]
