@@ -130,7 +130,7 @@ export default function FreespacePage() {
         <section className={styles.hero}>
           <p className={styles.kicker}>FREESPACE // A PORTFOLIO OF QUESTIONABLE DECISIONS</p>
           <h1>Free Space Futures</h1>
-          <p>A running audit of one friend&apos;s boldest bets, worst ideas, and occasional miracles.</p>
+          <p>A donation to the house</p>
         </section>
 
         <section className={styles.stats} aria-label="Portfolio summary">
