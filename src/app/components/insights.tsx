@@ -12,12 +12,7 @@
 import { NFL_TEAM_NAMES } from '@/types'
 import { teamColor } from '@/lib/teamColors'
 import TeamChip from './TeamChip'
-import type {
-  ExposureModule,
-  LeverageModule,
-  OverlapModule,
-  ScarcityModule,
-} from '@/lib/insights'
+import type { ExposureModule, LeverageModule, ScarcityModule } from '@/lib/insights'
 
 const teamName = (t: string) => NFL_TEAM_NAMES[t] ?? t
 
@@ -263,45 +258,6 @@ export function BurnMap({ data }: { data: ScarcityModule }) {
           )}
         </div>
       )}
-    </div>
-  )
-}
-
-/* ------------------------------------------------------------------ */
-/* Overlap — how alike survivors' remaining boards have become         */
-/* ------------------------------------------------------------------ */
-
-export function OverlapFigure({ data }: { data: OverlapModule }) {
-  const pairs = [
-    data.mostAlike ? { label: 'Most alike', ...data.mostAlike, accent: 'var(--red)' } : null,
-    // Red flags convergence, which is the risk worth seeing. The other pair is
-    // neutral ink — "least alike" is not a good/bad state, so it doesn't get a
-    // status color.
-    data.mostDivergent ? { label: 'Least alike', ...data.mostDivergent, accent: 'var(--ink-2)' } : null,
-  ].filter(Boolean) as { label: string; a: string; b: string; overlap: number; accent: string }[]
-
-  return (
-    <div className="card p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-8">
-      <div className="shrink-0">
-        <p className="figure-num text-6xl" style={{ color: 'var(--ink)' }}>{Math.round(data.average * 100)}%</p>
-        <p className="eyebrow mt-1.5">Average board overlap</p>
-      </div>
-      <div className="flex-1 space-y-3 min-w-0">
-        {pairs.map((p) => (
-          <div key={p.label}>
-            <div className="flex items-baseline justify-between gap-3">
-              <span className="text-xs font-bold truncate" style={{ color: 'var(--ink)' }}>
-                {p.a} <span style={{ color: 'var(--muted)' }}>&amp;</span> {p.b}
-              </span>
-              <span className="text-xs tnum shrink-0" style={{ color: 'var(--ink-2)' }}>{Math.round(p.overlap * 100)}%</span>
-            </div>
-            <div className="mt-1 bar-track" style={{ height: 8 }}>
-              <div className="bar-fill" style={{ width: `${p.overlap * 100}%`, background: p.accent }} />
-            </div>
-            <p className="eyebrow mt-1" style={{ fontSize: 9 }}>{p.label}</p>
-          </div>
-        ))}
-      </div>
     </div>
   )
 }

@@ -6,12 +6,7 @@ import LiveTicker from './components/LiveTicker'
 import SiteHeader from './components/SiteHeader'
 import StandingsTable from './components/StandingsTable'
 import TeamChip from './components/TeamChip'
-import {
-  BurnMap,
-  ExposureFigure,
-  OverlapFigure,
-  Story,
-} from './components/insights'
+import { BurnMap, ExposureFigure, Story } from './components/insights'
 
 // Cache the server render for 60 seconds — serves ~1k concurrent users from CDN
 // without hitting Supabase 1k times simultaneously. Pick deadline countdown
@@ -206,9 +201,6 @@ async function getDashboardData() {
     // the current week.
     const insights = computeInsights({
       players,
-      weeks: seasonWeeks
-        .slice()
-        .sort((a: { week_number: number }, b: { week_number: number }) => a.week_number - b.week_number),
       picks: seasonPicks,
       currentWeek: week,
       revealedCurrentPicks: revealedPicks,
@@ -334,7 +326,7 @@ export default async function DashboardPage() {
           </Section>
 
           {/* ---- The season so far ---- */}
-          {(insights?.scarcity || insights?.overlap) && (
+          {insights?.scarcity && (
             <div className="pt-12">
               <hr className="story-rule" />
               <p className="eyebrow mt-4">The season so far</p>
@@ -347,17 +339,6 @@ export default async function DashboardPage() {
               method="Counts cover surviving entries only. A team is spent for a player the moment their pick on it locks — you can't pick the same team twice all season."
             >
               <BurnMap data={insights.scarcity} />
-            </Story>
-          )}
-
-          {insights?.overlap && (
-            <Story
-              kicker="Divergence"
-              lede={insights.overlap.headline}
-              deck={insights.overlap.deck}
-              method="Overlap is the share of two survivors' unused teams that is common to both. Boards that overlap heavily tend to live and die together in later weeks."
-            >
-              <OverlapFigure data={insights.overlap} />
             </Story>
           )}
 
