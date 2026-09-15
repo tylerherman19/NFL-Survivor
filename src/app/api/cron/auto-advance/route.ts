@@ -8,7 +8,12 @@ import type { Game } from '@/types'
 
 const LAST_REGULAR_SEASON_WEEK = 18
 
-// Vercel Cron (vercel.json) — fires Tuesday noon Central (17:00/18:00 UTC).
+// The single Central hour this job is allowed to advance on. vercel.json
+// schedules two UTC runs so one of them lands here year-round; see the DST
+// guard below.
+const ADVANCE_HOUR_CENTRAL = 6
+
+// Vercel Cron (vercel.json) — fires Tuesday 6:00 AM Central (11:00/12:00 UTC).
 // That timing alone assumes the active week's games already happened, which
 // only holds if the active week was set close to its own kickoff. The admin
 // can (and does, ahead of the season) sync a week active days or weeks
@@ -21,8 +26,8 @@ export async function GET(req: NextRequest) {
   const unauthorized = await requireCronOrAdmin(req)
   if (unauthorized) return unauthorized
 
-  // The cron fires at both 17:00 and 18:00 UTC, but exactly one of those is
-  // noon Central depending on DST. Unlike auto-assign (whose deadline check
+  // The cron fires at both 11:00 and 12:00 UTC, but exactly one of those is
+  // 6:00 AM Central depending on DST. Unlike auto-assign (whose deadline check
   // makes the extra run a no-op), advancing is not idempotent — without this
   // guard the second run would advance a second time and the pool would skip
   // a week. Only real cron traffic is gated: an admin hitting this route
@@ -32,8 +37,8 @@ export async function GET(req: NextRequest) {
       new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', hour: 'numeric', hour12: false }).format(new Date()),
       10
     )
-    if (centralHour !== 12) {
-      return NextResponse.json({ ok: true, message: `Skipped: ${centralHour}:00 CT is the redundant DST-coverage run — only the noon CT run advances` })
+    if (centralHour !== ADVANCE_HOUR_CENTRAL) {
+      return NextResponse.json({ ok: true, message: `Skipped: ${centralHour}:00 CT is the redundant DST-coverage run — only the ${ADVANCE_HOUR_CENTRAL}:00 CT run advances` })
     }
   }
 
