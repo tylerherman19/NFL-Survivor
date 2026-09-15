@@ -8,11 +8,9 @@ import StandingsTable from './components/StandingsTable'
 import TeamChip from './components/TeamChip'
 import {
   BurnMap,
-  ChalkFigure,
   ExposureFigure,
   OverlapFigure,
   Story,
-  TrajectoryFigure,
 } from './components/insights'
 
 // Cache the server render for 60 seconds — serves ~1k concurrent users from CDN
@@ -212,11 +210,9 @@ async function getDashboardData() {
         .slice()
         .sort((a: { week_number: number }, b: { week_number: number }) => a.week_number - b.week_number),
       picks: seasonPicks,
-      games: allGames || [],
       currentWeek: week,
       revealedCurrentPicks: revealedPicks,
       potSize,
-      totalWeeks: TOTAL_WEEKS,
     })
 
     return {
@@ -338,40 +334,16 @@ export default async function DashboardPage() {
           </Section>
 
           {/* ---- The season so far ---- */}
-          {(insights?.trajectory || insights?.chalk || insights?.scarcity || insights?.overlap) && (
+          {(insights?.scarcity || insights?.overlap) && (
             <div className="pt-12">
               <hr className="story-rule" />
               <p className="eyebrow mt-4">The season so far</p>
             </div>
           )}
 
-          {insights?.trajectory && (
-            <Story
-              kicker="Attrition"
-              lede={insights.trajectory.headline}
-              deck={insights.trajectory.deck}
-              method="The dashed projection compounds the season's average weekly survival rate forward. It is an extrapolation of this pool's own results, not a forecast of any game."
-            >
-              <TrajectoryFigure data={insights.trajectory} />
-            </Story>
-          )}
-
-          {insights?.chalk && (
-            <Story
-              kicker="The crowd"
-              lede={insights.chalk.headline}
-              deck={insights.chalk.deck}
-              method="The crowd pick is the most-selected team in a completed week, across every entry that was still alive to make one."
-            >
-              <ChalkFigure data={insights.chalk} />
-            </Story>
-          )}
-
           {insights?.scarcity && (
             <Story
               kicker="What's left on the board"
-              lede={insights.scarcity.headline}
-              deck={insights.scarcity.deck}
               method="Counts cover surviving entries only. A team is spent for a player the moment their pick on it locks — you can't pick the same team twice all season."
             >
               <BurnMap data={insights.scarcity} />
