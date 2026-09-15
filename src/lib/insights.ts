@@ -4,8 +4,7 @@
 // no DB access, no external stats feed. The point is to surface what the pool's
 // own pick history implies but never states out loud: how concentrated the
 // field's exposure is on a single result, who owns leverage if the chalk falls,
-// which teams are effectively spent, and how alike the survivors' remaining
-// boards have become.
+// and which teams are effectively spent.
 //
 // Reveal safety: the caller passes only *revealed* current-week picks (see
 // isPickRevealed). Anything keyed off the current week therefore describes
@@ -35,8 +34,6 @@ export interface InsightPick {
 export interface InsightsInput {
   /** Real players in the season being played (internal test accounts already filtered out). */
   players: InsightPlayer[]
-  /** This season's weeks, ascending by week_number. */
-  weeks: InsightWeek[]
   /** This season's picks, real players only. */
   picks: InsightPick[]
   currentWeek: InsightWeek | null
@@ -104,27 +101,16 @@ export interface ScarcityModule {
   exhausted: string[]
 }
 
-export interface OverlapModule {
-  /** Mean pairwise overlap of survivors' unused teams, 0–1. */
-  average: number
-  mostAlike: { a: string; b: string; overlap: number } | null
-  mostDivergent: { a: string; b: string; overlap: number } | null
-  headline: string
-  deck: string
-}
-
 export interface PoolInsights {
   exposure: ExposureModule | null
   leverage: LeverageModule | null
   scarcity: ScarcityModule | null
-  overlap: OverlapModule | null
 }
 
-const pct = (n: number) => `${Math.round(n * 100)}%`
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many)
 
 export function computeInsights(input: InsightsInput): PoolInsights {
-  const { players, weeks, picks, currentWeek, revealedCurrentPicks, potSize } = input
+  const { players, picks, currentWeek, revealedCurrentPicks, potSize } = input
 
   const alive = players.filter((p) => p.status === 'alive')
   const nameById: Record<string, string> = {}
@@ -134,7 +120,6 @@ export function computeInsights(input: InsightsInput): PoolInsights {
   // its picks are only partly public and, for anyone still able to change one,
   // not yet spent.
   const pastPicks = picks.filter((p) => !currentWeek || p.week_id !== currentWeek.id)
-  const completedWeeks = weeks.filter((w) => !currentWeek || w.week_number < currentWeek.week_number)
 
   // Teams each survivor has spent: every past pick, plus this week's pick once
   // it is public and locked.
@@ -151,7 +136,6 @@ export function computeInsights(input: InsightsInput): PoolInsights {
     exposure: buildExposure({ alive, revealedCurrentPicks, currentWeek }),
     leverage: buildLeverage({ alive, revealedCurrentPicks, potSize, nameById }),
     scarcity: buildScarcity({ alive, usedByPlayer, nameById, pastPicks }),
-    overlap: buildOverlap({ alive, usedByPlayer, completedWeeks }),
   }
 }
 
@@ -301,63 +285,4 @@ function buildScarcity({
     uniqueHolds,
     exhausted,
   }
-}
-
-function buildOverlap({
-  alive,
-  usedByPlayer,
-  completedWeeks,
-}: {
-  alive: InsightPlayer[]
-  usedByPlayer: Record<string, Set<string>>
-  completedWeeks: InsightWeek[]
-}): OverlapModule | null {
-  // Before a few weeks are in the books every board is nearly identical, so the
-  // number carries no information.
-  if (alive.length < 3 || completedWeeks.length < 3) return null
-
-  const unused: Record<string, Set<string>> = {}
-  for (const p of alive) {
-    const used = usedByPlayer[p.id] ?? new Set<string>()
-    unused[p.id] = new Set(NFL_TEAMS.filter((t) => !used.has(t)))
-  }
-
-  let sum = 0
-  let pairs = 0
-  let mostAlike: { a: string; b: string; overlap: number } | null = null
-  let mostDivergent: { a: string; b: string; overlap: number } | null = null
-
-  for (let i = 0; i < alive.length; i++) {
-    for (let j = i + 1; j < alive.length; j++) {
-      const a = unused[alive[i].id]
-      const b = unused[alive[j].id]
-      let shared = 0
-      for (const t of a) if (b.has(t)) shared++
-      const union = a.size + b.size - shared
-      const overlap = union > 0 ? shared / union : 0
-      sum += overlap
-      pairs++
-      const entry = { a: alive[i].full_name, b: alive[j].full_name, overlap }
-      if (!mostAlike || overlap > mostAlike.overlap) mostAlike = entry
-      if (!mostDivergent || overlap < mostDivergent.overlap) mostDivergent = entry
-    }
-  }
-
-  if (pairs === 0) return null
-  const average = sum / pairs
-
-  let headline: string
-  if (average >= 0.8) {
-    headline = `Survivors' remaining boards are ${pct(average)} identical. The field is running out of ways to differ.`
-  } else if (average <= 0.6) {
-    headline = `Survivors have taken genuinely different paths — remaining boards overlap just ${pct(average)}.`
-  } else {
-    headline = `Remaining boards overlap ${pct(average)} on average. The field is converging, not yet locked together.`
-  }
-
-  const deck = mostAlike && mostDivergent
-    ? `${mostAlike.a} and ${mostAlike.b} are ${pct(mostAlike.overlap)} alike — they will keep facing the same board. ${mostDivergent.a} and ${mostDivergent.b} share the least at ${pct(mostDivergent.overlap)}.`
-    : 'Overlap measures how much of two survivors’ unused rosters is the same.'
-
-  return { average, mostAlike, mostDivergent, headline, deck }
 }
