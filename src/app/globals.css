@@ -152,17 +152,27 @@ body {
 /* Subtle row hover for tables */
 .row-hover { transition: background 0.12s; }
 
-/* Continuous auto-scrolling ticker (score bar) */
-@keyframes ticker-scroll {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
+/* Score ticker (score bar) — one continuous velocity, not a keyframe loop.
+   LiveTicker drives .ticker-track's transform from a rAF loop, so the cruise,
+   a drag and a flick are all the same motion. Reduced motion is handled there
+   too: the cruise target drops to 0 and the strip stays draggable, which beats
+   freezing it mid-strip with no way to read the rest. */
+.ticker-viewport {
+  overflow: hidden;
+  /* Vertical page scroll still belongs to the page; horizontal is ours. */
+  touch-action: pan-y;
+  overscroll-behavior-x: contain;
+  cursor: grab;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
-.ticker-track {
-  animation: ticker-scroll linear infinite;
-}
-@media (prefers-reduced-motion: reduce) {
-  .ticker-track { animation: none; }
-}
+.ticker-viewport:active { cursor: grabbing; }
+.ticker-viewport:focus-visible { outline: 2px solid var(--dark); outline-offset: -2px; }
+.ticker-track,
+.ticker-sequence { display: flex; width: max-content; }
+.ticker-track { will-change: transform; backface-visibility: hidden; }
+.ticker-sequence { flex: 0 0 auto; }
 .row-hover:hover { background: var(--surface); }
 
 /* --- Editorial modules ---------------------------------------------------
