@@ -442,11 +442,8 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
                 ) : null}
                 <button
                   onClick={() => toggleEmailOptOut(p)}
-                  className="pill ml-auto"
-                  style={{
-                    background: p.email_opted_out ? 'var(--red-tint)' : 'var(--green-tint)',
-                    color: p.email_opted_out ? 'var(--red)' : 'var(--green)',
-                  }}
+                  className="ml-auto rounded border px-2 py-1 text-xs"
+                  style={actionBtn(p.email_opted_out ? 'red' : 'green')}
                 >
                   {p.email_opted_out ? 'Email off' : 'Email on'}
                 </button>
@@ -571,11 +568,8 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
                   <td className="px-4 py-3">
                     <button
                       onClick={() => toggleEmailOptOut(p)}
-                      className="pill"
-                      style={{
-                        background: p.email_opted_out ? 'var(--red-tint)' : 'var(--green-tint)',
-                        color: p.email_opted_out ? 'var(--red)' : 'var(--green)',
-                      }}
+                      className="rounded border px-2 py-0.5 text-xs"
+                      style={actionBtn(p.email_opted_out ? 'red' : 'green')}
                     >
                       {p.email_opted_out ? 'Opted out' : 'Subscribed'}
                     </button>
