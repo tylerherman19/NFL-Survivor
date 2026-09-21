@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
     // Failures are logged to the audit trail instead of surfaced inline —
     // the player can always use "Forgot PIN" to recover.
     after(async () => {
-      const emailResult = await sendWelcomeEmail(emailLower, name, pin)
+      const emailResult = await sendWelcomeEmail(inserted.id, emailLower, name, pin)
       if (!emailResult.ok) {
         await logAudit(supabase, {
           event_type: 'welcome-email-failed',

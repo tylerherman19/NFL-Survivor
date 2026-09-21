@@ -1,5 +1,6 @@
 import { Resend } from 'resend'
 import { NFL_TEAM_NAMES } from '@/types'
+import { createUnsubscribeLinks } from './unsubscribe'
 
 let _resend: Resend | null = null
 export function getResend() {
@@ -47,11 +48,27 @@ export function isDeliverable(email: string): boolean {
 }
 
 async function sendChecked(payload: {
+  playerId: string
   to: string
   subject: string
   html: string
 }): Promise<SendResult> {
-  const { error } = await getResend().emails.send({ from: FROM_EMAIL, ...payload })
+  const { pageUrl, oneClickUrl } = await createUnsubscribeLinks(payload.playerId)
+  const footer = `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 24px auto 0; padding-top: 16px; border-top: 1px solid #e5e5e5; color: #777; font-size: 12px; text-align: center;">
+      Don&rsquo;t want pool emails? <a href="${esc(pageUrl)}" style="color: #555; text-decoration: underline;">Unsubscribe</a>
+    </div>
+  `
+  const { error } = await getResend().emails.send({
+    from: FROM_EMAIL,
+    to: payload.to,
+    subject: payload.subject,
+    html: `${payload.html}${footer}`,
+    headers: {
+      'List-Unsubscribe': `<${oneClickUrl}>`,
+      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+    },
+  })
   if (error) {
     console.error(`Email to ${payload.to} failed ("${payload.subject}"):`, error)
     return { ok: false, error: error.message }
@@ -60,6 +77,7 @@ async function sendChecked(payload: {
 }
 
 export async function sendWelcomeEmail(
+  playerId: string,
   email: string,
   fullName: string,
   pin: string
@@ -67,6 +85,7 @@ export async function sendWelcomeEmail(
   if (!isDeliverable(email)) return { ok: true }
   const name = esc(fullName)
   return sendChecked({
+    playerId,
     to: email,
     subject: "Welcome to the 2026 NFL Survivor Pool — You're In!",
     html: `
@@ -96,12 +115,14 @@ export async function sendWelcomeEmail(
 }
 
 export async function sendPinRegeneratedEmail(
+  playerId: string,
   email: string,
   fullName: string,
   pin: string
 ): Promise<SendResult> {
   if (!isDeliverable(email)) return { ok: true }
   return sendChecked({
+    playerId,
     to: email,
     subject: 'Your PIN Has Been Reset',
     html: `
@@ -116,6 +137,7 @@ export async function sendPinRegeneratedEmail(
 }
 
 export async function sendPickConfirmationEmail(
+  playerId: string,
   email: string,
   fullName: string,
   teamAbbr: string,
@@ -124,6 +146,7 @@ export async function sendPickConfirmationEmail(
   if (!isDeliverable(email)) return { ok: true }
   const teamName = NFL_TEAM_NAMES[teamAbbr] || teamAbbr
   return sendChecked({
+    playerId,
     to: email,
     subject: `You're Rolling With ${teamName} — Week ${weekNumber}`,
     html: `
@@ -141,6 +164,7 @@ export async function sendPickConfirmationEmail(
 
 // `teamAbbr` is null for a missed-deadline elimination (no team was picked).
 export async function sendEliminationEmail(
+  playerId: string,
   email: string,
   fullName: string,
   teamAbbr: string | null,
@@ -152,6 +176,7 @@ export async function sendEliminationEmail(
     ? `Well&hellip; ${esc(teamName)} came up short.`
     : `Well&hellip; you missed the deadline.`
   return sendChecked({
+    playerId,
     to: email,
     subject: `Tough One — You're Out Week ${weekNumber}`,
     html: `
@@ -169,6 +194,7 @@ export async function sendEliminationEmail(
 }
 
 export async function sendReminderEmail(
+  playerId: string,
   email: string,
   fullName: string,
   weekNumber: number,
@@ -176,6 +202,7 @@ export async function sendReminderEmail(
 ): Promise<SendResult> {
   if (!isDeliverable(email)) return { ok: true }
   return sendChecked({
+    playerId,
     to: email,
     subject: `Don't Sleep On This — Week ${weekNumber} Pick Due Soon`,
     html: `
@@ -188,6 +215,29 @@ export async function sendReminderEmail(
         <a href="${APP_URL}/pick" style="display: inline-block; background: #1a1a1a; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">Submit My Pick</a>
         <p style="margin-top: 24px;">Good luck,</p>
         <p>Griffin Sell</p>
+      </div>
+    `,
+  })
+}
+
+export async function sendBroadcastEmail(
+  playerId: string,
+  email: string,
+  fullName: string,
+  subject: string,
+  message: string
+): Promise<SendResult> {
+  if (!isDeliverable(email)) return { ok: true }
+  const htmlBody = esc(message.trim()).replace(/\r?\n/g, '<br />')
+  return sendChecked({
+    playerId,
+    to: email,
+    subject: subject.trim(),
+    html: `
+      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+        <p>Hey ${esc(fullName)},</p>
+        <p>${htmlBody}</p>
+        <p style="margin-top: 24px; color: #666; font-size: 14px;">&mdash; NFL Survivor Pool</p>
       </div>
     `,
   })

@@ -18,7 +18,7 @@ export async function PATCH(
   const body = await req.json()
   const supabase = await getDb()
 
-  const allowed = ['paid', 'status', 'elimination_reason', 'elimination_week', 'full_name', 'email']
+  const allowed = ['paid', 'status', 'elimination_reason', 'elimination_week', 'full_name', 'email', 'email_opted_out']
   const updates: Record<string, unknown> = {}
   for (const key of allowed) {
     if (key in body) updates[key] = body[key]
@@ -28,6 +28,9 @@ export async function PATCH(
   }
   if ('status' in updates && updates.status !== 'alive' && updates.status !== 'eliminated') {
     return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
+  }
+  if ('email_opted_out' in updates && typeof updates.email_opted_out !== 'boolean') {
+    return NextResponse.json({ error: 'Invalid email preference' }, { status: 400 })
   }
 
   // full_name is the login key but doesn't have to be unique — login tries
@@ -74,6 +77,8 @@ export async function PATCH(
   })
 
   revalidatePath('/')
+  revalidatePath('/admin/players')
+  revalidatePath('/admin/email')
   return NextResponse.json({ ok: true })
 }
 

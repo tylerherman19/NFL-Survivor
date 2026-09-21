@@ -22,6 +22,7 @@ export const AUDIT_EVENT_TYPES: Record<string, string> = {
   'broadcast-sent': 'Broadcast sent',
   'pool-reset': 'Pool reset',
   'welcome-email-failed': 'Welcome email failed',
+  'email-unsubscribed': 'Email unsubscribed',
   'player-signed-up': 'Player signed up',
 }
 

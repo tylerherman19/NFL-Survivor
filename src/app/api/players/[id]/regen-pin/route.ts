@@ -35,7 +35,7 @@ export async function POST(
 
   // The PIN is already saved, so a failed send needs the admin to retry —
   // surface it.
-  const emailResult = await sendPinRegeneratedEmail(player.email, player.full_name, pin)
+  const emailResult = await sendPinRegeneratedEmail(player.id, player.email, player.full_name, pin)
 
   await logAudit(supabase, {
     event_type: 'pin-regenerated',

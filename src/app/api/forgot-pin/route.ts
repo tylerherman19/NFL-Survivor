@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
 
     await supabase.from('players').update({ pin_hash }).eq('id', player.id)
 
-    const emailResult = await sendPinRegeneratedEmail(player.email, player.full_name, pin)
+    const emailResult = await sendPinRegeneratedEmail(player.id, player.email, player.full_name, pin)
 
     await logAudit(supabase, {
       event_type: 'pin-regenerated',

@@ -53,7 +53,7 @@ export async function gradeWeekPicks(
 
   const { data: picks } = await db
     .from('picks')
-    .select('id, player_id, team, players(id, full_name, email, status)')
+    .select('id, player_id, team, players(id, full_name, email, email_opted_out, status)')
     .eq('week_id', weekId)
 
   const eliminated: string[] = []
@@ -64,6 +64,7 @@ export async function gradeWeekPicks(
       id: string
       full_name: string
       email: string
+      email_opted_out: boolean
       status: string
     } | null
     if (!player || player.status !== 'alive') continue
@@ -100,8 +101,8 @@ export async function gradeWeekPicks(
       })
       // Awaited: fire-and-forget sends can be dropped when the serverless
       // function is frozen after responding; paced for Resend's rate limit.
-      if (player.email) {
-        await sendEliminationEmail(player.email, player.full_name, pick.team, weekNumber)
+      if (player.email && !player.email_opted_out) {
+        await sendEliminationEmail(player.id, player.email, player.full_name, pick.team, weekNumber)
         await sleep(SEND_DELAY_MS)
       }
     } else if (winners.has(pick.team)) {

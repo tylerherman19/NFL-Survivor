@@ -93,6 +93,22 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
     else setMessage('Failed to update')
   }
 
+  async function toggleEmailOptOut(player: Player) {
+    const res = await fetch(`/api/players/${player.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email_opted_out: !player.email_opted_out }),
+    })
+    if (res.ok) {
+      setMessage(
+        `${player.full_name} ${player.email_opted_out ? 'will receive pool emails' : 'was removed from pool email lists'}`
+      )
+      router.refresh()
+    } else {
+      setMessage('Failed to update email preference')
+    }
+  }
+
   async function regenPin(playerId: string, fullName: string) {
     if (!confirm(`Regenerate PIN for ${fullName}? They'll get a new email.`)) return
     const res = await fetch(`/api/players/${playerId}/regen-pin`, { method: 'POST' })
@@ -424,6 +440,16 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
                 ) : p.status === 'alive' ? (
                   <span className="text-xs" style={{ color: 'var(--red)' }}>pending pick</span>
                 ) : null}
+                <button
+                  onClick={() => toggleEmailOptOut(p)}
+                  className="pill ml-auto"
+                  style={{
+                    background: p.email_opted_out ? 'var(--red-tint)' : 'var(--green-tint)',
+                    color: p.email_opted_out ? 'var(--red)' : 'var(--green)',
+                  }}
+                >
+                  {p.email_opted_out ? 'Email off' : 'Email on'}
+                </button>
               </div>
 
               {/* Third row: weeks survived */}
@@ -488,13 +514,14 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
               <th className="px-4 py-3 eyebrow">This Week</th>
               <th className="px-4 py-3 eyebrow">Paid</th>
               <th className="px-4 py-3 eyebrow">Email</th>
+              <th className="px-4 py-3 eyebrow">Email List</th>
               <th className="px-4 py-3 eyebrow">Actions</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 && query && (
               <tr>
-                <td colSpan={8} className="px-4 py-6 text-center text-sm" style={{ color: 'var(--muted)' }}>
+                <td colSpan={9} className="px-4 py-6 text-center text-sm" style={{ color: 'var(--muted)' }}>
                   No players match &ldquo;{search}&rdquo;.
                 </td>
               </tr>
@@ -541,6 +568,18 @@ export default function PlayersManager({ players, activeWeekId, activeWeekNumber
                     </button>
                   </td>
                   <td className="px-4 py-3 text-xs" style={{ color: 'var(--muted)' }}>{p.email}</td>
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={() => toggleEmailOptOut(p)}
+                      className="pill"
+                      style={{
+                        background: p.email_opted_out ? 'var(--red-tint)' : 'var(--green-tint)',
+                        color: p.email_opted_out ? 'var(--red)' : 'var(--green)',
+                      }}
+                    >
+                      {p.email_opted_out ? 'Opted out' : 'Subscribed'}
+                    </button>
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2 flex-wrap">
                       <button

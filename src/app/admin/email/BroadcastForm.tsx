@@ -5,7 +5,7 @@ import { useState } from 'react'
 type Audience = 'all' | 'alive' | 'unpicked'
 
 interface Props {
-  counts: { all: number; alive: number; unpicked: number | null }
+  counts: { all: number; alive: number; unpicked: number | null; optedOut: number }
   weekNumber: number | null
 }
 
@@ -68,6 +68,11 @@ export default function BroadcastForm({ counts, weekNumber }: Props) {
               : `No Week ${weekNumber} pick yet (${counts.unpicked})`}
           </option>
         </select>
+        {counts.optedOut > 0 && (
+          <p className="mt-1.5 text-xs text-slate-400">
+            {counts.optedOut} opted-out player{counts.optedOut === 1 ? '' : 's'} excluded from every audience.
+          </p>
+        )}
       </div>
 
       <div>

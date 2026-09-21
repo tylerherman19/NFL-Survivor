@@ -11,7 +11,7 @@ export default async function PlayersPage() {
 
   const { data: players } = await supabase
     .from('players')
-    .select('id, full_name, email, phone, venmo_handle, paid, status, elimination_week, elimination_reason')
+    .select('id, full_name, email, email_opted_out, phone, venmo_handle, paid, status, elimination_week, elimination_reason')
     .order('status')
     .order('full_name')
 

@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
       details: { email },
     })
 
-    const emailResult = await sendWelcomeEmail(email, name, pin)
+    const emailResult = await sendWelcomeEmail(player.id, email, name, pin)
     if (!emailResult.ok) {
       await logAudit(supabase, {
         event_type: 'welcome-email-failed',

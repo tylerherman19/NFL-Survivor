@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/testMode'
 import { requireAdmin } from '@/lib/api'
-import { getResend, esc, isDeliverable, FROM_EMAIL } from '@/lib/email'
+import { isDeliverable, sendBroadcastEmail } from '@/lib/email'
 import { logAudit } from '@/lib/audit'
 
 // Sends are paced at ~1.6/sec for Resend rate limits, so allow up to 4 min of runtime
@@ -38,11 +38,13 @@ export async function POST(req: NextRequest) {
     const supabase = await getDb()
     const { data: allPlayers, error } = await supabase
       .from('players')
-      .select('id, full_name, email, status')
+      .select('id, full_name, email, status, email_opted_out')
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
     // Internal test accounts have fake emails that would bounce
-    let recipients = (allPlayers || []).filter((p) => p.email && isDeliverable(p.email))
+    let recipients = (allPlayers || []).filter(
+      (p) => p.email && !p.email_opted_out && isDeliverable(p.email)
+    )
 
     if (audience === 'alive') {
       recipients = recipients.filter((p) => p.status === 'alive')
@@ -61,28 +63,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Audience too large (${recipients.length} > ${MAX_RECIPIENTS})` }, { status: 400 })
     }
 
-    const resend = getResend()
-    const htmlBody = esc(message.trim()).replace(/\r?\n/g, '<br />')
-
     let sent = 0
     const failures: string[] = []
     for (const player of recipients) {
-      // Resend reports failures via `error`, it does not throw — check it,
-      // or the send report would claim success for every recipient.
-      const { error: sendError } = await resend.emails.send({
-        from: FROM_EMAIL,
-        to: player.email,
-        subject: subject.trim(),
-        html: `
-          <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-            <p>Hey ${esc(player.full_name)},</p>
-            <p>${htmlBody}</p>
-            <p style="margin-top: 24px; color: #666; font-size: 14px;">— NFL Survivor Pool</p>
-          </div>
-        `,
-      })
-      if (sendError) {
-        console.error(`Broadcast to ${player.email} failed:`, sendError)
+      const result = await sendBroadcastEmail(
+        player.id,
+        player.email,
+        player.full_name,
+        subject,
+        message
+      )
+      if (!result.ok) {
         failures.push(player.full_name)
       } else {
         sent++

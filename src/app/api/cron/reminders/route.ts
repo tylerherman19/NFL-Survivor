@@ -53,6 +53,7 @@ export async function GET(req: NextRequest) {
       .from('players')
       .select('id, full_name, email')
       .eq('status', 'alive')
+      .eq('email_opted_out', false)
 
     const { data: existingPicks } = await supabase
       .from('picks')
@@ -72,6 +73,7 @@ export async function GET(req: NextRequest) {
     for (const player of toRemind) {
       if (!player.email) continue
       const result = await sendReminderEmail(
+        player.id,
         player.email,
         player.full_name,
         week.week_number,

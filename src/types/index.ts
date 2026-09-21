@@ -7,6 +7,7 @@ export interface Player {
   full_name: string
   phone: string | null
   email: string
+  email_opted_out: boolean
   venmo_handle: string | null
   paid: boolean
   status: PlayerStatus

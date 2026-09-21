@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
     // Find alive players without a pick for this week
     const { data: alivePlayers } = await supabase
       .from('players')
-      .select('id, full_name, email')
+      .select('id, full_name, email, email_opted_out')
       .eq('status', 'alive')
 
     if (!alivePlayers || alivePlayers.length === 0) {
@@ -119,8 +119,8 @@ export async function GET(req: NextRequest) {
         // Awaited: fire-and-forget sends can be dropped when the serverless
         // function is frozen after responding. Failures are logged inside the
         // sender; the assignment itself already succeeded.
-        if (player.email) {
-          await sendPickConfirmationEmail(player.email, player.full_name, autoTeam, week.week_number)
+        if (player.email && !player.email_opted_out) {
+          await sendPickConfirmationEmail(player.id, player.email, player.full_name, autoTeam, week.week_number)
         }
 
         results.push({ player: player.full_name, action: `auto-assigned ${autoTeam}` })
@@ -151,8 +151,8 @@ export async function GET(req: NextRequest) {
           details: { week_number: week.week_number, cause: 'missed-deadline' },
         })
 
-        if (player.email) {
-          await sendEliminationEmail(player.email, player.full_name, null, week.week_number)
+        if (player.email && !player.email_opted_out) {
+          await sendEliminationEmail(player.id, player.email, player.full_name, null, week.week_number)
         }
 
         results.push({ player: player.full_name, action: 'eliminated (no auto-assign available)' })

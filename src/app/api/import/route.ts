@@ -79,15 +79,19 @@ export async function POST(req: NextRequest) {
         const pin = generatePin()
         const pin_hash = await hashPin(pin)
 
-        const { error } = await supabase.from('players').insert({
-          full_name: row.full_name,
-          phone: row.phone || null,
-          email: row.email,
-          venmo_handle: row.venmo_handle || null,
-          paid: row.paid,
-          status: 'alive',
-          pin_hash,
-        })
+        const { data: inserted, error } = await supabase
+          .from('players')
+          .insert({
+            full_name: row.full_name,
+            phone: row.phone || null,
+            email: row.email,
+            venmo_handle: row.venmo_handle || null,
+            paid: row.paid,
+            status: 'alive',
+            pin_hash,
+          })
+          .select('id')
+          .single()
 
         if (error) {
           errors.push(`${row.full_name}: ${error.message}`)
@@ -96,7 +100,7 @@ export async function POST(req: NextRequest) {
 
         // A dropped welcome email means a player who never receives their PIN
         // — surface it to the admin instead of reporting silent success.
-        const emailResult = await sendWelcomeEmail(row.email, row.full_name, pin)
+        const emailResult = await sendWelcomeEmail(inserted.id, row.email, row.full_name, pin)
         if (!emailResult.ok) {
           errors.push(`${row.full_name}: created, but welcome email failed — regenerate their PIN to resend it`)
         }

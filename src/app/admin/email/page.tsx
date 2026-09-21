@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { getAdminSession } from '@/lib/session'
 import { getDb } from '@/lib/testMode'
 import BroadcastForm from './BroadcastForm'
@@ -9,19 +10,21 @@ export default async function AdminEmailPage() {
   const supabase = await getDb()
 
   const [{ data: players }, { data: week }] = await Promise.all([
-    supabase.from('players').select('id, email, status'),
+    supabase.from('players').select('id, email, status, email_opted_out'),
     supabase.from('weeks').select('id, week_number').eq('is_active', true).single(),
   ])
 
   // Match the broadcast route's recipient logic so previewed counts are accurate
   const real = (players || []).filter((p) => !p.email?.endsWith('@nflsurvivor.internal'))
-  const aliveCount = real.filter((p) => p.status === 'alive').length
+  const subscribed = real.filter((p) => !p.email_opted_out)
+  const optedOutCount = real.length - subscribed.length
+  const aliveCount = subscribed.filter((p) => p.status === 'alive').length
 
   let unpickedCount: number | null = null
   if (week) {
     const { data: picks } = await supabase.from('picks').select('player_id').eq('week_id', week.id)
     const pickedIds = new Set((picks || []).map((p) => p.player_id))
-    unpickedCount = real.filter((p) => p.status === 'alive' && !pickedIds.has(p.id)).length
+    unpickedCount = subscribed.filter((p) => p.status === 'alive' && !pickedIds.has(p.id)).length
   }
 
   return (
@@ -31,12 +34,17 @@ export default async function AdminEmailPage() {
         <p className="text-slate-400 mt-1">
           Send a broadcast to the pool. Plain text — line breaks are preserved.
         </p>
+        <p className="text-slate-400 mt-1 text-sm">
+          Opted-out players are always excluded. Change a player&apos;s setting in{' '}
+          <Link href="/admin/players" className="underline text-slate-300">Manage Players</Link>.
+        </p>
       </div>
       <BroadcastForm
         counts={{
-          all: real.length,
+          all: subscribed.length,
           alive: aliveCount,
           unpicked: unpickedCount,
+          optedOut: optedOutCount,
         }}
         weekNumber={week?.week_number ?? null}
       />
